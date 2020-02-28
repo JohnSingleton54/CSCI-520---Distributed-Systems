@@ -4,6 +4,7 @@ import socket
 import time
 
 # From: https://realpython.com/python-sockets/
+# See: https://stackoverflow.com/questions/53174079/how-to-socket-communication-between-2-different-amazon-ec2
 
 HOST = '127.0.0.1'  # The server's hostname or IP address
 PORT = 65432        # The port used by the server
