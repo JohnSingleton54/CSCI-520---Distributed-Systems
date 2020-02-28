@@ -1,1 +1,1 @@
-# CSCI 520 - Distributed Systems
+# CSCI 520 - Distributed Systems Sup Doge!
