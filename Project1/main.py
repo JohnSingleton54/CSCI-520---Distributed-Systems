@@ -12,7 +12,7 @@ import connections
 
 
 useMyHost = True
-hostsAndPorts = {
+nodeIdToHostsAndPorts = {
   1: "127.0.0.1:8080",
   2: "127.0.0.1:8181",
   3: "127.0.0.1:8282",
@@ -27,17 +27,19 @@ def recordMessage(message):
   recordLock.release()
 
 
-def main(myNum):
+def main(myNodeId):
   global useMyHost
-  global hostsAndPorts
+  global nodeIdToHostsAndPorts
+
+  print("My Node Id is %d" % (myNodeId))
 
   # Setup the connection to listen to
-  listener = connections.listener(recordMessage, hostsAndPorts[myNum], useMyHost)
+  listener = connections.listener(recordMessage, nodeIdToHostsAndPorts[myNodeId], useMyHost)
 
   # Setup the collection of connections to talk to the other instances
   talkers = []
-  for num, hostAndPort in hostsAndPorts.items():
-    if num != myNum:
+  for nodeId, hostAndPort in nodeIdToHostsAndPorts.items():
+    if nodeId != myNodeId:
       talker = connections.talker(hostAndPort)
       talkers.append(talker)
 
