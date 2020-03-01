@@ -97,9 +97,8 @@ class distributedLog:
     for r in newRecords:
       self.perform(r)
  
-  def trimLogs():
+  def trimLogs(self):
     # PLi := {eR|eR in (PLi union NE) and (all j in [n]) not hasrec(Ti, eR, j)}
-
     
     # TODO: Implement
     pass
@@ -116,16 +115,16 @@ class distributedLog:
 
 
 #### Just for testing
-# log0 = distributedLog(0, 3)
-# log0.insert("Meeting", "Mon", "12:00", "13:00", [0, 1])
-# log0.insert("Meetup", "Tues", "13:00", "14:00", [0, 1])
-# log0.delete("Meetup")
-# msg = log0.getSendMessage(1)
+log0 = distributedLog(0, 3)
+log0.insert("Meeting", "Mon", "12:00", "13:00", [0, 1])
+log0.insert("Meetup", "Tues", "13:00", "14:00", [0, 1])
+log0.delete("Meetup")
+msg = log0.getSendMessage(1)
 
-# print("========================")
-# print(msg)
-# print("========================")
+print("========================")
+print(msg)
+print("========================")
 
-# log1 = distributedLog(1, 3)
-# log1.receiveMessage(msg)
-# log1.printLogs()
+log1 = distributedLog(1, 3)
+log1.receiveMessage(msg)
+log1.printLogs()
