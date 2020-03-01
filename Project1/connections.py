@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python
 
 import threading
 import time
@@ -28,30 +28,22 @@ class listener:
     self.thread.start()
 
   def __run(self):
+    # This method run in a separete thread to listen to the socket.
+    # Any message which comes in is passed to handleMethod.
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind((self.host, self.port))
+    s.listen(1)
+    conn, addr = s.accept()
     while not self.timeToDie:
-      try:
-        # This method run in a separete thread to listen to the socket.
-        # Any message which comes in is passed to handleMethod.
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.bind((self.host, self.port))
-        s.settimeout(3)
-        s.listen()
-        conn, addr = s.accept()
-        while not self.timeToDie:
-          # Use select to timeout after 1 seconds to check if it is time to die.
-          ready = select.select([conn], [], [], 1)
-          if ready[0]:
-            data = conn.recv(4096)
-            if data:
-              # Got a message send it to the handle method.
-              self.handleMethod(data.decode())
-        # Close connection, close socket, and exit thread
-        conn.close()
-        s.close()
-        return
-      except Exception as e:
-        # Failed to connect, wait a little bit until the listener is there.
-        time.sleep(1)
+      # Use select to timeout after 5 seconds to check if it is time to die.
+      data = conn.recv(4096)
+      if data:
+        # Got a message send it to the handle method.
+        self.handleMethod(data.decode())
+    # Close connection, close socket, and exit thread
+    conn.close()
+    s.close()
+    return
 
   def close(self):
     # Close will stop the listener.
@@ -99,7 +91,7 @@ class talker:
         return
       except Exception as e:
         # Failed to connect, wait a little bit until the listener is there.
-        time.sleep(1)
+        time.sleep(3)
 
   def send(self, message):
     # Adds the message to the pending messages to be send to the socket.
