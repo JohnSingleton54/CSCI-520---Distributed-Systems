@@ -1,9 +1,9 @@
 #!/usr/bin/env python2
 
 # Example usage:
-# - In console 1 call "python ./helloRecord.py 1"
-# - In console 2 call "python ./helloRecord.py 2"
-# - (optional) In console 3 call "python ./helloRecord.py 3"
+# - In console 1 call "python ./main.py 1"
+# - In console 2 call "python ./main.py 2"
+# - (optional) In console 3 call "python ./main.py 3"
 
 import threading
 import sys
