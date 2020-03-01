@@ -17,35 +17,42 @@ class listener:
   # This is a class to listen for incoming messages from the given host and port.
   # This will callback to the given method for handling messages.
 
-  def __init__(self, handleMethod, host, port):
+  def __init__(self, handleMethod, hostAndPort):
     # Creates a new listener to the given host and port.
     super().__init__()
     self.handleMethod = handleMethod
-    self.host = host
-    self.port = port
+    parts = hostAndPort.split(':')
+    self.host = parts[0]
+    self.port = int(parts[1])
     self.timeToDie = False
     self.thread = threading.Thread(target=self.__run)
     self.thread.start()
 
   def __run(self):
-    # This method run in a separete thread to listen to the socket.
-    # Any message which comes in is passed to handleMethod.
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind((self.host, self.port))
-    s.listen()
-    conn, addr = s.accept()
     while not self.timeToDie:
-      # Use select to timeout after 1 seconds to check if it is time to die.
-      ready = select.select([conn], [], [], 1)
-      if ready[0]:
-        data = conn.recv(4096)
-        if data:
-          # Got a message send it to the handle method.
-          self.handleMethod(data.decode())
-    # Close connection, close socket, and exit thread
-    conn.close()
-    s.close()
-    return
+      try:
+        # This method run in a separete thread to listen to the socket.
+        # Any message which comes in is passed to handleMethod.
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.bind((self.host, self.port))
+        s.settimeout(3)
+        s.listen()
+        conn, addr = s.accept()
+        while not self.timeToDie:
+          # Use select to timeout after 1 seconds to check if it is time to die.
+          ready = select.select([conn], [], [], 1)
+          if ready[0]:
+            data = conn.recv(4096)
+            if data:
+              # Got a message send it to the handle method.
+              self.handleMethod(data.decode())
+        # Close connection, close socket, and exit thread
+        conn.close()
+        s.close()
+        return
+      except Exception as e:
+        # Failed to connect, wait a little bit until the listener is there.
+        time.sleep(1)
 
   def close(self):
     # Close will stop the listener.
@@ -58,12 +65,13 @@ class talker:
   # This is a class to talker to send messages to the given host and port.
   # This will have a queue of messages which are sent when they can be.
 
-  def __init__(self, host, port):
+  def __init__(self, hostAndPort):
     # Creates a new talker to the given host and port.
     # The given handleLock is used to synchronize calls to handleMethod.
     super().__init__()
-    self.host = host
-    self.port = port
+    parts = hostAndPort.split(':')
+    self.host = parts[0]
+    self.port = int(parts[1])
     self.timeToDie = False
     self.queueLock = threading.Lock()
     self.pendingQueue = []

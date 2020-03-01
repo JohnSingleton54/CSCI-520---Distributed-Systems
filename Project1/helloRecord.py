@@ -1,13 +1,22 @@
 #!/usr/bin/env python2
 
 # Example usage:
-# - In console 1 call "python ./helloRecord.py 127.0.0.1 8080 127.0.0.1 8181"
-# - In console 2 call "python ./helloRecord.py 127.0.0.1 8181 127.0.0.1 8080"
+# - In console 1 call "python ./helloRecord.py 1"
+# - In console 2 call "python ./helloRecord.py 2"
+# - (optional) In console 3 call "python ./helloRecord.py 3"
 
 import threading
 import sys
 
 import connections
+
+
+hostsAndPorts = {
+  1: "127.0.0.1:8080",
+  2: "127.0.0.1:8181",
+  3: "127.0.0.1:8282",
+}
+
 
 record = []
 recordLock = threading.Lock()
@@ -17,14 +26,14 @@ def recordMessage(message):
   recordLock.release()
 
 
-def main(args):
-  host1 = args[1]
-  port1 = int(args[2])
-  listener = connections.listener(recordMessage, host1, port1)
+def main(myNum):
+  listener = connections.listener(recordMessage, hostsAndPorts[myNum])
 
-  host2 = args[3]
-  port2 = int(args[4])
-  talker = connections.talker(host2, port2)
+  talkers = []
+  for num, hostAndPort in hostsAndPorts.items():
+    if num != myNum:
+      talker = connections.talker(hostAndPort)
+      talkers.append(talker)
 
   while 1:
     print("What would you like to do?")
@@ -34,7 +43,8 @@ def main(args):
     choice = int(input("Enter your choice: "))
     if choice == 1:
       msg = input("Enter Message: ")
-      talker.send(msg)
+      for talker in talkers:
+        talker.send(msg)
       print()
 
     elif choice == 2:
@@ -47,12 +57,15 @@ def main(args):
 
     elif choice == 3:
       print("Closing")
-      talker.close()
+      for talker in talkers:
+        talker.close()
       listener.close()
       break
 
     else:
       print("Unknown choice \"%s\". Try again." % (choice))
 
+
 if __name__ == "__main__":
-    main(sys.argv)
+  myNum = int(sys.argv[1])
+  main(myNum)
