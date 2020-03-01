@@ -17,12 +17,12 @@ class listener:
   # This is a class to listen for incoming messages from the given host and port.
   # This will callback to the given method for handling messages.
 
-  def __init__(self, handleMethod, hostAndPort):
+  def __init__(self, handleMethod, hostAndPort, useMyHost):
     # Creates a new listener to the given host and port.
     super().__init__()
     self.handleMethod = handleMethod
     parts = hostAndPort.split(':')
-    self.host = parts[0]
+    self.host = parts[0] if useMyHost else ""
     self.port = int(parts[1])
     self.timeToDie = False
     self.thread = threading.Thread(target=self.__run)

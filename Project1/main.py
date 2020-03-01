@@ -11,6 +11,7 @@ import sys
 import connections
 
 
+useMyHost = True
 hostsAndPorts = {
   1: "127.0.0.1:8080",
   2: "127.0.0.1:8181",
@@ -27,14 +28,21 @@ def recordMessage(message):
 
 
 def main(myNum):
-  listener = connections.listener(recordMessage, hostsAndPorts[myNum])
+  global useMyHost
+  global hostsAndPorts
 
+  # Setup the connection to listen to
+  listener = connections.listener(recordMessage, hostsAndPorts[myNum], useMyHost)
+
+  # Setup the collection of connections to talk to the other instances
   talkers = []
   for num, hostAndPort in hostsAndPorts.items():
     if num != myNum:
       talker = connections.talker(hostAndPort)
       talkers.append(talker)
 
+  # Start main loop and wait for user input
+  # while the listeners and talkers keep running in their own threads.
   while 1:
     print("What would you like to do?")
     print("   1. Send Message")
