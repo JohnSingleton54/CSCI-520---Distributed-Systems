@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python2.7
 
 # Example usage:
 # - In console 1 call "python ./main.py 1"
@@ -50,22 +50,23 @@ def main(myNodeId):
     print("   1. Send Message")
     print("   2. Show Received Messages")
     print("   3. Exit")
-    choice = int(input("Enter your choice: "))
-    if choice == 1:
-      msg = input("Enter Message: ")
+    choice = int(raw_input("Enter your choice: "))
+
+    if choice == 1: # Send Message
+      msg = raw_input("Enter Message: ")
       for talker in talkers:
         talker.send(msg)
-      print()
+      print("")
 
-    elif choice == 2:
+    elif choice == 2: # Show Received Messages
       print("Messages:")
       recordLock.acquire()
       for msg in record:
-        print("  "+msg)
+        print("  %s"%(msg))
       recordLock.release()
-      print()
+      print("")
 
-    elif choice == 3:
+    elif choice == 3: # Exit
       print("Closing")
       for talker in talkers:
         talker.close()

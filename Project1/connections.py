@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python2.7
 
 import threading
 import time
@@ -19,7 +19,6 @@ class listener:
 
   def __init__(self, handleMethod, hostAndPort, useMyHost):
     # Creates a new listener to the given host and port.
-    super().__init__()
     self.handleMethod = handleMethod
     parts = hostAndPort.split(':')
     self.host = parts[0] if useMyHost else ""
@@ -68,7 +67,6 @@ class talker:
   def __init__(self, hostAndPort):
     # Creates a new talker to the given host and port.
     # The given handleLock is used to synchronize calls to handleMethod.
-    super().__init__()
     parts = hostAndPort.split(':')
     self.host = parts[0]
     self.port = int(parts[1])
