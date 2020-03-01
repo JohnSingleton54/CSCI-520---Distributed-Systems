@@ -28,9 +28,6 @@ def recordMessage(message):
 
 
 def main(myNodeId):
-  global useMyHost
-  global nodeIdToHostsAndPorts
-
   print("My Node Id is %d" % (myNodeId))
 
   # Setup the connection to listen to
