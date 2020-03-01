@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python
 
 # Example usage:
 # - In console 1 call "python ./main.py 1"
