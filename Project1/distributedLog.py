@@ -2,6 +2,8 @@
 
 import json
 
+import calendar
+
 
 InsertOpType = "Insert"
 DeleteOpType = "Delete"
@@ -23,13 +25,14 @@ class record:
 
 
 class distributedLog:
-  def __init__(self, nodeId, nodeCount):
+  def __init__(self, calendar, nodeId, nodeCount):
     self.nodeId = nodeId
     self.nodeCount = nodeCount
     self.timeTable = []
     for i in range(nodeCount):
       self.timeTable.append([0] * nodeCount)
     self.log = []
+    self.calendar = calendar
 
   def getClock(self):
     return self.timeTable[self.nodeId][self.nodeId]
@@ -78,7 +81,7 @@ class distributedLog:
     for nl in data[1]:
       time = int(nl[0])
       nodeId = int(nl[1])
-      opType = nl[2].encode('ascii')
+      opType = str(nl[2])
       opArgs = nl[3]
       r = record(time, nodeId, opType, opArgs)
       if not self.hasRec(self.nodeId, r):
@@ -104,8 +107,10 @@ class distributedLog:
     pass
 
   def perform(self, r):
-    print("Perform: %s, %s"%(r.opType, r.opArgs))
-    # TODO: Implement
+    if r.opType == InsertOpType:
+      self.calendar.insert(r.opArgs[0], r.opArgs[1], r.opArgs[2], r.opArgs[3], r.opArgs[4])
+    else:
+      self.calendar.delete(r.opArgs[0])
     pass
 
   def printLogs(self):
@@ -115,16 +120,17 @@ class distributedLog:
 
 
 #### Just for testing
-log0 = distributedLog(0, 3)
+cal0 = calendar.calendar()
+log0 = distributedLog(cal0, 0, 3)
 log0.insert("Meeting", "Mon", "12:00", "13:00", [0, 1])
 log0.insert("Meetup", "Tues", "13:00", "14:00", [0, 1])
 log0.delete("Meetup")
 msg = log0.getSendMessage(1)
+cal0.show()
 
 print("========================")
-print(msg)
-print("========================")
 
-log1 = distributedLog(1, 3)
+cal1 = calendar.calendar()
+log1 = distributedLog(cal1, 1, 3)
 log1.receiveMessage(msg)
-log1.printLogs()
+cal1.show()
