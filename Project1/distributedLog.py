@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import json
+import threading
 
 import calendar
 
@@ -33,44 +34,61 @@ class distributedLog:
       self.timeTable.append([0] * nodeCount)
     self.log = []
     self.calendar = calendar
+    self.lock = threading.Lock()
 
-  def getClock(self):
+  def __getClock(self):
     return self.timeTable[self.nodeId][self.nodeId]
 
-  def incClock(self):
+  def __incClock(self):
     self.timeTable[self.nodeId][self.nodeId] += 1
 
-  def hasRec(self, k, eR):
+  def __hasRec(self, eR, k):
     # Checks the time table to determine if the given record is known by k.
     # hasrec(Ti, eR, k) = Ti[k, eR.node] >= eR.time
     return self.timeTable[k][eR.nodeId] >= eR.time
 
+  def __allHasRec(self, eR):
+    # This is for handling "(all j in [n]) not hasrec(Ti, eR, j)}" as part of __trimLogs.
+    # This will return true if everyone knows about this record, false if one or more don't know about it.
+    for j in range(self.nodeCount):
+      if not self.__hasRec(eR, j):
+        return False
+    return True
+
   def insert(self, name, day, start_time, end_time, participants):
+    self.lock.acquire()
     self.__oper(InsertOpType, [name, day, start_time, end_time, participants])
+    self.lock.release()
 
   def delete(self, name):
+    self.lock.acquire()
     self.__oper(DeleteOpType, [name])
+    self.lock.release()
 
   def __oper(self, opType, opArgs):
     # Ti[i, i] := clock
-    self.incClock()
-    r = record(self.getClock(), self.nodeId, opType, opArgs)
+    self.__incClock()
+    r = record(self.__getClock(), self.nodeId, opType, opArgs)
     # Li = Li union {<"oper(p)", Ti[i,i], i>}
     self.log.append(r)
     # perform the operation oper(p)
-    self.perform(r)
+    self.__perform(r)
 
   def getSendMessage(self, k):
+    self.lock.acquire()
     # NP := {eR|eR in Li and not hasRec(Ti, eR, k)}
     newLogs = []
     for eR in self.log:
-      if not self.hasRec(k, eR):
+      if not self.__hasRec(eR, k):
+        # TODO: Add check to NOT add item and deletion at the same time.
         newLogs.append(eR.toTuple())
     # send the mssage <NP, Ti> to Nk
     msg = [self.nodeId, newLogs, self.timeTable]
+    self.lock.release()
     return json.dumps(msg)
     
   def receiveMessage(self, message):
+    self.lock.acquire()
     # Decode the message from a string
     # let m = <NPk, Tk>
     data = json.loads(message)
@@ -84,9 +102,19 @@ class distributedLog:
       opType = str(nl[2])
       opArgs = nl[3]
       r = record(time, nodeId, opType, opArgs)
-      if not self.hasRec(self.nodeId, r):
+      if not self.__hasRec(r, self.nodeId):
         self.log.append(r)
         newRecords.append(r)
+    # update the time with the message's time table
+    self.__updateTimeTable(otherTimeTable, otherNodeId)
+    # remove all logs which everyone knows about
+    self.__trimLogs()
+    # apply all new records
+    for r in newRecords:
+      self.__perform(r)
+    self.lock.release()
+ 
+  def __updateTimeTable(self, otherTimeTable, otherNodeId):
     # (all x in [n]) do Ti[i, x] := max{Ti[i, x], Tk[k, x]}
     for x in range(self.nodeCount):
       self.timeTable[self.nodeId][x] = max(self.timeTable[self.nodeId][x], otherTimeTable[otherNodeId][x])
@@ -94,43 +122,32 @@ class distributedLog:
     for x in range(self.nodeCount):
       for y in range(self.nodeCount):
         self.timeTable[x][y] = max(self.timeTable[x][y], otherTimeTable[x][y])
-    # remove all logs which everyone knows about
-    self.trimLogs()
-    # apply all new records
-    for r in newRecords:
-      self.perform(r)
- 
-  def trimLogs(self):
-    # PLi := {eR|eR in (PLi union NE) and (all j in [n]) not hasrec(Ti, eR, j)}
-    
-    # TODO: Implement
-    pass
 
-  def perform(self, r):
+  def __trimLogs(self):
+    # PLi := {eR|eR in (PLi union NE) and (all j in [n]) not hasrec(Ti, eR, j)}
+    newLog = []
+    for r in self.log:
+      if not self.__allHasRec(r):
+        newLog.append(r)
+    self.log = newLog
+
+  def __perform(self, r):
     if r.opType == InsertOpType:
       self.calendar.insert(r.opArgs[0], r.opArgs[1], r.opArgs[2], r.opArgs[3], r.opArgs[4])
     else:
       self.calendar.delete(r.opArgs[0])
-    pass
 
-  def printLogs(self):
+  def logsToString(self):
+    self.lock.acquire()
+    parts = []
     for r in self.log:
-      print(r.toString())
+      parts.append(r.toString())
+    self.lock.release()
+    return "\n".join(parts)
 
+  def timeTableToString(self):
+    self.lock.acquire()
+    result = str(self.timeTable)
+    self.lock.release()
+    return result
 
-
-#### Just for testing
-cal0 = calendar.calendar()
-log0 = distributedLog(cal0, 0, 3)
-log0.insert("Meeting", "Mon", "12:00", "13:00", [0, 1])
-log0.insert("Meetup", "Tues", "13:00", "14:00", [0, 1])
-log0.delete("Meetup")
-msg = log0.getSendMessage(1)
-cal0.show()
-
-print("========================")
-
-cal1 = calendar.calendar()
-log1 = distributedLog(cal1, 1, 3)
-log1.receiveMessage(msg)
-cal1.show()
