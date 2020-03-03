@@ -84,16 +84,33 @@ class distributedLog:
     self.__perform(r)
 
 
+  def __addTempLog(self, newLogs, eR):
+    # check that we do NOT add the insert item and deletion at the same time
+    if eR.opType == DeleteOpType:
+      for log in newLogs:
+        if log.opArgs[0] == eR.opArgs[0]:
+          newLogs.remove(log)
+          return newLogs
+
+    newLogs.append(eR)
+    return newLogs
+
+
   def getSendMessage(self, k):
     self.lock.acquire()
     # NP := {eR|eR in Li and not hasRec(Ti, eR, k)}
     newLogs = []
     for eR in self.log:
       if not self.__hasRec(eR, k):
-        # TODO: Add check to NOT add item and deletion at the same time.
-        newLogs.append(eR.toTuple())
+        newLogs = self.__addTempLog(newLogs, eR)
+
+    # so we can use json we need to get the new logs as a tuples
+    newTuples = []
+    for log in newLogs:
+      newTuples.append(log.toTuple())
+
     # send the mssage <NP, Ti> to Nk
-    msg = [self.nodeId, newLogs, self.timeTable]
+    msg = [self.nodeId, newTuples, self.timeTable]
     self.lock.release()
     return json.dumps(msg)
 

@@ -122,6 +122,16 @@ class mainLoopObject:
     print("")
 
 
+  def showMessage(self):
+    nodeId = int(raw_input("Enter Node Id: "))
+    msg = self.log.getSendMessage(nodeId)
+    if msg:
+      print(msg)
+    else:
+      print("  <None>")
+    print("")
+
+
   def close(self):
     print("Closing")
     self.timeToDie = True
@@ -145,7 +155,8 @@ class mainLoopObject:
         print("  6. Stop Sending Messages")
       else:
         print("  6. Start Sending Messages")
-      print("  7. Exit")
+      print("  7. Show Message")
+      print("  8. Exit")
 
       choice = int(raw_input("Enter your choice: "))
       if choice == 1:
@@ -161,6 +172,8 @@ class mainLoopObject:
       elif choice == 6:
         self.toggleSendingMessages()
       elif choice == 7:
+        self.showMessage()
+      elif choice == 8:
         self.close()
       else:
         print("Unknown choice \"%s\". Try again." % (choice))
