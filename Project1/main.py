@@ -34,6 +34,7 @@ print("The Node Count is %d" % (nodeCount))
 class mainLoopObject:
   def __init__(self):
     self.timeToDie = False
+    self.sendMessages = True
 
     # Create shared calendar and distributed log.
     self.cal = sharedCalendar.calendar()
@@ -59,15 +60,16 @@ class mainLoopObject:
     # This is run in a thread to periodically update other threads
     # with this node's log and time table.
     while not self.timeToDie:
-      for i in range(len(self.talkers)):
-        nodeId = self.talkerIDs[i]
-        msg = self.log.getSendMessage(nodeId)
-        if msg:
-          self.talkers[i].send(msg)
+      if self.sendMessages:
+        for i in range(len(self.talkers)):
+          nodeId = self.talkerIDs[i]
+          msg = self.log.getSendMessage(nodeId)
+          if msg:
+            self.talkers[i].send(msg)
       time.sleep(5)
 
 
-  def insertNewEntry(self):
+  def insertNewAppointment(self):
     name = raw_input("Enter Name: ")
 
     # TODO: Get actual input values
@@ -76,26 +78,47 @@ class mainLoopObject:
     end_time     = "13:00" #raw_input("Enter End Time: ")
     participants = [myNodeId] #raw_input("Enter Participants: ")
 
-    # TODO: Before appending to log, check for conflicts with local calendar
     self.log.insert(name, day, start_time, end_time, participants)
     print("")
 
 
-  def deleteEntry(self):
+  def deleteAppointment(self):
     name = raw_input("Enter Name: ")
-
-    # TODO: Before appending to log, check if that event exists
-    self.log.delete(name)
+    if self.cal.hasAppointment(name):
+      self.log.delete(name)
+    else:
+      print("  No appointment by that name was found")
     print("")
 
 
-  def showAllEvents(self):
-    print("Calendar:")
-    events = self.cal.toString()
-    if events:
-      print(events)
+  def showAllAppointments(self):
+    print("Appointments:")
+    appts = self.cal.appointmentsToString()
+    if appts:
+      print("  "+appts)
     else:
-      print("<No events>")
+      print("  <None>")
+    print("")
+
+
+  def showTimeTable(self):
+    print("TimeTable:")
+    print("  "+self.log.timeTableToString())
+    print("")
+
+
+  def showLogs(self):
+    print("Logs:")
+    logs = self.log.logsToString()
+    if logs:
+      print("  "+logs)
+    else:
+      print("  <None>")
+    print("")
+
+
+  def toggleSendingMessages(self):
+    self.sendMessages = not self.sendMessages
     print("")
 
 
@@ -113,18 +136,31 @@ class mainLoopObject:
     # while the listeners and talkers keep running in their own threads.
     while not self.timeToDie:
       print("What would you like to do?")
-      print("  1. Insert Event")
-      print("  2. Delete Event")
-      print("  3. Show All Events")
-      print("  4. Exit")
+      print("  1. Insert Appointment")
+      print("  2. Delete Appointment")
+      print("  3. Show All Appointments")
+      print("  4. Show Time Table")
+      print("  5. Show Logs")
+      if self.sendMessages:
+        print("  6. Stop Sending Messages")
+      else:
+        print("  6. Start Sending Messages")
+      print("  7. Exit")
+
       choice = int(raw_input("Enter your choice: "))
       if choice == 1:
-        self.insertNewEntry()
+        self.insertNewAppointment()
       elif choice == 2:
-        self.deleteEntry()
+        self.deleteAppointment()
       elif choice == 3:
-        self.showAllEvents()
+        self.showAllAppointments()
       elif choice == 4:
+        self.showTimeTable()
+      elif choice == 5:
+        self.showLogs()
+      elif choice == 6:
+        self.toggleSendingMessages()
+      elif choice == 7:
         self.close()
       else:
         print("Unknown choice \"%s\". Try again." % (choice))

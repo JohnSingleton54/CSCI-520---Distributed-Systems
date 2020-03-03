@@ -158,7 +158,7 @@ class distributedLog:
     for r in self.log:
       parts.append(r.toString())
     self.lock.release()
-    return "\n".join(parts)
+    return "\n  ".join(parts)
 
 
   def timeTableToString(self):
