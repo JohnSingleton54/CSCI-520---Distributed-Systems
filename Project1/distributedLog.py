@@ -3,7 +3,7 @@
 import json
 import threading
 
-import calendar
+import sharedCalendar
 
 
 InsertOpType = "Insert"
@@ -17,9 +17,11 @@ class record:
     self.opType = opType
     self.opArgs = opArgs
 
+
   def toString(self):
     return "%d, %d, %s, %s"%(self.time, self.nodeId, self.opType, self.opArgs)
-  
+
+
   def toTuple(self):
     # This is used when "dumping" the JSON
     return [self.time, self.nodeId, self.opType, self.opArgs]
@@ -36,16 +38,20 @@ class distributedLog:
     self.calendar = calendar
     self.lock = threading.Lock()
 
+
   def __getClock(self):
     return self.timeTable[self.nodeId][self.nodeId]
 
+
   def __incClock(self):
     self.timeTable[self.nodeId][self.nodeId] += 1
+
 
   def __hasRec(self, eR, k):
     # Checks the time table to determine if the given record is known by k.
     # hasrec(Ti, eR, k) = Ti[k, eR.node] >= eR.time
     return self.timeTable[k][eR.nodeId] >= eR.time
+
 
   def __allHasRec(self, eR):
     # This is for handling "(all j in [n]) not hasrec(Ti, eR, j)}" as part of __trimLogs.
@@ -55,15 +61,18 @@ class distributedLog:
         return False
     return True
 
+
   def insert(self, name, day, start_time, end_time, participants):
     self.lock.acquire()
     self.__oper(InsertOpType, [name, day, start_time, end_time, participants])
     self.lock.release()
 
+
   def delete(self, name):
     self.lock.acquire()
     self.__oper(DeleteOpType, [name])
     self.lock.release()
+
 
   def __oper(self, opType, opArgs):
     # Ti[i, i] := clock
@@ -73,6 +82,7 @@ class distributedLog:
     self.log.append(r)
     # perform the operation oper(p)
     self.__perform(r)
+
 
   def getSendMessage(self, k):
     self.lock.acquire()
@@ -86,7 +96,8 @@ class distributedLog:
     msg = [self.nodeId, newLogs, self.timeTable]
     self.lock.release()
     return json.dumps(msg)
-    
+
+
   def receiveMessage(self, message):
     self.lock.acquire()
     # Decode the message from a string
@@ -113,7 +124,8 @@ class distributedLog:
     for r in newRecords:
       self.__perform(r)
     self.lock.release()
- 
+
+
   def __updateTimeTable(self, otherTimeTable, otherNodeId):
     # (all x in [n]) do Ti[i, x] := max{Ti[i, x], Tk[k, x]}
     for x in range(self.nodeCount):
@@ -123,6 +135,7 @@ class distributedLog:
       for y in range(self.nodeCount):
         self.timeTable[x][y] = max(self.timeTable[x][y], otherTimeTable[x][y])
 
+
   def __trimLogs(self):
     # PLi := {eR|eR in (PLi union NE) and (all j in [n]) not hasrec(Ti, eR, j)}
     newLog = []
@@ -131,11 +144,13 @@ class distributedLog:
         newLog.append(r)
     self.log = newLog
 
+
   def __perform(self, r):
     if r.opType == InsertOpType:
       self.calendar.insert(r.opArgs[0], r.opArgs[1], r.opArgs[2], r.opArgs[3], r.opArgs[4])
     else:
       self.calendar.delete(r.opArgs[0])
+
 
   def logsToString(self):
     self.lock.acquire()
@@ -145,9 +160,9 @@ class distributedLog:
     self.lock.release()
     return "\n".join(parts)
 
+
   def timeTableToString(self):
     self.lock.acquire()
     result = str(self.timeTable)
     self.lock.release()
     return result
-

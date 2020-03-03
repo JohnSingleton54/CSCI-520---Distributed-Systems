@@ -5,7 +5,9 @@ import unittest
 import calendar
 import distributedLog as distLog
 
+
 class TestDistributedLogs(unittest.TestCase):
+
 
   def test_localOps(self):
     # Checks that we can insert and delete from our local calendar.
@@ -29,6 +31,7 @@ class TestDistributedLogs(unittest.TestCase):
     self.assertEqual(log.log[0].toString(), "1, 0, Insert, ['Meetup', 'Tues', '13:00', '14:00', [0, 1]]")
     self.assertEqual(log.log[1].toString(), "2, 0, Delete, ['Meetup']")
     self.assertEqual(log.timeTableToString(), "[[2, 0, 0], [0, 0, 0], [0, 0, 0]]")
+
 
   def test_messageSendAndReceive(self):
     # Tests node 0 creating three logs and sending a message with that information
@@ -57,7 +60,8 @@ class TestDistributedLogs(unittest.TestCase):
     self.assertEqual(len(cal2.entries), 1)
     self.assertEqual(cal2.entries[0].toString(), "Meeting, Mon 12:00-13:00, [0, 1]")
     self.assertEqual(log2.timeTableToString(), "[[3, 0, 0], [0, 0, 0], [3, 0, 0]]")
-  
+
+
   def test_logTrimming(self):
     # Test that the logs get trimmed based on what is "known" about the other processes.
     cal = calendar.calendar()
@@ -84,6 +88,7 @@ class TestDistributedLogs(unittest.TestCase):
     log.receiveMessage(fakeMsg)
     self.assertEqual(len(log.log), 0)
     self.assertEqual(log.timeTableToString(), "[[3, 0, 0], [3, 0, 0], [3, 0, 0]]")
+
 
 if __name__ == '__main__':
     unittest.main()
