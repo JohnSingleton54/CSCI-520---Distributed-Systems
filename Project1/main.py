@@ -84,6 +84,7 @@ class mainLoopObject:
 
   def deleteAppointment(self):
     name = raw_input("Enter Name: ")
+    # TODO: Check that this guy is a participant of the meeting
     if self.cal.hasAppointment(name):
       self.log.delete(name)
     else:

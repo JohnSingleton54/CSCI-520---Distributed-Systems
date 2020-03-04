@@ -13,7 +13,7 @@ class appointment:
     self.conflictName = ""
 
 
-  def overlaps(self, other):
+  def isConflicting(self, other):
     if self.day != other.day:
       return False
     # TODO Finish determining if the times overlap,
@@ -23,6 +23,7 @@ class appointment:
 
   def earlierTime(self, other):
     # TODO Finish comparing by day and start_time
+    #      If times match then check unique names
     return True
 
 
@@ -57,7 +58,7 @@ class calendar:
         for j in range(i-1, -1, -1):
           older = self.appointments[j]
           if not older.conflictName:
-            if newer.overlaps(older):
+            if newer.isConflicting(older):
               older.conflictName = newer.name
 
 

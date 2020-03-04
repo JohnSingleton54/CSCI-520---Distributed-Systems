@@ -91,6 +91,8 @@ class distributedLog:
         if log.opArgs[0] == eR.opArgs[0]:
           newLogs.remove(log)
           return newLogs
+    
+    # TODO: Check if we have the delete in the log first (if that can happen)?
 
     newLogs.append(eR)
     return newLogs
