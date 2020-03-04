@@ -27,6 +27,7 @@ class listener:
     self.thread = threading.Thread(target=self.__run)
     self.thread.start()
 
+
   def __run(self):
     # This method run in a separete thread to listen to the socket.
     # Any message which comes in is passed to handleMethod.
@@ -45,6 +46,7 @@ class listener:
     s.close()
     return
 
+
   def close(self):
     # Close will stop the listener.
     # This call will not return until the thread has exited.
@@ -62,21 +64,22 @@ class talker:
     parts = hostAndPort.split(':')
     self.host = parts[0]
     self.port = int(parts[1])
+    self.connected = False
     self.timeToDie = False
     self.queueLock = threading.Lock()
     self.pendingQueue = []
     self.thread = threading.Thread(target=self.__run)
     self.thread.start()
   
+
   def __run(self):
     # This method run in a separete thread to talk to the socket.
     # Any messages in the queue will be sent out the socket.
-    connected = False
-    while (not connected) and (not self.timeToDie):
+    while (not self.connected) and (not self.timeToDie):
       try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((self.host, self.port))
-        connected = True
+        self.connected = True
         while not self.timeToDie:
           # Check if there are any pending messages and send all of them.
           self.queueLock.acquire()
@@ -93,11 +96,15 @@ class talker:
         # Failed to connect, wait a little bit until the listener is there.
         time.sleep(3)
 
+
   def send(self, message):
     # Adds the message to the pending messages to be send to the socket.
+    # If this is not connected, the message will be ignored.
     self.queueLock.acquire()
-    self.pendingQueue.append(message)
+    if self.connected:
+      self.pendingQueue.append(message)
     self.queueLock.release()
+
 
   def close(self):
     # Close will stop the talker.
