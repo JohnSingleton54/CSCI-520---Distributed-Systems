@@ -15,5 +15,5 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     print('Sent')
     time.sleep(5)
     data = s.recv(1024)
-    print('Received', repr(data))
+    print('Received', data.decode())
     time.sleep(5)
