@@ -113,6 +113,6 @@ class calendar:
   def __writeAppointmentsToFile(self):
     f = open("calendar%d.txt"%self.nodeId, "w")
     for appt in self.appointments:
-      f.write(appt.toString())
+      f.write(appt.toString()+"\n")
     f.close()
 
