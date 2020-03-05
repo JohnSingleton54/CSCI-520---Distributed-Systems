@@ -22,6 +22,14 @@ class record:
     return "%d, %d, %s, %s"%(self.time, self.nodeId, self.opType, self.opArgs)
 
 
+  def prettyString(self):
+    if self.opType == InsertOpType:
+      return "Insert: time=%d, nodeId=%d, name=%s, day=%s, start_time=%s, end_time=%s, participants=%s"%(self.time,
+        self.nodeId, self.opArgs[0], self.opArgs[1], self.opArgs[2], self.opArgs[3], self.opArgs[4])
+    else:
+      return "Delete: time=%d, nodeId=%d, name=%s"%(self.time, self.nodeId, self.opArgs[0])
+
+
   def toTuple(self):
     # This is used when "dumping" the JSON
     return [self.time, self.nodeId, self.opType, self.opArgs]
@@ -37,6 +45,10 @@ class distributedLog:
     self.log = []
     self.calendar = calendar
     self.lock = threading.Lock()
+
+    # Clear out full log file
+    f = open("fullLogFile%d.txt"%self.nodeId, "w")
+    f.close()
 
 
   def __getClock(self):
@@ -84,6 +96,7 @@ class distributedLog:
     self.__perform(r)
     # both the log and clock changed so rewrite the files
     self.__writeLogsToFile()
+    self.__appendToFullLogFile([r])
     self.__writeTimeTableToFile()
 
 
@@ -151,6 +164,7 @@ class distributedLog:
     # if the log has changed, rewrite the file for the log
     if logChanged:
       self.__writeLogsToFile()
+      self.__appendToFullLogFile(newRecords)
 
     # apply all new records
     for r in newRecords:
@@ -192,14 +206,18 @@ class distributedLog:
       self.calendar.delete(r.opArgs[0])
 
 
+  def __appendToFullLogFile(self, newLogs):
+    if newLogs:
+      f = open("fullLogFile%d.txt"%self.nodeId, "a")
+      for r in newLogs:
+        f.write(r.prettyString()+"\n")
+      f.close()
+
+
   def __writeLogsToFile(self):
     f = open("logFile%d.txt"%self.nodeId, "w")
     for r in self.log:
-      if r.opType == InsertOpType:
-        f.write("Insert: time=%d, nodeId=%d, name=%s, day=%s, start_time=%s, end_time=%s, participants=%s"%
-          (r.time, r.nodeId, r.opArgs[0], r.opArgs[1], r.opArgs[2], r.opArgs[3], r.opArgs[4]))
-      else:
-        f.write("Delete: time=%d, nodeId=%d, name=%s"%(r.time, r.nodeId, r.opArgs[0]))
+      f.write(r.prettyString()+"\n")
     f.close()
 
 
