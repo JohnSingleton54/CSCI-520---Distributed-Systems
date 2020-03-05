@@ -3,7 +3,7 @@
 import json
 import threading
 
-import sharedCalendar
+import ourCalendar
 
 
 InsertOpType = "Insert"
@@ -82,17 +82,18 @@ class distributedLog:
     self.log.append(r)
     # perform the operation oper(p)
     self.__perform(r)
+    # both the log and clock changed so rewrite the files
+    self.__writeLogsToFile()
+    self.__writeTimeTableToFile()
 
 
   def __addTempLog(self, newLogs, eR):
     # check that we do NOT add the insert item and deletion at the same time
-    if eR.opType == DeleteOpType:
-      for log in newLogs:
-        if log.opArgs[0] == eR.opArgs[0]:
-          newLogs.remove(log)
-          return newLogs
-    
-    # TODO: Check if we have the delete in the log first (if that can happen)?
+    # if a log with the same name exists already we can assume it is an insert and deletion
+    for log in newLogs:
+      if log.opArgs[0] == eR.opArgs[0]:
+        newLogs.remove(log)
+        return newLogs
 
     newLogs.append(eR)
     return newLogs
@@ -125,6 +126,8 @@ class distributedLog:
     otherNodeId = data[0]
     otherTimeTable = data[2]
     newRecords = []
+    logChanged = False
+
     # Li := Li union NPk
     for nl in data[1]:
       time = int(nl[0])
@@ -135,10 +138,20 @@ class distributedLog:
       if not self.__hasRec(r, self.nodeId):
         self.log.append(r)
         newRecords.append(r)
+        logChanged = True
+
     # update the time with the message's time table
-    self.__updateTimeTable(otherTimeTable, otherNodeId)
+    timeChanged = self.__updateTimeTable(otherTimeTable, otherNodeId)
+    # if the time has changed, rewrite the file for the time table
+    if timeChanged:
+      self.__writeTimeTableToFile()
+
     # remove all logs which everyone knows about
-    self.__trimLogs()
+    logChanged = self.__trimLogs() or logChanged
+    # if the log has changed, rewrite the file for the log
+    if logChanged:
+      self.__writeLogsToFile()
+
     # apply all new records
     for r in newRecords:
       self.__perform(r)
@@ -146,13 +159,19 @@ class distributedLog:
 
 
   def __updateTimeTable(self, otherTimeTable, otherNodeId):
+    changed = False
     # (all x in [n]) do Ti[i, x] := max{Ti[i, x], Tk[k, x]}
     for x in range(self.nodeCount):
-      self.timeTable[self.nodeId][x] = max(self.timeTable[self.nodeId][x], otherTimeTable[otherNodeId][x])
+      if otherTimeTable[otherNodeId][x] > self.timeTable[self.nodeId][x]:
+        self.timeTable[self.nodeId][x] = otherTimeTable[otherNodeId][x]
+        changed = True
     # (all x in [n])(all y in [n]) do Ti[x, y] = max(Ti[x, y], Tk[x, y])
     for x in range(self.nodeCount):
       for y in range(self.nodeCount):
-        self.timeTable[x][y] = max(self.timeTable[x][y], otherTimeTable[x][y])
+        if otherTimeTable[x][y] > self.timeTable[x][y]:
+          self.timeTable[x][y] = otherTimeTable[x][y]
+          changed = True
+    return changed
 
 
   def __trimLogs(self):
@@ -161,7 +180,9 @@ class distributedLog:
     for r in self.log:
       if not self.__allHasRec(r):
         newLog.append(r)
+    changed = len(self.log) != len(newLog)
     self.log = newLog
+    return changed
 
 
   def __perform(self, r):
@@ -169,6 +190,23 @@ class distributedLog:
       self.calendar.insert(r.opArgs[0], r.opArgs[1], r.opArgs[2], r.opArgs[3], r.opArgs[4])
     else:
       self.calendar.delete(r.opArgs[0])
+
+
+  def __writeLogsToFile(self):
+    f = open("logFile%d.txt"%self.nodeId, "w")
+    for r in self.log:
+      if r.opType == InsertOpType:
+        f.write("Insert: time=%d, nodeId=%d, name=%s, day=%s, start_time=%s, end_time=%s, participants=%s"%
+          (r.time, r.nodeId, r.opArgs[0], r.opArgs[1], r.opArgs[2], r.opArgs[3], r.opArgs[4]))
+      else:
+        f.write("Delete: time=%d, nodeId=%d, name=%s"%(r.time, r.nodeId, r.opArgs[0]))
+    f.close()
+
+
+  def __writeTimeTableToFile(self):
+    f = open("timeTable%d.txt"%self.nodeId, "w")
+    f.write(str(self.timeTable))
+    f.close()
 
 
   def logsToString(self):

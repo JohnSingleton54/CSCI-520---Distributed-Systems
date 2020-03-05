@@ -37,7 +37,7 @@ class mainLoopObject:
     self.sendMessages = True
 
     # Create shared calendar and distributed log.
-    self.cal = ourCalendar.calendar()
+    self.cal = ourCalendar.calendar(myNodeId)
     self.log = distributedLog.distributedLog(self.cal, myNodeId, nodeCount)
 
     # Setup the listener to start watching for incoming messages.

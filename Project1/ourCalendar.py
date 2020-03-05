@@ -33,7 +33,8 @@ class appointment:
 
 
 class calendar:
-  def __init__(self):
+  def __init__(self, nodeId):
+    self.nodeId = nodeId
     self.appointments = []
     self.lock = threading.Lock()
 
@@ -79,10 +80,12 @@ class calendar:
       if self.appointments[i].earlierTime(appt):
         self.appointments.insert(i+1, appt)
         found = True
+        break
     if not found:
       self.appointments.insert(0, appt)
 
     self.__updateConflicts()
+    self.__writeAppointmentsToFile()
     self.lock.release()
 
 
@@ -92,6 +95,9 @@ class calendar:
     if appt:
       self.appointments.remove(appt)
       self.__updateConflicts()
+      self.__writeAppointmentsToFile()
+    else:
+      print("Warning: didn't find appointment \"%s\""%(apptName))
     self.lock.release()
 
 
@@ -102,4 +108,11 @@ class calendar:
       parts.append(appt.toString())
     self.lock.release()
     return "\n  ".join(parts)
+
+
+  def __writeAppointmentsToFile(self):
+    f = open("calendar%d.txt"%self.nodeId, "w")
+    for appt in self.appointments:
+      f.write(appt.toString())
+    f.close()
 

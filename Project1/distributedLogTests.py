@@ -2,7 +2,7 @@
 
 import unittest
 
-import calendar
+import ourCalendar
 import distributedLog as distLog
 
 
@@ -12,7 +12,7 @@ class TestDistributedLogs(unittest.TestCase):
   def test_localOps(self):
     # Checks that we can insert and delete from our local calendar.
     # Checks time table, the log, and the calendar.
-    cal = calendar.calendar()
+    cal = ourCalendar.calendar(0)
     log = distLog.distributedLog(cal, 0, 3)
     self.assertEqual(len(cal.entries), 0)
     self.assertEqual(len(log.log), 0)
@@ -36,7 +36,7 @@ class TestDistributedLogs(unittest.TestCase):
   def test_messageSendAndReceive(self):
     # Tests node 0 creating three logs and sending a message with that information
     # to the other two nodes
-    cal0 = calendar.calendar()
+    cal0 = ourCalendar.calendar(0)
     log0 = distLog.distributedLog(cal0, 0, 3)
     log0.insert("Meeting", "Mon", "12:00", "13:00", [0, 1])
     log0.insert("Meetup", "Tues", "13:00", "14:00", [0, 1])
@@ -46,7 +46,7 @@ class TestDistributedLogs(unittest.TestCase):
     self.assertEqual(log0.timeTableToString(), "[[3, 0, 0], [0, 0, 0], [0, 0, 0]]")
 
     msg1 = log0.getSendMessage(1)
-    cal1 = calendar.calendar()
+    cal1 = ourCalendar.calendar(1)
     log1 = distLog.distributedLog(cal1, 1, 3)
     log1.receiveMessage(msg1)
     self.assertEqual(len(cal1.entries), 1)
@@ -54,7 +54,7 @@ class TestDistributedLogs(unittest.TestCase):
     self.assertEqual(log1.timeTableToString(), "[[3, 0, 0], [3, 0, 0], [0, 0, 0]]")
 
     msg2 = log0.getSendMessage(1)
-    cal2 = calendar.calendar()
+    cal2 = ourCalendar.calendar(2)
     log2 = distLog.distributedLog(cal2, 2, 3)
     log2.receiveMessage(msg2)
     self.assertEqual(len(cal2.entries), 1)
@@ -64,7 +64,7 @@ class TestDistributedLogs(unittest.TestCase):
 
   def test_logTrimming(self):
     # Test that the logs get trimmed based on what is "known" about the other processes.
-    cal = calendar.calendar()
+    cal = ourCalendar.calendar(0)
     log = distLog.distributedLog(cal, 0, 3)
     log.insert("Meeting", "Mon", "12:00", "13:00", [0, 1])
     log.insert("Meetup", "Tues", "13:00", "14:00", [0, 1])
