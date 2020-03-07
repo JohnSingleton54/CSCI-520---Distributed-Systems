@@ -10,6 +10,7 @@
 
 import threading
 import json
+import math
 
 
 dayNumberToName = {
@@ -58,8 +59,15 @@ class appointment:
   def toString(self):
     conflict = ", lost to %s"%(self.conflictName) if self.conflictName else ""
     dayName = dayNumberToName[self.day]
-    startTime = "%d:%d"%(self.start_time[0], self.start_time[1])
-    endTime = "%d:%d"%(self.end_time[0], self.end_time[1])
+
+    hours = math.trunc(self.start_time)
+    minutes  = math.trunc((self.start_time - hours)*60)
+    startTime = "%d:%d"%(hours, minutes)
+
+    hours = math.trunc(self.end_time)
+    minutes  = math.trunc((self.end_time - hours)*60)
+    endTime = "%d:%d"%(hours, minutes)
+
     return "%s, %s %s-%s, %s%s" % (self.name, dayName, startTime, endTime, self.participants, conflict)
 
 
