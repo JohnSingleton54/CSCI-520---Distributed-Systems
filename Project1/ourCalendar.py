@@ -1,7 +1,27 @@
 #!/usr/bin/env python
 
+# Grant Nelson and John M. Singleton
+# CSCI 520 - Distributed Systems
+# Project 1 (Replicated Log Project)
+# due M 3/9/2020 by 11:59 PM
+
+# This file contains the code for adding and storing
+# a calender in a way which works with a distributed log.
+
 import threading
 import json
+import math
+
+
+dayNumberToName = {
+  1: "Sunday",
+  2: "Monday",
+  3: "Tuesday",
+  4: "Wednesday",
+  5: "Thursday",
+  6: "Friday",
+  7: "Saturday",
+}
 
 
 class appointment:
@@ -29,13 +49,26 @@ class appointment:
 
   # Compare by day and start_time. If times match, then check unique names.
   def laterTime(self, other):
-    return self.day > other.day or (self.day == other.day and self.start_time > other.start_time) or \
-       (self.day == other.day and self.start_time == other.start_time and self.name > other.name)
+    # Sort by first day, then start time, then end time, the tie break same times with name
+    return self.day > other.day or \
+       (self.day == other.day and self.start_time > other.start_time) or \
+       (self.day == other.day and self.start_time == other.start_time and self.end_time > other.end_time) or \
+       (self.day == other.day and self.start_time == other.start_time and self.end_time == other.end_time and self.name > other.name)
 
 
   def toString(self):
     conflict = ", lost to %s"%(self.conflictName) if self.conflictName else ""
-    return "%s, %s %s-%s, %s%s" % (self.name, self.day, self.start_time, self.end_time, self.participants, conflict)
+    dayName = dayNumberToName[self.day]
+
+    hours = math.trunc(self.start_time)
+    minutes  = math.trunc((self.start_time - hours)*60)
+    startTime = "%d:%d"%(hours, minutes)
+
+    hours = math.trunc(self.end_time)
+    minutes  = math.trunc((self.end_time - hours)*60)
+    endTime = "%d:%d"%(hours, minutes)
+
+    return "%s, %s %s-%s, %s%s" % (self.name, dayName, startTime, endTime, self.participants, conflict)
 
 
   def toTuple(self):
@@ -64,17 +97,24 @@ class calendar:
     # First reset all conflicts to False.
     for appt in self.__appointments:
       appt.conflictName = ""
+    
+    def getName(appt):
+      return appt.name
 
-    # TODO: John, we should discuss this and probably come up with a better method.
-    # Find all conflicts, if there are conflicts the latest time will win, the older is in conflict.
-    for i in range(len(self.__appointments)-1, -1, -1):
-      newer = self.__appointments[i]
-      if not newer.conflictName:
+    apptByName = self.__appointments[:]
+    apptByName.sort(key = getName)
+
+    # Find all conflicts sorted by name (unique arbitrary),
+    # if there are conflicts the first name will win, the second is in conflict.
+    # Only conflicts if overlapping times and participants.
+    for i in range(len(apptByName)-1, -1, -1):
+      first = apptByName[i]
+      if not first.conflictName:
         for j in range(i-1, -1, -1):
-          older = self.__appointments[j]
-          if not older.conflictName:
-            if newer.isConflicting(older):
-              older.conflictName = newer.name
+          second = apptByName[j]
+          if not second.conflictName:
+            if first.isConflicting(second):
+              second.conflictName = first.name
 
 
   def hasAppointment(self, name):
