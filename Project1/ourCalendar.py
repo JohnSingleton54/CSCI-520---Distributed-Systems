@@ -29,8 +29,11 @@ class appointment:
 
   # Compare by day and start_time. If times match, then check unique names.
   def laterTime(self, other):
-    return self.day > other.day or (self.day == other.day and self.start_time > other.start_time) or \
-       (self.day == other.day and self.start_time == other.start_time and self.name > other.name)
+    # Sort by first day, then start time, then end time, the tie break same times with name
+    return self.day > other.day or \
+       (self.day == other.day and self.start_time > other.start_time) or \
+       (self.day == other.day and self.start_time == other.start_time and self.end_time > other.end_time) or \
+       (self.day == other.day and self.start_time == other.start_time and self.end_time == other.end_time and self.name > other.name)
 
 
   def toString(self):
@@ -66,7 +69,7 @@ class calendar:
       appt.conflictName = ""
 
     # TODO: John, we should discuss this and probably come up with a better method.
-    # Find all conflicts, if there are conflicts the latest time will win, the older is in conflict.
+    # Find all conflicts, if there are conflicts the newer time will win, the older is in conflict.
     for i in range(len(self.__appointments)-1, -1, -1):
       newer = self.__appointments[i]
       if not newer.conflictName:
@@ -89,7 +92,7 @@ class calendar:
       # Insert sort new appointment by day and start_time
       found = False
       for i in range(len(self.__appointments)-1, -1, -1):
-        if self.__appointments[i].lateTime(appt):
+        if self.__appointments[i].laterTime(appt):
           self.__appointments.insert(i+1, appt)
           found = True
           break
