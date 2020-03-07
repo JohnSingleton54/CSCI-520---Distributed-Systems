@@ -15,17 +15,22 @@ class appointment:
 
 
   def isConflicting(self, other):
+    # Appointments do not span multiple days, so if the days do not match then there is no conflict.
     if self.day != other.day:
       return False
-    # TODO Finish determining if the times overlap,
-    #      Also check that at least one participant is in both.
+    # We only get to the following statement if self.day == other.day.
+    elif self.start_time >= other.end_time or self.end_time <= other.start_time:
+      return False
+    # If the two appointments do not share any participants, then there is no conflict.
+    elif not list(set(self.participants) and set(other.participants)):
+      return False
     return True
 
 
-  def earlierTime(self, other):
-    # TODO Finish comparing by day and start_time
-    #      If times match then check unique names
-    return True
+  # Compare by day and start_time. If times match, then check unique names.
+  def laterTime(self, other):
+    return self.day > other.day or (self.day == other.day and self.start_time > other.start_time) or \
+       (self.day == other.day and self.start_time == other.start_time and self.name > other.name)
 
 
   def toString(self):
@@ -84,7 +89,7 @@ class calendar:
       # Insert sort new appointment by day and start_time
       found = False
       for i in range(len(self.__appointments)-1, -1, -1):
-        if self.__appointments[i].earlierTime(appt):
+        if self.__appointments[i].lateTime(appt):
           self.__appointments.insert(i+1, appt)
           found = True
           break

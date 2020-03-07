@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 
+# Grant Nelson and John M. Singleton
+# CSCI 520 - Distributed Systems
+# Project 1 (Replicated Log Project)
+# due M 3/9/2020 by 11:59 PM
+
 # Example usage:
 # - In console 1 call "python ./main.py 0 2"
 # - In console 2 call "python ./main.py 1 2"
@@ -73,7 +78,7 @@ class mainLoopObject:
   def insertNewAppointment(self):
     name = raw_input("Enter Name: ")
 
-    # TODO: Get actual input values
+    # TODO: Get actual input value
     day          = "Mon" #raw_input("Enter Day: ")
     start_time   = "12:00" #raw_input("Enter Start Time: ")
     end_time     = "13:00" #raw_input("Enter End Time: ")
@@ -140,7 +145,7 @@ class mainLoopObject:
 
 
   def run(self):
-    # Start main loop and wait for user input
+    # Start main loop and wait for user input.
     # while the listeners and senders keep running in their own threads.
     while not self.timeToDie:
       print("")
@@ -163,7 +168,7 @@ class mainLoopObject:
         print("Invalid choice. Try again.")
         continue
 
-      if choice == 1:
+      if   choice == 1:
         self.insertNewAppointment()
       elif choice == 2:
         self.deleteAppointment()
