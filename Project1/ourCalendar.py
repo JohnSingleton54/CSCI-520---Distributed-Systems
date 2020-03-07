@@ -1,7 +1,26 @@
 #!/usr/bin/env python
 
+# Grant Nelson and John M. Singleton
+# CSCI 520 - Distributed Systems
+# Project 1 (Replicated Log Project)
+# due M 3/9/2020 by 11:59 PM
+
+# This file contains the code for adding and storing
+# a calender in a way which works with a distributed log.
+
 import threading
 import json
+
+
+dayNumberToName = {
+  1: "Sunday",
+  2: "Monday",
+  3: "Tuesday",
+  4: "Wednesday",
+  5: "Thursday",
+  6: "Friday",
+  7: "Saturday",
+}
 
 
 class appointment:
@@ -38,7 +57,10 @@ class appointment:
 
   def toString(self):
     conflict = ", lost to %s"%(self.conflictName) if self.conflictName else ""
-    return "%s, %s %s-%s, %s%s" % (self.name, self.day, self.start_time, self.end_time, self.participants, conflict)
+    dayName = dayNumberToName[self.day]
+    startTime = "%d:%d"%(self.start_time[0], self.start_time[1])
+    endTime = "%d:%d"%(self.end_time[0], self.end_time[1])
+    return "%s, %s %s-%s, %s%s" % (self.name, dayName, startTime, endTime, self.participants, conflict)
 
 
   def toTuple(self):

@@ -1,5 +1,12 @@
 #!/usr/bin/env python
 
+# Grant Nelson and John M. Singleton
+# CSCI 520 - Distributed Systems
+# Project 1 (Replicated Log Project)
+# due M 3/9/2020 by 11:59 PM
+
+# This file contains the code for listening and sending on a channel.
+
 import threading
 import time
 import socket

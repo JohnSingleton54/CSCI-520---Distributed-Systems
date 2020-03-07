@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 
+# Grant Nelson and John M. Singleton
+# CSCI 520 - Distributed Systems
+# Project 1 (Replicated Log Project)
+# due M 3/9/2020 by 11:59 PM
+
 # To run the unit-test:
 # - In console 1 call "python -m unittest -v"
 

@@ -1,5 +1,14 @@
 #!/usr/bin/env python
 
+# Grant Nelson and John M. Singleton
+# CSCI 520 - Distributed Systems
+# Project 1 (Replicated Log Project)
+# due M 3/9/2020 by 11:59 PM
+
+# This file contains the code for using a distributed log as defined by
+# Gene Wuu and Arthur Bernstein,
+# "Review of Efficient Solutions to the Replicated Log and Dictionary Problems"
+
 import json
 import threading
 
