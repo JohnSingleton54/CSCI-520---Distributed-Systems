@@ -34,13 +34,13 @@ class appointment:
 
 class calendar:
   def __init__(self, nodeId):
-    self.nodeId = nodeId
-    self.appointments = []
-    self.lock = threading.Lock()
+    self.__nodeId = nodeId
+    self.__appointments = []
+    self.__lockCal = threading.Lock()
 
 
   def __findByName(self, name):
-    for appt in self.appointments:
+    for appt in self.__appointments:
       if appt.name == name:
         return appt
     return None
@@ -48,71 +48,71 @@ class calendar:
   
   def __updateConflicts(self):
     # First reset all conflicts to False.
-    for appt in self.appointments:
+    for appt in self.__appointments:
       appt.conflictName = ""
 
     # TODO: John, we should discuss this and probably come up with a better method.
     # Find all conflicts, if there are conflicts the latest time will win, the older is in conflict.
-    for i in range(len(self.appointments)-1, -1, -1):
-      newer = self.appointments[i]
+    for i in range(len(self.__appointments)-1, -1, -1):
+      newer = self.__appointments[i]
       if not newer.conflictName:
         for j in range(i-1, -1, -1):
-          older = self.appointments[j]
+          older = self.__appointments[j]
           if not older.conflictName:
             if newer.isConflicting(older):
               older.conflictName = newer.name
 
 
   def hasAppointment(self, name):
-    self.lock.acquire()
+    self.__lockCal.acquire()
     hasAppt = self.__findByName(name) != None
-    self.lock.release()
+    self.__lockCal.release()
     return hasAppt
 
 
   def insert(self, name, day, start_time, end_time, participants):
-    self.lock.acquire()
+    self.__lockCal.acquire()
     appt = appointment(name, day, start_time, end_time, participants)
 
     # Insert sort new appointment by day and start_time
     found = False
-    for i in range(len(self.appointments)-1, -1, -1):
-      if self.appointments[i].earlierTime(appt):
-        self.appointments.insert(i+1, appt)
+    for i in range(len(self.__appointments)-1, -1, -1):
+      if self.__appointments[i].earlierTime(appt):
+        self.__appointments.insert(i+1, appt)
         found = True
         break
     if not found:
-      self.appointments.insert(0, appt)
+      self.__appointments.insert(0, appt)
 
     self.__updateConflicts()
     self.__writeAppointmentsToFile()
-    self.lock.release()
+    self.__lockCal.release()
 
 
   def delete(self, apptName):
-    self.lock.acquire()
+    self.__lockCal.acquire()
     appt = self.__findByName(apptName)
     if appt:
-      self.appointments.remove(appt)
+      self.__appointments.remove(appt)
       self.__updateConflicts()
       self.__writeAppointmentsToFile()
     else:
       print("Warning: didn't find appointment \"%s\""%(apptName))
-    self.lock.release()
+    self.__lockCal.release()
 
 
-  def appointmentsToString(self):
-    self.lock.acquire()
+  def toString(self):
+    self.__lockCal.acquire()
     parts = []
-    for appt in self.appointments:
+    for appt in self.__appointments:
       parts.append(appt.toString())
-    self.lock.release()
+    self.__lockCal.release()
     return "\n  ".join(parts)
 
 
   def __writeAppointmentsToFile(self):
-    f = open("calendar%d.txt"%self.nodeId, "w")
-    for appt in self.appointments:
+    f = open("calendar%d.txt"%self.__nodeId, "w")
+    for appt in self.__appointments:
       f.write(appt.toString()+"\n")
     f.close()
 

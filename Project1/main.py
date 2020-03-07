@@ -92,7 +92,7 @@ class mainLoopObject:
 
   def showAllAppointments(self):
     print("Appointments:")
-    appts = self.cal.appointmentsToString()
+    appts = self.cal.toString()
     if appts:
       print("  "+appts)
     else:

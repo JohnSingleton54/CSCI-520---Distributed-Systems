@@ -94,10 +94,9 @@ class sender:
       try:
         # Prepare to try to connect/reconnect
         self.__connected = False
-        self.__queueLock.acquire()
-        if self.__pendingQueue:
-          self.__pendingQueue.clear()
-        self.__queueLock.release()
+        with self.__queueLock:
+          if self.__pendingQueue:
+            self.__pendingQueue.clear()
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(3)
@@ -106,11 +105,10 @@ class sender:
 
         while not self.__timeToDie:
           # Check if there are any pending messages and send all of them.
-          self.__queueLock.acquire()
-          while self.__pendingQueue:
-            message = self.__pendingQueue.pop(0)
-            sock.sendall(message.encode())
-          self.__queueLock.release()
+          with self.__queueLock:
+            while self.__pendingQueue:
+              message = self.__pendingQueue.pop(0)
+              sock.sendall(message.encode())
 
           # Sleep for a bit to let new messages get pended.
           time.sleep(1)
@@ -130,9 +128,8 @@ class sender:
     # Adds the message to the pending messages to be send out the socket.
     # If this is not connected, the message will be ignored.
     if self.__connected:
-      self.__queueLock.acquire()
-      self.__pendingQueue.append(message)
-      self.__queueLock.release()
+      with self.__queueLock:
+        self.__pendingQueue.append(message)
 
 
   def close(self):
