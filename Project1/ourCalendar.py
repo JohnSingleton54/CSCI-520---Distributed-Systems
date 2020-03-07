@@ -42,7 +42,7 @@ class appointment:
     elif self.start_time >= other.end_time or self.end_time <= other.start_time:
       return False
     # If the two appointments do not share any participants, then there is no conflict.
-    elif not list(set(self.participants) and set(other.participants)):
+    elif not list(set(self.participants) & set(other.participants)):
       return False
     return True
 
