@@ -114,9 +114,13 @@ class calendar:
     return "\n  ".join(parts)
 
 
+  def __getAppointmentsFileName(self):
+    return "calendar%d.json"%self.__nodeId
+
+
   def __readAppointmentsFromFile(self):
     try:
-      f = open("calendar%d.txt"%self.__nodeId, "r")
+      f = open(self.__getAppointmentsFileName(), "r")
       msg = f.read()
       f.close()
 
@@ -134,7 +138,7 @@ class calendar:
       tuples.append(appt.toTuple())
     msg = json.dumps(tuples)
 
-    f = open("calendar%d.txt"%self.__nodeId, "w")
+    f = open(self.__getAppointmentsFileName(), "w")
     f.write(msg)
     f.close()
 

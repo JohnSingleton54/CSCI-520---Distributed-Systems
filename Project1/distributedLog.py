@@ -197,9 +197,13 @@ class distributedLog:
       self.__calendar.delete(r.opArgs[0])
 
 
+  def __getLogsFileName(self):
+    return "logs%d.json"%self.__nodeId
+
+
   def __readLogsFromFile(self):
     try:
-      f = open("logFile%d.txt"%self.__nodeId, "r")
+      f = open(self.__getLogsFileName(), "r")
       data = f.read()
       f.close()
 
@@ -215,7 +219,7 @@ class distributedLog:
       tuples.append(log.toTuple())
     data = json.dumps([self.__nodeId, tuples, self.__timeTable])
 
-    f = open("logFile%d.txt"%self.__nodeId, "w")
+    f = open(self.__getLogsFileName(), "w")
     f.write(data)
     f.close()
 

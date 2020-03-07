@@ -1,4 +1,9 @@
+# Old file names (no longer used)
 logFile*.txt
 calendar*.txt
 timeTable*.txt
 fullLogFile*.txt
+
+# New file names
+logFile*.json
+calendar*.json
