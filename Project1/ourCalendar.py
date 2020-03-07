@@ -117,9 +117,9 @@ class calendar:
               second.conflictName = first.name
 
 
-  def hasAppointment(self, name):
+  def getAppointment(self, name):
     with self.__lockCal:
-      return self.__findByName(name) != None
+      return self.__findByName(name)
 
 
   def insert(self, name, day, start_time, end_time, participants):

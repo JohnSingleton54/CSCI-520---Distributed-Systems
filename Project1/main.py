@@ -95,11 +95,14 @@ class mainLoopObject:
 
   def deleteAppointment(self):
     name = raw_input("Enter Name: ")
-    # TODO: Check that this guy is a participant of the meeting
-    if self.cal.hasAppointment(name):
-      self.log.delete(name)
+    appt = self.cal.getAppointment(name)
+    if appt != None:
+      if myNodeId in appt.participants:
+        self.log.delete(name)
+      else:
+        print("You may not delete a appointment that you are participating in.")
     else:
-      print("  No appointment by that name was found")
+      print("No appointment by that name was found.")
 
 
   def showAllAppointments(self):
