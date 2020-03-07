@@ -135,11 +135,11 @@ class distributedLog:
       logChanged = False
 
       # Li := Li union NPk
-      for nl in data[1]:
-        time = int(nl[0])
-        nodeId = int(nl[1])
-        opType = str(nl[2])
-        opArgs = nl[3]
+      for logTuple in data[1]:
+        time = int(logTuple[0])
+        nodeId = int(logTuple[1])
+        opType = str(logTuple[2])
+        opArgs = logTuple[3]
         r = record(time, nodeId, opType, opArgs)
         if not self.__hasRec(r, self.__nodeId):
           self.__log.append(r)
