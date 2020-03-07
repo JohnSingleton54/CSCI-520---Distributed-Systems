@@ -31,7 +31,6 @@ class appointment:
     self.start_time = start_time
     self.end_time = end_time
     self.participants = participants
-    self.conflictName = ""
 
 
   def isConflicting(self, other):
@@ -57,7 +56,6 @@ class appointment:
 
 
   def toString(self):
-    conflict = ", lost to %s"%(self.conflictName) if self.conflictName else ""
     dayName = dayNumberToName[self.day]
 
     hours = math.trunc(self.start_time)
@@ -68,7 +66,7 @@ class appointment:
     minutes  = math.trunc((self.end_time - hours)*60)
     endTime = "%d:%02d"%(hours, minutes)
 
-    return "%s, %s %s-%s, %s%s" % (self.name, dayName, startTime, endTime, self.participants, conflict)
+    return "%s, %s %s-%s, %s" % (self.name, dayName, startTime, endTime, self.participants)
 
 
   def toTuple(self):
@@ -92,12 +90,17 @@ class calendar:
         return appt
     return None
 
+
+  def getConflict(self, day, start_time, end_time, participants):
+    with self.__lockCal:
+      fakeAppt = appointment("fake", day, start_time, end_time, participants)
+      for appt in self.__appointments:
+        if appt.isConflicting(fakeAppt):
+          return appt
+      return None
   
-  def __updateConflicts(self):
-    # First reset all conflicts to False.
-    for appt in self.__appointments:
-      appt.conflictName = ""
-    
+
+  def __findConflicts(self):
     def getName(appt):
       return appt.name
 
@@ -107,14 +110,16 @@ class calendar:
     # Find all conflicts sorted by name (unique arbitrary),
     # if there are conflicts the first name will win, the second is in conflict.
     # Only conflicts if overlapping times and participants.
+    inConflictNames = []
     for i in range(len(apptByName)-1, -1, -1):
       first = apptByName[i]
-      if not first.conflictName:
+      if not first.name in inConflictNames:
         for j in range(i-1, -1, -1):
           second = apptByName[j]
-          if not second.conflictName:
+          if not second.name in inConflictNames:
             if first.isConflicting(second):
-              second.conflictName = first.name
+              inConflictNames.append(second.name)
+    return inConflictNames
 
 
   def getAppointment(self, name):
@@ -123,6 +128,7 @@ class calendar:
 
 
   def insert(self, name, day, start_time, end_time, participants):
+    # This returns the name of any appointment in conflict
     with self.__lockCal:
       appt = appointment(name, day, start_time, end_time, participants)
 
@@ -136,8 +142,9 @@ class calendar:
       if not found:
         self.__appointments.insert(0, appt)
 
-      self.__updateConflicts()
+      inConflictNames = self.__findConflicts()
       self.__writeAppointmentsToFile()
+      return inConflictNames
 
 
   def delete(self, apptName):
@@ -145,10 +152,7 @@ class calendar:
       appt = self.__findByName(apptName)
       if appt:
         self.__appointments.remove(appt)
-        self.__updateConflicts()
         self.__writeAppointmentsToFile()
-      else:
-        print("Warning: didn't find appointment \"%s\""%(apptName))
 
 
   def toString(self):
@@ -172,7 +176,7 @@ class calendar:
       if msg:
         data = json.loads(msg)
         for entry in data:
-          self.insert(entry.name, entry.day, entry.start_time, entry.end_time, entry.participants)
+          self.insert(entry[0], entry[1], entry[2], entry[3], entry[4])
     except Exception as e:
       print("Failed to load from calendar file: %s"%(e))
 

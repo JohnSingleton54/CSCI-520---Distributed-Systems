@@ -27,7 +27,7 @@ nodeIdToHostsAndPorts = {
   4: "127.0.0.1:8084",
   5: "127.0.0.1:8085",
 }
-reloadFromFiles = True
+reloadFromFiles = False
 
 
 myNodeId = int(sys.argv[1])
@@ -89,6 +89,11 @@ class mainLoopObject:
     end_time     = hours + minutes / 60.0
     part_parts   = raw_input("Enter Participants (e.g., '0 1 3'): ").split(' ')
     participants = [int(participant) for participant in part_parts]
+
+    conflict = self.cal.getConflict(day, start_time, end_time, participants)
+    if conflict:
+      print("In conflict with at least %s"%(conflict.toString()))
+      return
 
     self.log.insert(name, day, start_time, end_time, participants)
 
@@ -193,8 +198,8 @@ class mainLoopObject:
           self.close()
         else:
           print("Invalid choice \"%s\". Try again." % (choice))
-      except:
-        print("Invalid input. Try again")
+      except Exception as e:
+        print("Invalid input (%s). Try again"%(e))
 
 
 if __name__ == "__main__":

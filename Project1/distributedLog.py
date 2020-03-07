@@ -103,25 +103,13 @@ class distributedLog:
     self.__writeLogsToFile()
 
 
-  def __addTempLog(self, newLogs, eR):
-    # check that we do NOT add the insert item and deletion at the same time
-    # if a log with the same name exists already we can assume it is an insert and deletion
-    for log in newLogs:
-      if log.opArgs[0] == eR.opArgs[0]:
-        newLogs.remove(log)
-        return newLogs
-
-    newLogs.append(eR)
-    return newLogs
-
-
   def getSendMessage(self, k):
     with self.__lockLog:
       # NP := {eR|eR in Li and not hasRec(Ti, eR, k)}
       newLogs = []
       for eR in self.__log:
         if not self.__hasRec(eR, k):
-          newLogs = self.__addTempLog(newLogs, eR)
+          newLogs.append(eR)
 
       # so we can use json we need to get the new logs as a tuples
       newTuples = []
@@ -166,8 +154,19 @@ class distributedLog:
         self.__writeLogsToFile()
 
       # apply all new records
+      # Vi := {v | (v in Vi or cvR in NE) and (not exist dR in NE where dR.op == delete(v))}
       for r in newRecords:
+        if r.opType == InsertOpType and self.__haveDeleteInLog(r.opArgs[0]):
+          continue
         self.__perform(r)
+
+
+  def __haveDeleteInLog(self, name, newRecords):
+    # not exist dR in NE where dR.op == delete(v)
+    for r in newRecords:
+      if r.opType == DeleteOpType and r.opArgs[0] == name:
+        return True
+    return False 
 
 
   def __updateTimeTable(self, otherTimeTable, otherNodeId):
@@ -201,7 +200,9 @@ class distributedLog:
 
   def __perform(self, r):
     if r.opType == InsertOpType:
-      self.__calendar.insert(r.opArgs[0], r.opArgs[1], r.opArgs[2], r.opArgs[3], r.opArgs[4])
+      inConflictNames = self.__calendar.insert(r.opArgs[0], r.opArgs[1], r.opArgs[2], r.opArgs[3], r.opArgs[4])
+      for name in inConflictNames:
+        self.__oper(DeleteOpType, [name])
     else:
       self.__calendar.delete(r.opArgs[0])
 
