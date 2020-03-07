@@ -44,13 +44,13 @@ class mainLoopObject:
     self.listener = connections.listener(self.log.receiveMessage, nodeIdToHostsAndPorts[myNodeId], useMyHost)
 
     # Setup the collection of connections to talk to the other instances.
-    self.talkers = []
-    self.talkerIDs = []
+    self.senders = []
+    self.senderIDs = []
     for nodeId, hostAndPort in nodeIdToHostsAndPorts.items():
       if (nodeId != myNodeId) and (nodeId < nodeCount):
-        talker = connections.talker(hostAndPort)
-        self.talkers.append(talker)
-        self.talkerIDs.append(nodeId)
+        sender = connections.sender(hostAndPort)
+        self.senders.append(sender)
+        self.senderIDs.append(nodeId)
 
     self.shareLogThread = threading.Thread(target=self.shareLog)
     self.shareLogThread.start()
@@ -61,11 +61,11 @@ class mainLoopObject:
     # with this node's log and time table.
     while not self.timeToDie:
       if self.sendMessages:
-        for i in range(len(self.talkers)):
-          nodeId = self.talkerIDs[i]
+        for i in range(len(self.senders)):
+          nodeId = self.senderIDs[i]
           msg = self.log.getSendMessage(nodeId)
           if msg:
-            self.talkers[i].send(msg)
+            self.senders[i].send(msg)
       time.sleep(5)
 
 
@@ -79,7 +79,6 @@ class mainLoopObject:
     participants = [myNodeId] #raw_input("Enter Participants: ")
 
     self.log.insert(name, day, start_time, end_time, participants)
-    print("")
 
 
   def deleteAppointment(self):
@@ -89,7 +88,6 @@ class mainLoopObject:
       self.log.delete(name)
     else:
       print("  No appointment by that name was found")
-    print("")
 
 
   def showAllAppointments(self):
@@ -99,13 +97,11 @@ class mainLoopObject:
       print("  "+appts)
     else:
       print("  <None>")
-    print("")
 
 
   def showTimeTable(self):
     print("TimeTable:")
     print("  "+self.log.timeTableToString())
-    print("")
 
 
   def showLogs(self):
@@ -115,12 +111,10 @@ class mainLoopObject:
       print("  "+logs)
     else:
       print("  <None>")
-    print("")
 
 
   def toggleSendingMessages(self):
     self.sendMessages = not self.sendMessages
-    print("")
 
 
   def showMessage(self):
@@ -130,22 +124,22 @@ class mainLoopObject:
       print(msg)
     else:
       print("  <None>")
-    print("")
 
 
   def close(self):
     print("Closing")
     self.timeToDie = True
-    for talker in self.talkers:
-      talker.close()
+    for sender in self.senders:
+      sender.close()
     self.listener.close()
     self.shareLogThread.join()
 
 
   def run(self):
     # Start main loop and wait for user input
-    # while the listeners and talkers keep running in their own threads.
+    # while the listeners and senders keep running in their own threads.
     while not self.timeToDie:
+      print("")
       print("What would you like to do?")
       print("  1. Insert Appointment")
       print("  2. Delete Appointment")
@@ -159,7 +153,12 @@ class mainLoopObject:
       print("  7. Show Message")
       print("  8. Exit")
 
-      choice = int(raw_input("Enter your choice: "))
+      try:
+        choice = int(raw_input("Enter your choice: "))
+      except:
+        print("Invalid choice. Try again.")
+        continue
+
       if choice == 1:
         self.insertNewAppointment()
       elif choice == 2:
@@ -177,7 +176,7 @@ class mainLoopObject:
       elif choice == 8:
         self.close()
       else:
-        print("Unknown choice \"%s\". Try again." % (choice))
+        print("Invalid choice \"%s\". Try again." % (choice))
 
 
 if __name__ == "__main__":
