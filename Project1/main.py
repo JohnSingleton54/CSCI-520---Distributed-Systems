@@ -27,7 +27,7 @@ nodeIdToHostsAndPorts = {
   4: "127.0.0.1:8084",
   5: "127.0.0.1:8085",
 }
-reloadFromFiles = False
+reloadFromFiles = True
 
 
 myNodeId = int(sys.argv[1])
