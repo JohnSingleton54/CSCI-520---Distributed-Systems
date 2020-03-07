@@ -22,6 +22,7 @@ nodeIdToHostsAndPorts = {
   4: "127.0.0.1:8084",
   5: "127.0.0.1:8085",
 }
+reloadFromFiles = True
 
 
 myNodeId = int(sys.argv[1])
@@ -37,8 +38,8 @@ class mainLoopObject:
     self.sendMessages = True
 
     # Create shared calendar and distributed log.
-    self.cal = ourCalendar.calendar(myNodeId)
-    self.log = distributedLog.distributedLog(self.cal, myNodeId, nodeCount)
+    self.cal = ourCalendar.calendar(myNodeId, reloadFromFiles)
+    self.log = distributedLog.distributedLog(self.cal, myNodeId, nodeCount, reloadFromFiles)
 
     # Setup the listener to start watching for incoming messages.
     self.listener = connections.listener(self.log.receiveMessage, nodeIdToHostsAndPorts[myNodeId], useMyHost)
@@ -118,12 +119,15 @@ class mainLoopObject:
 
 
   def showMessage(self):
-    nodeId = int(raw_input("Enter Node Id: "))
-    msg = self.log.getSendMessage(nodeId)
-    if msg:
-      print(msg)
-    else:
-      print("  <None>")
+    try:
+      nodeId = int(raw_input("Enter Node Id: "))
+      msg = self.log.getSendMessage(nodeId)
+      if msg:
+        print("  "+msg)
+      else:
+        print("  <None>")
+    except:
+      print("Invalid Node Id")
 
 
   def close(self):

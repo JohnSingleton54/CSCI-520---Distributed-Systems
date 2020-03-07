@@ -31,7 +31,7 @@ class record:
 
 
 class distributedLog:
-  def __init__(self, calendar, nodeId, nodeCount):
+  def __init__(self, calendar, nodeId, nodeCount, loadFile):
     self.__calendar = calendar
     self.__nodeId = nodeId
     self.__nodeCount = nodeCount
@@ -42,7 +42,8 @@ class distributedLog:
     for i in range(nodeCount):
       self.__timeTable.append([0] * nodeCount)
     
-    self.__readLogsFromFile()
+    if loadFile:
+      self.__readLogsFromFile()
 
 
   def __getClock(self):
@@ -202,31 +203,28 @@ class distributedLog:
       data = f.read()
       f.close()
 
-      self.receiveMessage(data)
-    except:
-      #print("Failed to load from file")
-      pass
+      if data:
+        self.receiveMessage(data)
+    except Exception as e:
+      print("Failed to load from log file: %s"%(e))
 
 
   def __writeLogsToFile(self):
     tuples = []
     for log in self.__log:
       tuples.append(log.toTuple())
-    data = [self.__nodeId, tuples, self.__timeTable]
+    data = json.dumps([self.__nodeId, tuples, self.__timeTable])
 
     f = open("logFile%d.txt"%self.__nodeId, "w")
-    f.write(json.dumps(data))
+    f.write(data)
     f.close()
 
 
   def logsToString(self):
-    print("FLAG 1")
     with self.__lockLog:
-      print("FLAG 2")
       parts = []
       for r in self.__log:
         parts.append(r.toString())
-      print("FLAG 4")
     return "\n  ".join(parts)
 
 

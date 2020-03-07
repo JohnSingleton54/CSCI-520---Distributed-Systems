@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import threading
+import json
 
 
 class appointment:
@@ -32,13 +33,21 @@ class appointment:
     return "%s, %s %s-%s, %s%s" % (self.name, self.day, self.start_time, self.end_time, self.participants, conflict)
 
 
+  def toTuple(self):
+    # This is used when "dumping" the JSON
+    return [self.name, self.day, self.start_time, self.end_time, self.participants]
+
+
 class calendar:
-  def __init__(self, nodeId):
+  def __init__(self, nodeId, loadFile):
     self.__nodeId = nodeId
     self.__appointments = []
     self.__lockCal = threading.Lock()
 
+    if loadFile:
+      self.__readAppointmentsFromFile()
 
+ 
   def __findByName(self, name):
     for appt in self.__appointments:
       if appt.name == name:
@@ -64,55 +73,68 @@ class calendar:
 
 
   def hasAppointment(self, name):
-    self.__lockCal.acquire()
-    hasAppt = self.__findByName(name) != None
-    self.__lockCal.release()
-    return hasAppt
+    with self.__lockCal:
+      return self.__findByName(name) != None
 
 
   def insert(self, name, day, start_time, end_time, participants):
-    self.__lockCal.acquire()
-    appt = appointment(name, day, start_time, end_time, participants)
+    with self.__lockCal:
+      appt = appointment(name, day, start_time, end_time, participants)
 
-    # Insert sort new appointment by day and start_time
-    found = False
-    for i in range(len(self.__appointments)-1, -1, -1):
-      if self.__appointments[i].earlierTime(appt):
-        self.__appointments.insert(i+1, appt)
-        found = True
-        break
-    if not found:
-      self.__appointments.insert(0, appt)
+      # Insert sort new appointment by day and start_time
+      found = False
+      for i in range(len(self.__appointments)-1, -1, -1):
+        if self.__appointments[i].earlierTime(appt):
+          self.__appointments.insert(i+1, appt)
+          found = True
+          break
+      if not found:
+        self.__appointments.insert(0, appt)
 
-    self.__updateConflicts()
-    self.__writeAppointmentsToFile()
-    self.__lockCal.release()
+      self.__updateConflicts()
+      self.__writeAppointmentsToFile()
 
 
   def delete(self, apptName):
-    self.__lockCal.acquire()
-    appt = self.__findByName(apptName)
-    if appt:
-      self.__appointments.remove(appt)
-      self.__updateConflicts()
-      self.__writeAppointmentsToFile()
-    else:
-      print("Warning: didn't find appointment \"%s\""%(apptName))
-    self.__lockCal.release()
+    with self.__lockCal:
+      appt = self.__findByName(apptName)
+      if appt:
+        self.__appointments.remove(appt)
+        self.__updateConflicts()
+        self.__writeAppointmentsToFile()
+      else:
+        print("Warning: didn't find appointment \"%s\""%(apptName))
 
 
   def toString(self):
-    self.__lockCal.acquire()
     parts = []
-    for appt in self.__appointments:
-      parts.append(appt.toString())
-    self.__lockCal.release()
+    with self.__lockCal:
+      for appt in self.__appointments:
+        parts.append(appt.toString())
     return "\n  ".join(parts)
 
 
+  def __readAppointmentsFromFile(self):
+    try:
+      f = open("calendar%d.txt"%self.__nodeId, "r")
+      msg = f.read()
+      f.close()
+
+      if msg:
+        data = json.loads(msg)
+        for entry in data:
+          self.insert(entry.name, entry.day, entry.start_time, entry.end_time, entry.participants)
+    except Exception as e:
+      print("Failed to load from calendar file: %s"%(e))
+
+
   def __writeAppointmentsToFile(self):
-    f = open("calendar%d.txt"%self.__nodeId, "w")
+    tuples = []
     for appt in self.__appointments:
-      f.write(appt.toString()+"\n")
+      tuples.append(appt.toTuple())
+    msg = json.dumps(tuples)
+
+    f = open("calendar%d.txt"%self.__nodeId, "w")
+    f.write(msg)
     f.close()
 
