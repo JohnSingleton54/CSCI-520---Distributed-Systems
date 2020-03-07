@@ -78,17 +78,16 @@ class mainLoopObject:
   def insertNewAppointment(self):
     name = raw_input("Enter Name: ")
 
-    # TODO: Get actual input value
     day          = int(raw_input("Enter Day (1-7): "))
     start_parts  = raw_input("Enter Start Time (e.g., '13:30'): ").split(':')
     hours        = int(start_parts[0])
     minutes      = int(start_parts[1])
-    start_time   = hours + minutes / 60
+    start_time   = hours + minutes / 60.0
     end_parts    = raw_input("Enter End Time (e.g., '14:30'): ").split(':')
     hours        = int(end_parts[0])
     minutes      = int(end_parts[1])
-    end_time     = hours + minutes / 60
-    part_parts      = raw_input("Enter Participants (e.g., '0 1 3'): ").split(' ')
+    end_time     = hours + minutes / 60.0
+    part_parts   = raw_input("Enter Participants (e.g., '0 1 3'): ").split(' ')
     participants = [int(participant) for participant in part_parts]
 
     self.log.insert(name, day, start_time, end_time, participants)
@@ -131,15 +130,12 @@ class mainLoopObject:
 
 
   def showMessage(self):
-    try:
-      nodeId = int(raw_input("Enter Node Id: "))
-      msg = self.log.getSendMessage(nodeId)
-      if msg:
-        print("  "+msg)
-      else:
-        print("  <None>")
-    except:
-      print("Invalid Node Id")
+    nodeId = int(raw_input("Enter Node Id: "))
+    msg = self.log.getSendMessage(nodeId)
+    if msg:
+      print("  "+msg)
+    else:
+      print("  <None>")
 
 
   def close(self):
@@ -175,24 +171,27 @@ class mainLoopObject:
         print("Invalid choice. Try again.")
         continue
 
-      if   choice == 1:
-        self.insertNewAppointment()
-      elif choice == 2:
-        self.deleteAppointment()
-      elif choice == 3:
-        self.showAllAppointments()
-      elif choice == 4:
-        self.showTimeTable()
-      elif choice == 5:
-        self.showLogs()
-      elif choice == 6:
-        self.toggleSendingMessages()
-      elif choice == 7:
-        self.showMessage()
-      elif choice == 8:
-        self.close()
-      else:
-        print("Invalid choice \"%s\". Try again." % (choice))
+      try:
+        if   choice == 1:
+          self.insertNewAppointment()
+        elif choice == 2:
+          self.deleteAppointment()
+        elif choice == 3:
+          self.showAllAppointments()
+        elif choice == 4:
+          self.showTimeTable()
+        elif choice == 5:
+          self.showLogs()
+        elif choice == 6:
+          self.toggleSendingMessages()
+        elif choice == 7:
+          self.showMessage()
+        elif choice == 8:
+          self.close()
+        else:
+          print("Invalid choice \"%s\". Try again." % (choice))
+      except:
+        print("Invalid input. Try again")
 
 
 if __name__ == "__main__":
