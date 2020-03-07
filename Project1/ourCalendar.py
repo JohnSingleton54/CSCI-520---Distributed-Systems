@@ -62,11 +62,11 @@ class appointment:
 
     hours = math.trunc(self.start_time)
     minutes  = math.trunc((self.start_time - hours)*60)
-    startTime = "%d:%d"%(hours, minutes)
+    startTime = "%d:%02d"%(hours, minutes)
 
     hours = math.trunc(self.end_time)
     minutes  = math.trunc((self.end_time - hours)*60)
-    endTime = "%d:%d"%(hours, minutes)
+    endTime = "%d:%02d"%(hours, minutes)
 
     return "%s, %s %s-%s, %s%s" % (self.name, dayName, startTime, endTime, self.participants, conflict)
 
@@ -129,7 +129,7 @@ class calendar:
       # Insert sort new appointment by day and start_time
       found = False
       for i in range(len(self.__appointments)-1, -1, -1):
-        if self.__appointments[i].laterTime(appt):
+        if not self.__appointments[i].laterTime(appt):
           self.__appointments.insert(i+1, appt)
           found = True
           break

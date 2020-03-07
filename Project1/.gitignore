@@ -5,5 +5,5 @@ timeTable*.txt
 fullLogFile*.txt
 
 # New file names
-logFile*.json
+logs*.json
 calendar*.json
