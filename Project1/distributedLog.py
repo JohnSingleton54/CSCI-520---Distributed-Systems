@@ -156,7 +156,7 @@ class distributedLog:
       # apply all new records
       # Vi := {v | (v in Vi or cvR in NE) and (not exist dR in NE where dR.op == delete(v))}
       for r in newRecords:
-        if r.opType == InsertOpType and self.__haveDeleteInLog(r.opArgs[0]):
+        if r.opType == InsertOpType and self.__haveDeleteInLog(r.opArgs[0], newRecords):
           continue
         self.__perform(r)
 
