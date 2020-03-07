@@ -89,7 +89,7 @@ class calendar:
       # Insert sort new appointment by day and start_time
       found = False
       for i in range(len(self.__appointments)-1, -1, -1):
-        if self.__appointments[i].lateTime(appt):
+        if self.__appointments[i].laterTime(appt):
           self.__appointments.insert(i+1, appt)
           found = True
           break

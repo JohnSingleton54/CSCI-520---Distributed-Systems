@@ -79,10 +79,17 @@ class mainLoopObject:
     name = raw_input("Enter Name: ")
 
     # TODO: Get actual input value
-    day          = "Mon" #raw_input("Enter Day: ")
-    start_time   = "12:00" #raw_input("Enter Start Time: ")
-    end_time     = "13:00" #raw_input("Enter End Time: ")
-    participants = [myNodeId] #raw_input("Enter Participants: ")
+    day          = int(raw_input("Enter Day (1-7): "))
+    start_parts  = raw_input("Enter Start Time (e.g., '13:30'): ").split(':')
+    hours        = int(start_parts[0])
+    minutes      = int(start_parts[1])
+    start_time   = hours + minutes / 60
+    end_parts    = raw_input("Enter End Time (e.g., '14:30'): ").split(':')
+    hours        = int(end_parts[0])
+    minutes      = int(end_parts[1])
+    end_time     = hours + minutes / 60
+    part_parts      = raw_input("Enter Participants (e.g., '0 1 3'): ").split(' ')
+    participants = [int(participant) for participant in part_parts]
 
     self.log.insert(name, day, start_time, end_time, participants)
 
