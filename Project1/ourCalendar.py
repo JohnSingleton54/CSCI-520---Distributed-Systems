@@ -67,17 +67,24 @@ class calendar:
     # First reset all conflicts to False.
     for appt in self.__appointments:
       appt.conflictName = ""
+    
+    def getName(appt):
+      return appt.name
 
-    # TODO: John, we should discuss this and probably come up with a better method.
-    # Find all conflicts, if there are conflicts the newer time will win, the older is in conflict.
-    for i in range(len(self.__appointments)-1, -1, -1):
-      newer = self.__appointments[i]
-      if not newer.conflictName:
+    apptByName = self.__appointments[:]
+    apptByName.sort(key = getName)
+
+    # Find all conflicts sorted by name (unique arbitrary),
+    # if there are conflicts the first name will win, the second is in conflict.
+    # Only conflicts if overlapping times and participants.
+    for i in range(len(apptByName)-1, -1, -1):
+      first = apptByName[i]
+      if not first.conflictName:
         for j in range(i-1, -1, -1):
-          older = self.__appointments[j]
-          if not older.conflictName:
-            if newer.isConflicting(older):
-              older.conflictName = newer.name
+          second = apptByName[j]
+          if not second.conflictName:
+            if first.isConflicting(second):
+              second.conflictName = first.name
 
 
   def hasAppointment(self, name):
