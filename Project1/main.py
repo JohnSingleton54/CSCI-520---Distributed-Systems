@@ -27,7 +27,7 @@ nodeIdToHostsAndPorts = {
   4: "127.0.0.1:8084",
   5: "127.0.0.1:8085",
 }
-reloadFromFiles = False
+reloadFromFiles = True
 
 
 myNodeId = int(sys.argv[1])
@@ -100,7 +100,7 @@ class mainLoopObject:
       if myNodeId in appt.participants:
         self.log.delete(name)
       else:
-        print("You may not delete a appointment that you are participating in.")
+        print("You may not delete a appointment that you are not participating in.")
     else:
       print("No appointment by that name was found.")
 
