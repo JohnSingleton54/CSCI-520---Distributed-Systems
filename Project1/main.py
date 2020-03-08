@@ -18,14 +18,12 @@ import ourCalendar
 import distributedLog
 
 
-useMyHost = True
+useMyHost = False
 nodeIdToHostsAndPorts = {
-  0: "127.0.0.1:8080",
-  1: "127.0.0.1:8081",
-  2: "127.0.0.1:8082",
-  3: "127.0.0.1:8083",
-  4: "127.0.0.1:8084",
-  5: "127.0.0.1:8085",
+  0: "52.38.131.215:8080",
+  1: "52.26.86.211:8080",
+  2: "54.144.224.79:8080",
+  3: "18.234.227.138:8080",
 }
 reloadFromFiles = True
 
