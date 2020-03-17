@@ -1,3 +1,10 @@
+"use strict";
+
+// Grant Nelson and John M.Singleton
+// CSCI 520 - Distributed Systems
+// Project 2 (Consensus Project)
+// due Apr 6, 2020 by 11: 59 PM
+
 const gameState = {
     Init:        'Select your player',
     Wait:        'Waiting for other player',
@@ -23,11 +30,9 @@ var curState      = gameState.Init;
 var playerColor   = color.Red;
 var playerLeft    = condition.Neutral;
 var playerRight   = condition.Neutral;
-var playerLose    = false;
 var opponentColor = color.Blue;
 var opponentLeft  = condition.Neutral;
 var opponentRight = condition.Neutral;
-var opponentLose  = false;
 
 // Get HTML elements that will be updated by the game.
 
@@ -48,32 +53,32 @@ var rightHeadImage = document.getElementById('rightHeadImage');
 var rightBackImage = document.getElementById('rightBackImage');
 
 // Sets the condition of the player and updates the image.
-function setPlayerCondition(left, right, lose) {
-    playerLeft  = left;
-    playerRight = right;
-    playerLose  = lose;
+function setPlayerCondition(left, right) {
+    playerLeft  = left  || condition.Neutral;
+    playerRight = right || condition.Neutral;
+    var head = (curState == gameState.PlayerLoses) ? 'HeadPop' : 'Head';
     leftForeImage.src = playerColor + 'Fore' + playerRight + '.png';
     leftBodyImage.src = playerColor + 'Body.png';
-    leftHeadImage.src = playerColor + (lose ? 'HeadPop' : 'Head') + '.png';
+    leftHeadImage.src = playerColor + head + '.png';
     leftBackImage.src = playerColor + 'Back' + playerLeft + '.png';
 }
 
 // Sets the condition of the opponent and updates the image.
-function setOpponentCondition(left, right, lose) {
-    opponentLeft = left;
-    opponentRight = right;
-    opponentLose = lose;
+function setOpponentCondition(left, right) {
+    opponentLeft  = left  || condition.Neutral;
+    opponentRight = right || condition.Neutral;
+    var head = (curState == gameState.PlayerWins) ? 'HeadPop' : 'Head';
     rightForeImage.src = opponentColor + 'Fore' + opponentLeft + '.png';
     rightBodyImage.src = opponentColor + 'Body.png';
-    rightHeadImage.src = opponentColor + (lose ? 'HeadPop' : 'Head') + '.png';
+    rightHeadImage.src = opponentColor + head + '.png';
     rightBackImage.src = opponentColor + 'Back' + opponentRight + '.png';
 }
 
 // Sets the game start and hides/shows the selection and game images.
 function setGameState(state) {
-    curState = state;
+    curState = state || gameState.Init;
     stateElem.innerHTML = state;
-    showSelection = (curState === gameState.Init);
+    var showSelection = (curState === gameState.Init);
     selectGroup.style.display = showSelection ? 'block' : 'none';
     gameGroup.style.display   = showSelection ? 'none' : 'block';
 }
@@ -86,23 +91,21 @@ function makeColorSelection(clr) {
         playerColor = clr;
         opponentColor = (clr === color.Red) ? color.Blue : color.Red;
         setGameState(gameState.Wait);
-        setPlayerCondition(condition.Neutral, condition.Neutral, false);
-        setOpponentCondition(condition.Neutral, condition.Neutral, false);
+        setPlayerCondition();
+        setOpponentCondition();
     }
 }
 
 // This indicates that the player has won and updates the images.
 function playersWins() {
     setGameState(gameState.PlayerWins);
-    setPlayerCondition(condition.Neutral, condition.Neutral, false);
-    setOpponentCondition(condition.Neutral, condition.Neutral, true);
+    setOpponentCondition();
 }
 
 // This indicates that the opponent has won and updates the images.
 function opponentWins() {
     setGameState(gameState.PlayerLoses);
-    setPlayerCondition(condition.Neutral, condition.Neutral, true);
-    setOpponentCondition(condition.Neutral, condition.Neutral, false);
+    setPlayerCondition();
 }
 
 // This adds a callback for an event to the given element depending
@@ -118,9 +121,9 @@ function addEvent(element, eventName, callback) {
 }
 
 // Prepare the initial state and images on the page.
-setGameState(gameState.Init);
-setPlayerCondition(condition.Neutral, condition.Neutral, false);
-setOpponentCondition(condition.Neutral, condition.Neutral, false);
+setGameState();
+setPlayerCondition();
+setOpponentCondition();
 
 // Add a listener to the left image for selecting Red as the player's color.
 addEvent(leftSelect, 'click', function () {
@@ -137,13 +140,13 @@ addEvent(document, 'keydown', function (e) {
     e = e || window.event;
     if (curState === gameState.Fight) {
         if (e.key === 'q') {
-            setPlayerCondition(condition.Punch, playerRight, false);
+            setPlayerCondition(condition.Punch, playerRight);
         } else if (e.key === 'w') {
-            setPlayerCondition(playerLeft, condition.Punch, false);
+            setPlayerCondition(playerLeft, condition.Punch);
         } else if (e.key === 'a') {
-            setPlayerCondition(condition.Block, playerRight, false);
+            setPlayerCondition(condition.Block, playerRight);
         } else if (e.key === 's') {
-            setPlayerCondition(playerLeft, condition.Block, false);
+            setPlayerCondition(playerLeft, condition.Block);
         } else if (e.key === 'p') { // For testing
             playersWins();
         } else if (e.key === 'o') { // For testing
@@ -152,15 +155,14 @@ addEvent(document, 'keydown', function (e) {
     } else if (curState === gameState.Wait) {
         if (e.key === ' ') { // For testing
             setGameState(gameState.Fight);
-            setPlayerCondition(condition.Neutral, condition.Neutral, false);
-            setOpponentCondition(condition.Neutral, condition.Neutral, false);
+            setPlayerCondition();
+            setOpponentCondition();
         }
     } else if ((curState === gameState.PlayerWins) || (curState === gameState.PlayerLoses)) {
         if (e.key === ' ') { // For testing
-            curState = gameState.Init;
-            setGameState(gameState.Init);
-            setPlayerCondition(condition.Neutral, condition.Neutral, false);
-            setOpponentCondition(condition.Neutral, condition.Neutral, false);
+            setGameState();
+            setPlayerCondition();
+            setOpponentCondition();
         }
     }
 });
@@ -170,13 +172,13 @@ addEvent(document, 'keyup', function (e) {
     e = e || window.event;
     if (curState === gameState.Fight) {
         if ((e.key === 'q') && (playerLeft === condition.Punch)) {
-            setPlayerCondition(condition.Neutral, playerRight, false);
+            setPlayerCondition(condition.Neutral, playerRight);
         } else if ((e.key === 'w') && (playerRight === condition.Punch)) {
-            setPlayerCondition(playerLeft, condition.Neutral, false);
+            setPlayerCondition(playerLeft, condition.Neutral);
         } else if ((e.key === 'a') && (playerLeft === condition.Block)) {
-            setPlayerCondition(condition.Neutral, playerRight, false);
+            setPlayerCondition(condition.Neutral, playerRight);
         } else if ((e.key === 's') && (playerRight === condition.Block)) {
-            setPlayerCondition(playerLeft, condition.Neutral, false);
+            setPlayerCondition(playerLeft, condition.Neutral);
         }
     }
 });
