@@ -6,21 +6,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="styles.css">
 
-    <link rel="preload" href="BlueLeftBlock.png" as="image">
-    <link rel="preload" href="BlueLeftPunch.png" as="image">
-    <link rel="preload" href="BlueLose.png" as="image">
-    <link rel="preload" href="BlueNeutral.png" as="image">
-    <link rel="preload" href="BlueRightBlock.png" as="image">
-    <link rel="preload" href="BlueRightPunch.png" as="image">
-    <link rel="preload" href="BlueSelect.png" as="image">
+    <link rel="preload" href="RedForeBlock.png" as="image">
+    <link rel="preload" href="RedForePunch.png" as="image">
+    <link rel="preload" href="RedForeNeutral.png" as="image">
+    <link rel="preload" href="RedBody.png" as="image">
+    <link rel="preload" href="RedHead.png" as="image">
+    <link rel="preload" href="RedHeadPop.png" as="image">
+    <link rel="preload" href="RedBackBlock.png" as="image">
+    <link rel="preload" href="RedBackPunch.png" as="image">
+    <link rel="preload" href="RedBackNeutral.png" as="image">
 
-    <link rel="preload" href="RedLeftBlock.png" as="image">
-    <link rel="preload" href="RedLeftPunch.png" as="image">
-    <link rel="preload" href="RedLose.png" as="image">
-    <link rel="preload" href="RedNeutral.png" as="image">
-    <link rel="preload" href="RedRightBlock.png" as="image">
-    <link rel="preload" href="RedRightPunch.png" as="image">
-    <link rel="preload" href="RedSelect.png" as="image">
+    <link rel="preload" href="BlueForeBlock.png" as="image">
+    <link rel="preload" href="BlueForePunch.png" as="image">
+    <link rel="preload" href="BlueForeNeutral.png" as="image">
+    <link rel="preload" href="BlueBody.png" as="image">
+    <link rel="preload" href="BlueHead.png" as="image">
+    <link rel="preload" href="BlueHeadPop.png" as="image">
+    <link rel="preload" href="BlueBackBlock.png" as="image">
+    <link rel="preload" href="BlueBackPunch.png" as="image">
+    <link rel="preload" href="BlueBackNeutral.png" as="image">
 
     <title>CSCI 520 - Project 2 - Consensus Project</title>
 </head>
@@ -30,10 +34,24 @@
         <tr><td id="title" colspan="2">CSCI 520 - Project 2 - Consensus Project</td></tr>
         <tr><td id="authors" colspan="2">by John Singleton and Grant Nelson</td></tr>
         <tr><td colspan="2"><hr></td></tr>
-        <tr><td id="state" colspan="2"></td></tr>
-        <tr>
-            <td><img id="leftImage"></img></td>
-            <td><img id="rightImage"></img></td>
+        <tr><td id="stateElem" colspan="2"></td></tr>
+        <tr id="selectGroup">
+            <td><img id="leftSelect" class="clickable" src="RedSelect.png"></img></td>
+            <td><img id="rightSelect" class="clickable" src="BlueSelect.png"></img></td>
+        </tr>
+        <tr id="gameGroup">
+            <td class="container">
+                <img id="leftBackImage" class="baseImage"></img>
+                <img id="leftHeadImage" class="overlay"></img>
+                <img id="leftBodyImage" class="overlay"></img>
+                <img id="leftForeImage" class="overlay"></img>
+            </td>
+            <td class="container">
+                <img id="rightBackImage" class="baseImage flip"></img>
+                <img id="rightHeadImage" class="overlay flip"></img>
+                <img id="rightBodyImage" class="overlay flip"></img>
+                <img id="rightForeImage" class="overlay flip"></img>
+            </td>
         </tr>
     </table>
     <script defer src="main.js"></script>

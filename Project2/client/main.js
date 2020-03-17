@@ -1,9 +1,9 @@
 const gameState = {
-    Init:     'Init',     // The initial state of the game were you can pick your color.
-    Wait:     'Wait',     // Waiting for the other player to pick their color.
-    Fight:    'Fight',    // Main part of the game.
-    RedWins:  'RedWins',  // Game over with Red winning.
-    BlueWins: 'BlueWins', // Game over with Blue winning.
+    Init:        'Select your player',
+    Wait:        'Waiting for other player',
+    Fight:       'Fight',
+    PlayerWins:  'You Win!',
+    PlayerLoses: 'You Lose!'
 }
 
 const color = {
@@ -12,96 +12,97 @@ const color = {
 }
 
 const condition = {
-    Neutral:    'Neutral',
-    Lose:       'Lose',
-    LeftBlock:  'LeftBlock',
-    LeftPunch:  'LeftPunch',
-    RightBlock: 'RightBlock',
-    RightPunch: 'RightPunch'
+    Neutral: 'Neutral',
+    Block:   'Block',
+    Punch:   'Punch'
 }
 
-// Initialize Game variables
-var curState = gameState.Init;
+// Initialize global game variables.
+
+var curState      = gameState.Init;
 var playerColor   = color.Red;
+var playerLeft    = condition.Neutral;
+var playerRight   = condition.Neutral;
+var playerLose    = false;
 var opponentColor = color.Blue;
-var playerCondition   = condition.Neutral;
-var opponentCondition = condition.Neutral;
+var opponentLeft  = condition.Neutral;
+var opponentRight = condition.Neutral;
+var opponentLose  = false;
 
 // Get HTML elements that will be updated by the game.
-var stateElem    = document.getElementById("state");
-var leftImgElem  = document.getElementById("leftImage");
-var rightImgElem = document.getElementById("rightImage");
 
-// Updates the status text box at the top of the game to show the state of the game.
-function updateState() {
-    if (curState === gameState.Init) {
-        stateElem.innerHTML = "Select your player";
-    } else if (curState === gameState.Wait) {
-        stateElem.innerHTML = "Waiting for other player";
-    } else if (curState === gameState.Fight) {
-        stateElem.innerHTML = "Fight";
-    } else if (curState === gameState.BlueWins) {
-        stateElem.innerHTML = "Blue Wins!";
-    } else { // curState === gameState.RedWins
-        stateElem.innerHTML = "Red Wins!"; 
-    }
-}
+var stateElem   = document.getElementById('stateElem');
+var selectGroup = document.getElementById('selectGroup');
+var leftSelect  = document.getElementById('leftSelect');
+var rightSelect = document.getElementById('rightSelect');
+var gameGroup   = document.getElementById('gameGroup');
+
+var leftForeImage  = document.getElementById('leftForeImage');
+var leftBodyImage  = document.getElementById('leftBodyImage');
+var leftHeadImage  = document.getElementById('leftHeadImage');
+var leftBackImage  = document.getElementById('leftBackImage');
+
+var rightForeImage = document.getElementById('rightForeImage');
+var rightBodyImage = document.getElementById('rightBodyImage');
+var rightHeadImage = document.getElementById('rightHeadImage');
+var rightBackImage = document.getElementById('rightBackImage');
 
 // Sets the condition of the player and updates the image.
-function setPlayerCondition(cond) {
-    playerCondition = cond;
-    if (curState === gameState.Init) {
-        leftImgElem.className = "clickable";
-        leftImgElem.src = "RedSelect.png";
-    } else { // including Wait
-        leftImgElem.className = (playerColor === color.Blue) ? "flip" : "";
-        leftImgElem.src = playerColor + playerCondition + ".png";
-    }
+function setPlayerCondition(left, right, lose) {
+    playerLeft  = left;
+    playerRight = right;
+    playerLose  = lose;
+    leftForeImage.src = playerColor + 'Fore' + playerRight + '.png';
+    leftBodyImage.src = playerColor + 'Body.png';
+    leftHeadImage.src = playerColor + (lose ? 'HeadPop' : 'Head') + '.png';
+    leftBackImage.src = playerColor + 'Back' + playerLeft + '.png';
 }
 
-// Sets the conditions of the opponent and updates the image.
-function setOpponentCondition(cond) {
-    opponentCondition = cond;
-    if (curState === gameState.Init) {
-        rightImgElem.className = "clickable";
-        rightImgElem.src = "BlueSelect.png";
-    } else if (curState === gameState.Wait) {
-        rightImgElem.className = (opponentColor === color.Red) ? "flip grayedOut" : "grayedOut";
-        rightImgElem.src = opponentColor + condition.Neutral + ".png";
-    } else {
-        rightImgElem.className = (opponentColor === color.Red) ? "flip" : "";
-        rightImgElem.src = opponentColor + opponentCondition + ".png";
-    }
+// Sets the condition of the opponent and updates the image.
+function setOpponentCondition(left, right, lose) {
+    opponentLeft = left;
+    opponentRight = right;
+    opponentLose = lose;
+    rightForeImage.src = opponentColor + 'Fore' + opponentLeft + '.png';
+    rightBodyImage.src = opponentColor + 'Body.png';
+    rightHeadImage.src = opponentColor + (lose ? 'HeadPop' : 'Head') + '.png';
+    rightBackImage.src = opponentColor + 'Back' + opponentRight + '.png';
+}
+
+// Sets the game start and hides/shows the selection and game images.
+function setGameState(state) {
+    curState = state;
+    stateElem.innerHTML = state;
+    showSelection = (curState === gameState.Init);
+    selectGroup.style.display = showSelection ? 'block' : 'none';
+    gameGroup.style.display   = showSelection ? 'none' : 'block';
 }
 
 // This is called when a player has picked the color they want to play as.
-// The color doesn't actually matter since the players will be described by
+// The color doesn't actually matter since the players could be defined by
 // their connection in the client server.
 function makeColorSelection(clr) {
     if (curState === gameState.Init) {
         playerColor = clr;
         opponentColor = (clr === color.Red) ? color.Blue : color.Red;
-        curState = gameState.Wait;
-        updateState();
-        setPlayerCondition(condition.Neutral);
-        setOpponentCondition(condition.Neutral);
+        setGameState(gameState.Wait);
+        setPlayerCondition(condition.Neutral, condition.Neutral, false);
+        setOpponentCondition(condition.Neutral, condition.Neutral, false);
     }
 }
 
 // This indicates that the player has won and updates the images.
 function playersWins() {
-    curState = (playerColor === color.Red) ? gameState.RedWins : gameState.BlueWins;
-    updateState();
-    setPlayerCondition(condition.Neutral);
-    setOpponentCondition(condition.Lose);
+    setGameState(gameState.PlayerWins);
+    setPlayerCondition(condition.Neutral, condition.Neutral, false);
+    setOpponentCondition(condition.Neutral, condition.Neutral, true);
 }
 
 // This indicates that the opponent has won and updates the images.
 function opponentWins() {
-    curState = (opponentColor === color.Red) ? gameState.RedWins : gameState.BlueWins;
-    updateState();
-    setPlayerCondition(condition.Lose);
-    setOpponentCondition(condition.Neutral);
+    setGameState(gameState.PlayerLoses);
+    setPlayerCondition(condition.Neutral, condition.Neutral, true);
+    setOpponentCondition(condition.Neutral, condition.Neutral, false);
 }
 
 // This adds a callback for an event to the given element depending
@@ -110,39 +111,39 @@ function addEvent(element, eventName, callback) {
     if (element.addEventListener) {
         element.addEventListener(eventName, callback, false);
     } else if (element.attachEvent) {
-        element.attachEvent("on" + eventName, callback);
+        element.attachEvent('on' + eventName, callback);
     } else {
-        element["on" + eventName] = callback;
+        element['on' + eventName] = callback;
     }
 }
 
 // Prepare the initial state and images on the page.
-updateState();
-setPlayerCondition(condition.Neutral);
-setOpponentCondition(condition.Neutral);
+setGameState(gameState.Init);
+setPlayerCondition(condition.Neutral, condition.Neutral, false);
+setOpponentCondition(condition.Neutral, condition.Neutral, false);
 
 // Add a listener to the left image for selecting Red as the player's color.
-addEvent(leftImgElem, "click", function () {
+addEvent(leftSelect, 'click', function () {
     makeColorSelection(color.Red);
 });
 
 // Add a listener to the right image for selecting Blue as the player's color.
-addEvent(rightImgElem, "click", function () {
+addEvent(rightSelect, 'click', function () {
     makeColorSelection(color.Blue);
 });
 
 // Add a listener to the whole document to listen for any key being pressed.
-addEvent(document, "keydown", function (e) {
+addEvent(document, 'keydown', function (e) {
     e = e || window.event;
     if (curState === gameState.Fight) {
         if (e.key === 'q') {
-            setPlayerCondition(condition.LeftPunch);
+            setPlayerCondition(condition.Punch, playerRight, false);
         } else if (e.key === 'w') {
-            setPlayerCondition(condition.RightPunch);
+            setPlayerCondition(playerLeft, condition.Punch, false);
         } else if (e.key === 'a') {
-            setPlayerCondition(condition.LeftBlock);
+            setPlayerCondition(condition.Block, playerRight, false);
         } else if (e.key === 's') {
-            setPlayerCondition(condition.RightBlock);
+            setPlayerCondition(playerLeft, condition.Block, false);
         } else if (e.key === 'p') { // For testing
             playersWins();
         } else if (e.key === 'o') { // For testing
@@ -150,30 +151,38 @@ addEvent(document, "keydown", function (e) {
         }
     } else if (curState === gameState.Wait) {
         if (e.key === ' ') { // For testing
-            curState = gameState.Fight;
-            updateState();
-            setPlayerCondition(condition.Neutral);
-            setOpponentCondition(condition.Neutral);
+            setGameState(gameState.Fight);
+            setPlayerCondition(condition.Neutral, condition.Neutral, false);
+            setOpponentCondition(condition.Neutral, condition.Neutral, false);
         }
-    } else if ((curState === gameState.RedWins) || (curState === gameState.BlueWins)) {
+    } else if ((curState === gameState.PlayerWins) || (curState === gameState.PlayerLoses)) {
         if (e.key === ' ') { // For testing
             curState = gameState.Init;
-            updateState();
-            setPlayerCondition(condition.Neutral);
-            setOpponentCondition(condition.Neutral);
+            setGameState(gameState.Init);
+            setPlayerCondition(condition.Neutral, condition.Neutral, false);
+            setOpponentCondition(condition.Neutral, condition.Neutral, false);
         }
     }
 });
 
 // Add a listener to the whole document to listen for any key being released.
-addEvent(document, "keyup", function () {
+addEvent(document, 'keyup', function (e) {
+    e = e || window.event;
     if (curState === gameState.Fight) {
-        setPlayerCondition(condition.Neutral);
+        if ((e.key === 'q') && (playerLeft === condition.Punch)) {
+            setPlayerCondition(condition.Neutral, playerRight, false);
+        } else if ((e.key === 'w') && (playerRight === condition.Punch)) {
+            setPlayerCondition(playerLeft, condition.Neutral, false);
+        } else if ((e.key === 'a') && (playerLeft === condition.Block)) {
+            setPlayerCondition(condition.Neutral, playerRight, false);
+        } else if ((e.key === 's') && (playerRight === condition.Block)) {
+            setPlayerCondition(playerLeft, condition.Neutral, false);
+        }
     }
 });
 
-// TODO: Setup rules for when a player can punch and block.
 // TODO: Setup connection to server.
+// TODO: Setup rules for when a player can punch and block.
 // TODO: Receive update to game state. (start fight and who won)
 // TODO: Send player's condition.
 // TODO: Receive opponent's condition.
