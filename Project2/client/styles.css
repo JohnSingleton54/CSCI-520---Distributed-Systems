@@ -1,0 +1,42 @@
+#title {
+  text-align: center;
+  font-size: 160%;
+}
+
+#authors {
+  text-align: center;
+  font-size: 80%;
+}
+
+#state {
+  text-align: center;
+  font-size: 200%;
+}
+
+#leftImage {
+  text-align: center;
+}
+
+#rightImage {
+  text-align: center;
+}
+
+.flip {
+  -webkit-transform: scaleX(-1);
+  transform: scaleX(-1);
+}
+
+.grayedOut {
+  -webkit-filter: grayscale(100%);
+  filter: grayscale(100%);
+}
+
+.clickable {
+  -webkit-filter: grayscale(100%);
+  filter: grayscale(100%);
+}
+
+.clickable:hover {
+  -webkit-filter: grayscale(0%);
+  filter: grayscale(0%);
+}
