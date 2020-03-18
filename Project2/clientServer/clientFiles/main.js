@@ -5,6 +5,12 @@
 // Project 2 (Consensus Project)
 // due Apr 6, 2020 by 11: 59 PM
 
+// References
+// - https://javascript.info/websocket
+// - https://base64.guru/developers/javascript/btoa
+
+// Define enumerator values for game states.
+
 const gameState = {
     Init:        'Select your player',
     Wait:        'Waiting for other player',
@@ -188,3 +194,28 @@ addEvent(document, 'keyup', function (e) {
 // TODO: Receive update to game state. (start fight and who won)
 // TODO: Send player's condition.
 // TODO: Receive opponent's condition.
+
+let socket = new WebSocket("ws://localhost:8081");
+
+socket.onopen = function (e) {
+    console.log("Connected")
+    socket.send(atob("My name is John"));
+};
+
+socket.onmessage = function (event) {
+    console.log(`[message] Data received from server: ${event.data}`);
+};
+
+socket.onclose = function (event) {
+    if (event.wasClean) {
+        console.log(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+    } else {
+        // e.g. server process killed or network down
+        // event.code is usually 1006 in this case
+        console.log('[close] Connection died');
+    }
+};
+
+socket.onerror = function (error) {
+    console.log(`[error] ${error.message}`);
+};
