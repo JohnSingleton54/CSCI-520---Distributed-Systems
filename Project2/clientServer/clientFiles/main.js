@@ -58,8 +58,31 @@ var rightBodyImage = document.getElementById('rightBodyImage');
 var rightHeadImage = document.getElementById('rightHeadImage');
 var rightBackImage = document.getElementById('rightBackImage');
 
+// Setup websocket to server
+
+let socket = new WebSocket("ws://localhost:8081");
+
+socket.onopen = function (e) {
+    console.log('Connected to server');
+};
+
+socket.onclose = function (event) {
+    if (event.wasClean) {
+        console.log(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+    } else {
+        // e.g. server process killed or network down event.code is usually 1006 in this case
+        console.log('[close] Connection died');
+    }
+};
+
+socket.onerror = function (error) {
+    console.log(`[error] ${error.message}`);
+};
+
 // Sets the condition of the player and updates the image.
 function setPlayerCondition(left, right) {
+    var oldLeft  = playerLeft;
+    var oldRight = playerRight;
     playerLeft  = left  || condition.Neutral;
     playerRight = right || condition.Neutral;
     var head = (curState == gameState.PlayerLoses) ? 'HeadPop' : 'Head';
@@ -67,6 +90,9 @@ function setPlayerCondition(left, right) {
     leftBodyImage.src = playerColor + 'Body.png';
     leftHeadImage.src = playerColor + head + '.png';
     leftBackImage.src = playerColor + 'Back' + playerLeft + '.png';
+    if ((oldLeft !== playerLeft) || (oldRight !== playerRight)) {
+        socket.send('Player ' + playerLeft + ' ' + playerRight)
+    }
 }
 
 // Sets the condition of the opponent and updates the image.
@@ -195,27 +221,6 @@ addEvent(document, 'keyup', function (e) {
 // TODO: Send player's condition.
 // TODO: Receive opponent's condition.
 
-let socket = new WebSocket("ws://localhost:8081");
-
-socket.onopen = function (e) {
-    console.log("Connected")
-    socket.send(atob("My name is John"));
-};
-
 socket.onmessage = function (event) {
-    console.log(`[message] Data received from server: ${event.data}`);
-};
-
-socket.onclose = function (event) {
-    if (event.wasClean) {
-        console.log(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
-    } else {
-        // e.g. server process killed or network down
-        // event.code is usually 1006 in this case
-        console.log('[close] Connection died');
-    }
-};
-
-socket.onerror = function (error) {
-    console.log(`[error] ${error.message}`);
+    console.log(`From server: ${event.data}`);
 };

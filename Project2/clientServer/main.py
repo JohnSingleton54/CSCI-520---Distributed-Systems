@@ -10,33 +10,37 @@
 
 # References:
 # - https://realpython.com/python-sockets/
-# - https://docs.python.org/2/library/socketserver.html
+# - https://websockets.readthedocs.io/en/stable/intro.html
+# - https://python.readthedocs.io/en/stable/library/asyncio-task.html
 
-import SimpleHTTPServer
-import SocketServer
+import http.server
+import socketserver
 import threading
-import socket
+import asyncio
+import websockets
 import base64
+import time
 
 fileSharePort = 8080
 clientSocketHost = 'localhost'
 clientSocketPort = 8081
 
 keepAlive = True
+connectionMax = 0
 receiveLock = threading.Lock()
 sendLock = threading.Lock()
 sendQueues = {}
 
 
 def runFileServer():
-  class ClientRequestHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
+  class ClientRequestHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
       if self.path == '/':
         self.path = 'index.html'
       self.path = 'clientFiles/' + self.path
-      return SimpleHTTPServer.SimpleHTTPRequestHandler.do_GET(self)
+      return http.server.SimpleHTTPRequestHandler.do_GET(self)
 
-  fileServer = SocketServer.TCPServer(("", fileSharePort), ClientRequestHandler)
+  fileServer = socketserver.TCPServer(("", fileSharePort), ClientRequestHandler)
   while keepAlive:
     try:
       fileServer.timeout = 0.5 # in seconds
@@ -45,66 +49,71 @@ def runFileServer():
       continue
 
 
-def startClientSocket():
-  # This method runs in a separete thread to listen for new connections.
-  sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-  sock.bind((clientSocketHost, clientSocketPort))
-  sock.listen(1)
-  while keepAlive:
-    try:
-      sock.settimeout(1)
-      conn, addr = sock.accept()
-      thread = threading.Thread(target=socketConnected, args=(conn, addr))
-      thread.start()
-    except socket.timeout:
-      continue
-  sock.close()
-
-
-def socketConnected(conn, addr):
+async def socketConnected(ws, path):
   # This method handles a connection from a talker and listens to it.
+  global connectionMax
+  connectionNum = connectionMax
+  connectionMax += 1
+
   with sendLock:
-    sendQueues[addr] = []
-  #sendToClients("Hi from %s"%(str(addr)))
-  conn.settimeout(1)
+    sendQueues[connectionNum] = []
+
   while keepAlive:
     try:
       # Send any pending messages
       with sendLock:
-        for data in sendQueues[addr]:
-          conn.send(data)
-        sendQueues[addr] = []
+        for data in sendQueues[connectionNum]:
+          await ws.send(data)
+        sendQueues[connectionNum] = []
+
       # Listen for any replies
-      data = conn.recv(4096)
+      data = await asyncio.wait_for(ws.recv(), timeout=1.0)
       if data:
         with receiveLock:
-          msg = base64.b64decode(data)
-          receivedClientMessage(msg)
-    except socket.timeout:
+          receivedClientMessage(data)
+
+    except asyncio.TimeoutError:
       continue
+
   # Close and cleanup socket
   with sendLock:
-    del sendQueues[addr]
-  conn.close()
+    del sendQueues[connectionNum]
+  ws.close()
 
 
 def receivedClientMessage(msg):
-  print('msg: "%s"'%(msg))
+  print('received: "%s"' % (msg))
 
 
 def sendToClients(msg):
   with sendLock:
-    data = base64.b64encode(msg)
-    for addr in sendQueues.keys():
-      sendQueues[addr].append(data)
+    for connectionNum in sendQueues.keys():
+      sendQueues[connectionNum].append(msg)
+
+
+def startPinger():
+  # TODO: REMOVE, this is just for testing the webpage can hear us.
+  while keepAlive:
+    sendToClients('ping')
+    time.sleep(1.0)
 
 
 def main():
-  threading.Thread(target=runFileServer).start()
-  threading.Thread(target=startClientSocket).start()
-  raw_input("Press Enter to continue...")
-  global keepAlive
-  keepAlive = False
+  print('Use Ctrl+C to close server (Does not work unless webpage is open)')
+  print('For testing open https://localhost:%d'%(fileSharePort))
+  loop = asyncio.get_event_loop()
+  try:
+    threading.Thread(target=runFileServer).start()
+    threading.Thread(target=startPinger).start()
+    start_server = websockets.serve(socketConnected, clientSocketHost, clientSocketPort)
+    loop.run_until_complete(start_server)
+    loop.run_forever()
+  except KeyboardInterrupt:
+    pass
+  finally:
+    loop.stop()
+    global keepAlive
+    keepAlive = False
 
 
 if __name__ == "__main__":

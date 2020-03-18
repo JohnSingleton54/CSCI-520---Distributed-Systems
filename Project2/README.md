@@ -9,7 +9,7 @@ Due Apr 6, 2020 by 11:59 PM
 ## To run client server
 
 - `cd clientServer`
-- `python ./main.py`
+- Using python 3, run`python ./main.py`
 - In a browser open `http://localhost:8080/`
 
 ## Other Information
