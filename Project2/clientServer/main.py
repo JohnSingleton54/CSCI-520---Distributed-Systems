@@ -100,24 +100,67 @@ async def socketConnected(ws, path):
   ws.close()
 
 
-def receivedClientMessage(msg):
-  data = json.loads(msg)
-  if data['Type'] == 'PlayerChanged':
-    print('Player: Left = %s, Right = %s'%(data['Left'], data['Right']))
-
-    # TODO: For testing send the player's condition back to the client as the opponent's condition.
-    sendToClients({
-      'Type':  'OpponentChanged',
-      'Left':  data['Left'],
-      'Right': data['Right'],
-    })
-
-
 def sendToClients(msg):
   with sendLock:
     data = json.dumps(msg)
     for connectionNum in sendQueues.keys():
       sendQueues[connectionNum].append(data)
+
+
+def indicateReady():
+    # Let the other client server know we are ready so that we can get past
+    # the "Wait" state. If other has already said it is ready then send the
+    # "Fight" message. This is also used to reset after a game over.
+    # TODO: Implement
+    return
+
+
+def performPunch(right):
+    # Check that the player can punch at this point. Perform a punch, log it, and check
+    # for opponent blocking. Determine if the hit landed for a game over.
+    # TODO: Implement
+    sendToClients({
+        'Type': 'PlayerChanged',
+        'Hand': 'Left' if right else 'Right',
+        'Condition': 'Punch',
+    })
+
+
+def performBlock(right):
+    # Perform a block and log it.
+    # TODO: Implement
+    sendToClients({
+        'Type': 'PlayerChanged',
+        'Hand': 'Left' if right else 'Right',
+        'Condition': 'Block',
+    })
+
+
+def receivedClientMessage(msg):
+  if msg == 'Ready':
+    indicateReady()
+  elif msg == 'LeftPunch':
+    performPunch(True)
+  elif msg == 'RightPunch':
+    performPunch(False)
+  elif msg == 'LeftBlock':
+    performBlock(True)
+  elif msg == 'RightBlock':
+    performBlock(False)
+  elif msg == 'TestWin':
+    sendToClients({
+        'Type': 'GameOver',
+        'YouWin': True
+    })
+  elif msg == 'TestLose':
+    sendToClients({
+        'Type': 'GameOver',
+        'YouWin': False
+    })
+  elif msg == 'TestNoWait':
+    sendToClients({
+      'Type': 'Fight'
+    })
 
 
 def main():

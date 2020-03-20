@@ -30,47 +30,36 @@ const condition = {
     Punch:   'Punch'
 }
 
+const punchTimeout = 250; // in milliseconds
+
 // Initialize global game variables.
 
 var socket;
-var curState      = gameState.Wait;
-var playerColor   = color.Red;
-var playerLeft    = condition.Neutral;
-var playerRight   = condition.Neutral;
+var curState = gameState.Wait;
+
+var playerColor = color.Red;
+var playerLeft  = condition.Neutral;
+var playerRight = condition.Neutral;
+var playerLeftPunchTimeout;
+var playerRightPunchTimeout;
+
 var opponentColor = color.Blue;
 var opponentLeft  = condition.Neutral;
 var opponentRight = condition.Neutral;
+var opponentLeftPunchTimeout;
+var opponentRightPunchTimeout;
 
-// Sets the condition of the player and updates the image.
-function setPlayerCondition(left, right) {
-    var oldLeft  = playerLeft;
-    var oldRight = playerRight;
-    playerLeft  = left  || condition.Neutral;
-    playerRight = right || condition.Neutral;
-
-    // Update the images to show for the player
+// Updates the player's images.
+function updatePlayerImages() {
     var head = (curState == gameState.PlayerLoses) ? 'HeadPop' : 'Head';
     document.getElementById('leftForeImage').src = playerColor + 'Fore' + playerRight + '.png';
     document.getElementById('leftBodyImage').src = playerColor + 'Body.png';
     document.getElementById('leftHeadImage').src = playerColor + head + '.png';
     document.getElementById('leftBackImage').src = playerColor + 'Back' + playerLeft + '.png';
-
-    // Send the new condition to the server.
-    if ((oldLeft !== playerLeft) || (oldRight !== playerRight)) {
-        socket.send(JSON.stringify({
-            Type: 'PlayerChanged',
-            Left: playerLeft,
-            Right: playerRight
-        }))
-    }
 }
 
-// Sets the condition of the opponent and updates the image.
-function setOpponentCondition(left, right) {
-    opponentLeft  = left  || condition.Neutral;
-    opponentRight = right || condition.Neutral;
-
-    // Update the images to show for the opponent
+// Updates the opponent's images.
+function updateOpponentImages() {
     var head = (curState == gameState.PlayerWins) ? 'HeadPop' : 'Head';
     document.getElementById('rightForeImage').src = opponentColor + 'Fore' + opponentLeft + '.png';
     document.getElementById('rightBodyImage').src = opponentColor + 'Body.png';
@@ -82,18 +71,17 @@ function setOpponentCondition(left, right) {
 function setGameState(state) {
     curState = state || gameState.Wait;
     document.getElementById('stateElem').innerHTML = state;
+    playerLeft  = condition.Neutral;
+    playerRight = condition.Neutral;
+    updatePlayerImages();
+    opponentLeft  = condition.Neutral;
+    opponentRight = condition.Neutral;
+    updateOpponentImages();
 }
 
-// This indicates that the player has won and updates the images.
-function playersWins() {
-    setGameState(gameState.PlayerWins);
-    setOpponentCondition();
-}
-
-// This indicates that the opponent has won and updates the images.
-function opponentWins() {
-    setGameState(gameState.PlayerLoses);
-    setPlayerCondition();
+// This indicates that the player or opponent has won and updates the images.
+function gameOver(youWin) {
+    setGameState(youWin ? gameState.PlayerWins : gameState.PlayerLoses);
 }
 
 // This adds a callback for an event to the given element depending
@@ -125,65 +113,102 @@ function readJSONFile(file, callback) {
 addEvent(document, 'keydown', function (e) {
     e = e || window.event;
     if (curState === gameState.Fight) {
-        if (e.key === 'q') {
-            setPlayerCondition(condition.Punch, playerRight);
-        } else if (e.key === 'w') {
-            setPlayerCondition(playerLeft, condition.Punch);
-        } else if (e.key === 'a') {
-            setPlayerCondition(condition.Block, playerRight);
-        } else if (e.key === 's') {
-            setPlayerCondition(playerLeft, condition.Block);
-        } else if (e.key === 'p') { // For testing
-            playersWins();
-        } else if (e.key === 'o') { // For testing
-            opponentWins();
+        switch (e.key) {
+            case 'q': socket.send('LeftPunch');  break;
+            case 'w': socket.send('RightPunch'); break;
+            case 'a': socket.send('LeftBlock');  break;
+            case 's': socket.send('RightBlock'); break;
+            case 'p': socket.send('TestWin');    break;
+            case 'o': socket.send('TestLose');   break;
         }
-    } else {
-        if (e.key === ' ') { // For testing
-            setGameState((curState === gameState.Wait) ? gameState.Fight : gameState.Wait);
-            setPlayerCondition();
-            setOpponentCondition();
-        }
+    } else if (curState === gameState.Wait) {
+        if (e.key === ' ') socket.send('TestNoWait');
     }
+    if (e.key === 'R') socket.send('Ready');
 });
 
-// Add a listener to the whole document to listen for any key being released.
-addEvent(document, 'keyup', function (e) {
-    e = e || window.event;
-    if (curState === gameState.Fight) {
-        if ((e.key === 'q') && (playerLeft === condition.Punch)) {
-            setPlayerCondition(condition.Neutral, playerRight);
-        } else if ((e.key === 'w') && (playerRight === condition.Punch)) {
-            setPlayerCondition(playerLeft, condition.Neutral);
-        } else if ((e.key === 'a') && (playerLeft === condition.Block)) {
-            setPlayerCondition(condition.Neutral, playerRight);
-        } else if ((e.key === 's') && (playerRight === condition.Block)) {
-            setPlayerCondition(playerLeft, condition.Neutral);
-        }
+// This cancels any other time which is counting down to reset the punch.
+// If the given value is a punch, it will start a new timer to reset it by calling the given handle.
+function setPunchTimeout(timeout, value, handle) {
+    if (timeout != null) {
+        window.clearTimeout(timeout);
+        timeout = null;
     }
-});
+    if (value === condition.Punch) {
+        timeout = window.setTimeout(handle, punchTimeout);
+    }
+    return timeout;
+}
+
+// This sets the condition of one of the player's hands.
+// It also sets a timer to automatically re-render the punch being pulled back in.
+function setPlayerCondition(hand, value) {
+    if (hand == 'Left') {
+        playerLeft = value;
+        playerLeftPunchTimeout = setPunchTimeout(playerLeftPunchTimeout, value, function () {
+            playerLeft = condition.Neutral;
+            updatePlayerImages();
+        });
+    } else {
+        playerRight = value;
+        playerRightPunchTimeout = setPunchTimeout(playerRightPunchTimeout, value, function () {
+            playerRight = condition.Neutral;
+            updatePlayerImages();
+        });
+    }
+    updatePlayerImages();
+}
+
+// This sets the condition of one of the opponent's hands.
+// It also sets a timer to automatically re-render the punch being pulled back in.
+function setOpponentCondition(hand, value) {
+    if (hand == 'Left') {
+        opponentLeft = value;
+        opponentLeftPunchTimeout = setPunchTimeout(opponentLeftPunchTimeout, value, function () {
+            opponentLeft = condition.Neutral;
+            updateOpponentImages();
+        });
+    } else {
+        opponentRight = value;
+        opponentRightPunchTimeout = setPunchTimeout(opponentRightPunchTimeout, value, function () {
+            opponentRight = condition.Neutral;
+            updateOpponentImages();
+        });
+    }
+    updateOpponentImages();
+}
 
 // This handles messages coming up from the server.
 function handleServerMessage(data) {
     switch (data['Type']) {
+        case 'Fight':
+            setGameState(gameState.Fight);
+            break;
+        case 'PlayerChanged':
+            setPlayerCondition(data['Hand'], data['Condition']);
+            break;
         case 'OpponentChanged':
-            setOpponentCondition(data['Left'], data['Right']) 
+            updateOpponentImages(data['Hand'], data['Condition']);
+            break;
+        case 'GameOver':
+            gameOver(data['YouWin']);
+            break;
+        case 'Reset':
+            setGameState(gameState.Wait);
             break;
         default:
-            console.log("Unknown Message: ", data)
+            console.log("Unknown Message: ", data);
             break;
     }
 }
-
-// TODO: Setup rules for when a player can punch and block.
-// TODO: Receive update to game state. (start fight and who won)
-// TODO: Receive opponent's condition.
 
 function main(config) {
     // Setup websocket to server
     socket = new WebSocket("ws://" + config['SocketHost'] + ":" + config['SocketPort']);
     socket.onopen = function (e) {
         console.log('Connected websocket to server');
+        // Let the server know we're loaded and ready.
+        socket.send('Ready');
     };
     socket.onclose = function (event) {
         if (event.wasClean) {
@@ -204,9 +229,7 @@ function main(config) {
     playerColor   = config['PlayerColor'];
     opponentColor = (playerColor === color.Red) ? color.Blue : color.Red;
     setGameState(gameState.Wait);
-    setPlayerCondition();
-    setOpponentCondition();
 }
 
 // Start main as soon as we have the config file.
-readJSONFile('config.json', main)
+readJSONFile('config.json', main);
