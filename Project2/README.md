@@ -9,8 +9,11 @@ Due Apr 6, 2020 by 11:59 PM
 ## To run client server
 
 - `cd clientServer`
+- You will need websockets: `pip install websockets`
 - Using python 3, run`python ./main.py`
 - In a browser open `http://localhost:8080/`
+- Press space bar to skip the "Waiting" part
+- Press "q", "w", "a", and "s"
 
 ## Other Information
 

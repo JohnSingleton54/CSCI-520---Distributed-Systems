@@ -8,11 +8,11 @@
 // References
 // - https://javascript.info/websocket
 // - https://base64.guru/developers/javascript/btoa
+// - https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_WebSocket_client_applications
 
 // Define enumerator values for game states.
 
 const gameState = {
-    Init:        'Select your player',
     Wait:        'Waiting for other player',
     Fight:       'Fight',
     PlayerWins:  'You Win!',
@@ -32,7 +32,8 @@ const condition = {
 
 // Initialize global game variables.
 
-var curState      = gameState.Init;
+var socket;
+var curState      = gameState.Wait;
 var playerColor   = color.Red;
 var playerLeft    = condition.Neutral;
 var playerRight   = condition.Neutral;
@@ -40,58 +41,27 @@ var opponentColor = color.Blue;
 var opponentLeft  = condition.Neutral;
 var opponentRight = condition.Neutral;
 
-// Get HTML elements that will be updated by the game.
-
-var stateElem   = document.getElementById('stateElem');
-var selectGroup = document.getElementById('selectGroup');
-var leftSelect  = document.getElementById('leftSelect');
-var rightSelect = document.getElementById('rightSelect');
-var gameGroup   = document.getElementById('gameGroup');
-
-var leftForeImage  = document.getElementById('leftForeImage');
-var leftBodyImage  = document.getElementById('leftBodyImage');
-var leftHeadImage  = document.getElementById('leftHeadImage');
-var leftBackImage  = document.getElementById('leftBackImage');
-
-var rightForeImage = document.getElementById('rightForeImage');
-var rightBodyImage = document.getElementById('rightBodyImage');
-var rightHeadImage = document.getElementById('rightHeadImage');
-var rightBackImage = document.getElementById('rightBackImage');
-
-// Setup websocket to server
-
-let socket = new WebSocket("ws://localhost:8081");
-
-socket.onopen = function (e) {
-    console.log('Connected to server');
-};
-
-socket.onclose = function (event) {
-    if (event.wasClean) {
-        console.log(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
-    } else {
-        // e.g. server process killed or network down event.code is usually 1006 in this case
-        console.log('[close] Connection died');
-    }
-};
-
-socket.onerror = function (error) {
-    console.log(`[error] ${error.message}`);
-};
-
 // Sets the condition of the player and updates the image.
 function setPlayerCondition(left, right) {
     var oldLeft  = playerLeft;
     var oldRight = playerRight;
     playerLeft  = left  || condition.Neutral;
     playerRight = right || condition.Neutral;
+
+    // Update the images to show for the player
     var head = (curState == gameState.PlayerLoses) ? 'HeadPop' : 'Head';
-    leftForeImage.src = playerColor + 'Fore' + playerRight + '.png';
-    leftBodyImage.src = playerColor + 'Body.png';
-    leftHeadImage.src = playerColor + head + '.png';
-    leftBackImage.src = playerColor + 'Back' + playerLeft + '.png';
+    document.getElementById('leftForeImage').src = playerColor + 'Fore' + playerRight + '.png';
+    document.getElementById('leftBodyImage').src = playerColor + 'Body.png';
+    document.getElementById('leftHeadImage').src = playerColor + head + '.png';
+    document.getElementById('leftBackImage').src = playerColor + 'Back' + playerLeft + '.png';
+
+    // Send the new condition to the server.
     if ((oldLeft !== playerLeft) || (oldRight !== playerRight)) {
-        socket.send('Player ' + playerLeft + ' ' + playerRight)
+        socket.send(JSON.stringify({
+            Type: 'PlayerChanged',
+            Left: playerLeft,
+            Right: playerRight
+        }))
     }
 }
 
@@ -99,33 +69,19 @@ function setPlayerCondition(left, right) {
 function setOpponentCondition(left, right) {
     opponentLeft  = left  || condition.Neutral;
     opponentRight = right || condition.Neutral;
+
+    // Update the images to show for the opponent
     var head = (curState == gameState.PlayerWins) ? 'HeadPop' : 'Head';
-    rightForeImage.src = opponentColor + 'Fore' + opponentLeft + '.png';
-    rightBodyImage.src = opponentColor + 'Body.png';
-    rightHeadImage.src = opponentColor + head + '.png';
-    rightBackImage.src = opponentColor + 'Back' + opponentRight + '.png';
+    document.getElementById('rightForeImage').src = opponentColor + 'Fore' + opponentLeft + '.png';
+    document.getElementById('rightBodyImage').src = opponentColor + 'Body.png';
+    document.getElementById('rightHeadImage').src = opponentColor + head + '.png';
+    document.getElementById('rightBackImage').src = opponentColor + 'Back' + opponentRight + '.png';
 }
 
 // Sets the game start and hides/shows the selection and game images.
 function setGameState(state) {
-    curState = state || gameState.Init;
-    stateElem.innerHTML = state;
-    var showSelection = (curState === gameState.Init);
-    selectGroup.style.display = showSelection ? 'block' : 'none';
-    gameGroup.style.display   = showSelection ? 'none' : 'block';
-}
-
-// This is called when a player has picked the color they want to play as.
-// The color doesn't actually matter since the players could be defined by
-// their connection in the client server.
-function makeColorSelection(clr) {
-    if (curState === gameState.Init) {
-        playerColor = clr;
-        opponentColor = (clr === color.Red) ? color.Blue : color.Red;
-        setGameState(gameState.Wait);
-        setPlayerCondition();
-        setOpponentCondition();
-    }
+    curState = state || gameState.Wait;
+    document.getElementById('stateElem').innerHTML = state;
 }
 
 // This indicates that the player has won and updates the images.
@@ -152,20 +108,18 @@ function addEvent(element, eventName, callback) {
     }
 }
 
-// Prepare the initial state and images on the page.
-setGameState();
-setPlayerCondition();
-setOpponentCondition();
-
-// Add a listener to the left image for selecting Red as the player's color.
-addEvent(leftSelect, 'click', function () {
-    makeColorSelection(color.Red);
-});
-
-// Add a listener to the right image for selecting Blue as the player's color.
-addEvent(rightSelect, 'click', function () {
-    makeColorSelection(color.Blue);
-});
+// This loads a JSON file from the server.
+function readJSONFile(file, callback) {
+    var rawFile = new XMLHttpRequest();
+    rawFile.overrideMimeType("application/json");
+    rawFile.open("GET", file, true);
+    rawFile.onreadystatechange = function() {
+        if (rawFile.readyState === 4 && rawFile.status == "200") {
+            callback(JSON.parse(rawFile.responseText));
+        }
+    }
+    rawFile.send(null);
+}
 
 // Add a listener to the whole document to listen for any key being pressed.
 addEvent(document, 'keydown', function (e) {
@@ -184,15 +138,9 @@ addEvent(document, 'keydown', function (e) {
         } else if (e.key === 'o') { // For testing
             opponentWins();
         }
-    } else if (curState === gameState.Wait) {
+    } else {
         if (e.key === ' ') { // For testing
-            setGameState(gameState.Fight);
-            setPlayerCondition();
-            setOpponentCondition();
-        }
-    } else if ((curState === gameState.PlayerWins) || (curState === gameState.PlayerLoses)) {
-        if (e.key === ' ') { // For testing
-            setGameState();
+            setGameState((curState === gameState.Wait) ? gameState.Fight : gameState.Wait);
             setPlayerCondition();
             setOpponentCondition();
         }
@@ -215,12 +163,50 @@ addEvent(document, 'keyup', function (e) {
     }
 });
 
-// TODO: Setup connection to server.
+// This handles messages coming up from the server.
+function handleServerMessage(data) {
+    switch (data['Type']) {
+        case 'OpponentChanged':
+            setOpponentCondition(data['Left'], data['Right']) 
+            break;
+        default:
+            console.log("Unknown Message: ", data)
+            break;
+    }
+}
+
 // TODO: Setup rules for when a player can punch and block.
 // TODO: Receive update to game state. (start fight and who won)
-// TODO: Send player's condition.
 // TODO: Receive opponent's condition.
 
-socket.onmessage = function (event) {
-    console.log(`From server: ${event.data}`);
-};
+function main(config) {
+    // Setup websocket to server
+    socket = new WebSocket("ws://" + config['SocketHost'] + ":" + config['SocketPort']);
+    socket.onopen = function (e) {
+        console.log('Connected websocket to server');
+    };
+    socket.onclose = function (event) {
+        if (event.wasClean) {
+            console.log(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+        } else {
+            // e.g. server process killed or network down event.code is usually 1006 in this case
+            console.log('[close] Connection died');
+        }
+    };
+    socket.onerror = function (error) {
+        console.log(`[error] ${error.message}`);
+    };
+    socket.onmessage = function (event) {
+        handleServerMessage(JSON.parse(event.data));
+    };
+
+    // Prepare the initial state and images on the page.
+    playerColor   = config['PlayerColor'];
+    opponentColor = (playerColor === color.Red) ? color.Blue : color.Red;
+    setGameState(gameState.Wait);
+    setPlayerCondition();
+    setOpponentCondition();
+}
+
+// Start main as soon as we have the config file.
+readJSONFile('config.json', main)

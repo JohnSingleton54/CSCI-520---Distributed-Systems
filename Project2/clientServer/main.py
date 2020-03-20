@@ -12,6 +12,8 @@
 # - https://realpython.com/python-sockets/
 # - https://websockets.readthedocs.io/en/stable/intro.html
 # - https://python.readthedocs.io/en/stable/library/asyncio-task.html
+# - https://docs.python.org/3/library/json.html
+# - https://stackabuse.com/serving-files-with-pythons-simplehttpserver-module/
 
 import http.server
 import socketserver
@@ -20,10 +22,15 @@ import asyncio
 import websockets
 import base64
 import time
+import json
 
-fileSharePort = 8080
+
+# TODO: Needs to be set these from command line arguments
+playerColor      = 'Blue'
+fileSharePort    = 8080
 clientSocketHost = 'localhost'
 clientSocketPort = 8081
+
 
 keepAlive = True
 connectionMax = 0
@@ -36,8 +43,20 @@ def runFileServer():
   class ClientRequestHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
       if self.path == '/':
-        self.path = 'index.html'
-      self.path = 'clientFiles/' + self.path
+        self.path = 'clientFiles/index.html'
+      elif self.path == '/config.json':
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.end_headers()
+        data = json.dumps({
+          'PlayerColor': playerColor,
+          'SocketHost': clientSocketHost,
+          'SocketPort': clientSocketPort,
+        })
+        self.wfile.write(bytes(data, "utf8"))
+        return
+      else:
+        self.path = 'clientFiles/' + self.path
       return http.server.SimpleHTTPRequestHandler.do_GET(self)
 
   fileServer = socketserver.TCPServer(("", fileSharePort), ClientRequestHandler)
@@ -82,20 +101,23 @@ async def socketConnected(ws, path):
 
 
 def receivedClientMessage(msg):
-  print('received: "%s"' % (msg))
+  data = json.loads(msg)
+  if data['Type'] == 'PlayerChanged':
+    print('Player: Left = %s, Right = %s'%(data['Left'], data['Right']))
+
+    # TODO: For testing send the player's condition back to the client as the opponent's condition.
+    sendToClients({
+      'Type':  'OpponentChanged',
+      'Left':  data['Left'],
+      'Right': data['Right'],
+    })
 
 
 def sendToClients(msg):
   with sendLock:
+    data = json.dumps(msg)
     for connectionNum in sendQueues.keys():
-      sendQueues[connectionNum].append(msg)
-
-
-def startPinger():
-  # TODO: REMOVE, this is just for testing the webpage can hear us.
-  while keepAlive:
-    sendToClients('ping')
-    time.sleep(1.0)
+      sendQueues[connectionNum].append(data)
 
 
 def main():
@@ -104,7 +126,8 @@ def main():
   loop = asyncio.get_event_loop()
   try:
     threading.Thread(target=runFileServer).start()
-    threading.Thread(target=startPinger).start()
+    # TODO: Start any other game update threads here as needed
+
     start_server = websockets.serve(socketConnected, clientSocketHost, clientSocketPort)
     loop.run_until_complete(start_server)
     loop.run_forever()
