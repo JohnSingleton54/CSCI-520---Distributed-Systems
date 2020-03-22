@@ -10,7 +10,9 @@ Due Apr 6, 2020 by 11:59 PM
 
 - `cd clientServer`
 - You will need websockets: `pip install websockets`
-- Using python 3, run`python ./main.py`
+- Using python 3 for the color this server is for
+  - for Red run `python ./main.py 0`
+  - for Blue run `python ./main.py 1`
 - In a browser open `http://localhost:8080/`
 - Press space bar to skip the "Waiting" part
 - Press "q", "w", "a", and "s"
