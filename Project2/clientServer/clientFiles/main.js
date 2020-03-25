@@ -13,7 +13,6 @@
 // Define enumerator values for game states.
 
 const gameState = {
-    Wait:        'Waiting for other player',
     Fight:       'Fight',
     PlayerWins:  'You Win!',
     PlayerLoses: 'You Lose!'
@@ -35,7 +34,7 @@ const punchTimeout = 250; // in milliseconds
 // Initialize global game variables.
 
 var socket;
-var curState = gameState.Wait;
+var curState = gameState.Fight;
 
 var playerColor = color.Red;
 var playerLeft  = condition.Neutral;
@@ -69,7 +68,7 @@ function updateOpponentImages() {
 
 // Sets the game start and hides/shows the selection and game images.
 function setGameState(state) {
-    curState = state || gameState.Wait;
+    curState = state || gameState.Fight;
     document.getElementById('stateElem').innerHTML = state;
     playerLeft  = condition.Neutral;
     playerRight = condition.Neutral;
@@ -121,10 +120,8 @@ addEvent(document, 'keydown', function (e) {
             case 'p': socket.send('TestWin');    break;
             case 'o': socket.send('TestLose');   break;
         }
-    } else if (curState === gameState.Wait) {
-        if (e.key === ' ') socket.send('TestNoWait');
     }
-    if (e.key === 'R') socket.send('Ready');
+    if (e.key === 'r') socket.send('Reset');
 });
 
 // This cancels any other time which is counting down to reset the punch.
@@ -181,20 +178,23 @@ function setOpponentCondition(hand, value) {
 // This handles messages coming up from the server.
 function handleServerMessage(data) {
     switch (data['Type']) {
-        case 'Fight':
-            setGameState(gameState.Fight);
-            break;
         case 'PlayerChanged':
-            setPlayerCondition(data['Hand'], data['Condition']);
+            if ('Left' in data) 
+                setPlayerCondition('Left', data['Left']);
+            if ('Right' in data) 
+                setPlayerCondition('Right', data['Right']);
             break;
         case 'OpponentChanged':
-            updateOpponentImages(data['Hand'], data['Condition']);
+            if ('Left' in data) 
+                updateOpponentImages('Left', data['Left']);
+            if ('Right' in data) 
+                updateOpponentImages('Right', data['Right']);
             break;
         case 'GameOver':
             gameOver(data['YouWin']);
             break;
         case 'Reset':
-            setGameState(gameState.Wait);
+            setGameState(gameState.Fight);
             break;
         default:
             console.log("Unknown Message: ", data);
@@ -228,7 +228,7 @@ function main(config) {
     // Prepare the initial state and images on the page.
     playerColor   = config['PlayerColor'];
     opponentColor = (playerColor === color.Red) ? color.Blue : color.Red;
-    setGameState(gameState.Wait);
+    setGameState(gameState.Fight);
 }
 
 // Start main as soon as we have the config file.

@@ -51,40 +51,29 @@ raftNodeURL   = playerConfig['raftNodeURL']
 socket = None
 
 
-def indicateReady():
-  # Let the other client server know we are ready so that we can get past
-  # the "Wait" state. If other has already said it is ready then send the
-  # "Fight" message. This is also used to reset after a game over.
+def resetGame():
   # TODO: Implement
-  return
-
-
-def startFile():
-  # Let the client know that the other client server is ready
-  # and the fight has begun.
   socket.send({
-    'Type': 'Fight'
+    'Type': 'Reset'
   })
 
 
-def performPunch(right):
+def performPunch(hand):
   # Check that the player can punch at this point. Perform a punch, log it, and check
   # for opponent blocking. Determine if the hit landed for a game over.
   # TODO: Implement
   socket.send({
     'Type': 'PlayerChanged',
-    'Hand': 'Left' if right else 'Right',
-    'Condition': 'Punch',
+    hand: 'Punch',
   })
 
 
-def performBlock(right):
+def performBlock(hand):
   # Perform a block and log it.
   # TODO: Implement
   socket.send({
     'Type': 'PlayerChanged',
-    'Hand': 'Left' if right else 'Right',
-    'Condition': 'Block',
+    hand: 'Block',
   })
 
 
@@ -99,22 +88,20 @@ def gameOver(youWin):
 
 def receivedClientMessage(msg):
   # This method handles all messages from the client socket.
-  if msg == 'Ready':
-    indicateReady()
+  if msg == 'Reset':
+    resetGame()
   elif msg == 'LeftPunch':
-    performPunch(True)
+    performPunch('Left')
   elif msg == 'RightPunch':
-    performPunch(False)
+    performPunch('Right')
   elif msg == 'LeftBlock':
-    performBlock(True)
+    performBlock('Left')
   elif msg == 'RightBlock':
-    performBlock(False)
+    performBlock('Right')
   elif msg == 'TestWin':
     gameOver(True)
   elif msg == 'TestLose':
     gameOver(False)
-  elif msg == 'TestNoWait':
-    startFile()
 
 
 def main():
