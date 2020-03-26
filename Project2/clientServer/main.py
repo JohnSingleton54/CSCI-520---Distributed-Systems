@@ -47,8 +47,9 @@ socketURL     = playerConfig['socketURL']
 raftNodeURL   = playerConfig['raftNodeURL']
 
 
-# A placeholder for the client socket
+# Global values
 socket = None
+noPunching = False
 
 
 def resetGame():
@@ -58,17 +59,26 @@ def resetGame():
   })
 
 
-def performPunch(hand):
+def performPunch(hand, otherHand):
   # Check that the player can punch at this point. Perform a punch, log it, and check
   # for opponent blocking. Determine if the hit landed for a game over.
-  # TODO: Implement
+  global noPunching
+  if noPunching:
+    # Punches aren't allowed right now so don't allow it
+    return
+  #noPunching = True #TODO: Uncomment out
+ 
+  # Tell client to show player punching.
   socket.send({
-    'Type': 'PlayerChanged',
-    hand: 'Punch',
+      'Type': 'PlayerChanged',
+      hand: 'Punch',
   })
 
+  # TODO: Implement
 
-def performBlock(hand):
+
+
+def performBlock(hand, otherHand):
   # Perform a block and log it.
   # TODO: Implement
   socket.send({
@@ -91,13 +101,13 @@ def receivedClientMessage(msg):
   if msg == 'Reset':
     resetGame()
   elif msg == 'LeftPunch':
-    performPunch('Left')
+    performPunch('Left', 'Right')
   elif msg == 'RightPunch':
-    performPunch('Right')
+    performPunch('Right', 'Left')
   elif msg == 'LeftBlock':
-    performBlock('Left')
+    performBlock('Left', 'Right')
   elif msg == 'RightBlock':
-    performBlock('Right')
+    performBlock('Right', 'Left')
   elif msg == 'TestWin':
     gameOver(True)
   elif msg == 'TestLose':
