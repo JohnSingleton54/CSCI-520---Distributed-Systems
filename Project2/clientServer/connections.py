@@ -22,68 +22,20 @@ import select
 # - https://www.geeksforgeeks.org/start-and-stop-a-thread-in-python/
 
 
-class listener:
-  # This is a class to listen for incoming messages sent to the given host and port.
-  # This will callback to the given method, `handleMethod`, for handling messages.
-
-  def __init__(self, handleMethod, hostAndPort, useMyHost):
-    # Creates a new listener to the given host and port.
-    self.__handleMethod = handleMethod
-    self.__timeToDie = False
-
-    parts = hostAndPort.split(':')
-    host = parts[0] if useMyHost else ""
-    port = int(parts[1])
-
-    thread = threading.Thread(target=self.__run, args=(host, port))
-    thread.start()
+connectionTimeout = 0.5  # in seconds
+maximumMessageSize = 4096
 
 
-  def __run(self, host, port):
-    # This method runs in a separete thread to listen for new connections.
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.bind((host, port))
-    sock.listen(1)
-
-    while not self.__timeToDie:
-      try:
-        sock.settimeout(1)
-        conn, addr = sock.accept()
-
-        thread = threading.Thread(target=self.__connection, args=(conn, addr))
-        thread.start()
-      except socket.timeout:
-        continue
-    sock.close()
-
-
-  def __connection(self, conn, addr):
-    # This method handles a connection from a talker and listens to it.
-    conn.settimeout(1)
-    while not self.__timeToDie:
-      try:
-        data = conn.recv(4096)
-        if data:
-          # Got a message send it to the handle method.
-          self.__handleMethod(data.decode())
-      except socket.timeout: 
-        continue
-    conn.close()
-
-
-  def close(self):
-    # This starts shutting down the listener.
-    self.__timeToDie = True
-
-
-class sender:
-  # This is a class to send messages out the given host and port.
+class connection:
+  # This is a class to send out and receive messages from the given host and port.
   # This will have a queue of messages which are sent when they can be.
 
-  def __init__(self, hostAndPort):
-    # Creates a new sender to the given host and port.
+
+  def __init__(self, handleMethod, hostAndPort):
+    # Creates a new sender/receiver which connects to the given host and port.
+    self.__handleMethod = handleMethod
     self.__connected = False
-    self.__timeToDie = False
+    self.__keepAlive = True
     self.__queueLock = threading.Lock()
     self.__pendingQueue = []
 
@@ -97,8 +49,9 @@ class sender:
 
   def __run(self, host, port):
     # This method runs in a separete thread to talk to the socket.
-    # Any messages in the queue will be sent out the socket.
-    while not self.__timeToDie:
+    # Any messages in the queue will be sent out the socket periodically
+    # between reads from the socket.
+    while self.__keepAlive:
       try:
         # Prepare to try to connect/reconnect
         self.__connected = False
@@ -109,21 +62,33 @@ class sender:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(3)
         sock.connect((host, port))
-        self.__connected = True
 
-        while not self.__timeToDie:
-          # Check if there are any pending messages and send all of them.
-          with self.__queueLock:
-            while self.__pendingQueue:
-              message = self.__pendingQueue.pop(0)
-              sock.sendall(message.encode())
+        try:
+          # Connection made start reading and sending to the socket.
+          self.__connected = True
+          sock.settimeout(connectionTimeout)
+          while self.__keepAlive:
+            try:
+              # Check if there are any pending messages and send all of them.
+              with self.__queueLock:
+                while self.__pendingQueue:
+                  message = self.__pendingQueue.pop(0)
+                  sock.sendall(message.encode())
 
-          # Sleep for a bit to let new messages get pended.
-          time.sleep(1)
+              # Read the socket for any incoming messages.
+              data = sock.recv(maximumMessageSize)
+              if data:
+                # Got a message send it to the handle method.
+                self.__handleMethod(data.decode())
+            except socket.timeout:
+              continue
 
-        # Close socket and exit thread
-        sock.close()
-        return
+        except Exception as e:
+          # Error occurred in the socket
+          print(e)
+        finally:
+          # Close socket and try to reconnect 
+          sock.close()
 
       except socket.timeout:
         time.sleep(1)
@@ -142,4 +107,4 @@ class sender:
 
   def close(self):
     # This starts shutting down the sender.
-    self.__timeToDie = True
+    self.__keepAlive = False

@@ -37,40 +37,39 @@ class clientSocket:
 
 
   def __init__(self, handleMethod, socketURL):
-    self.handleMethod = handleMethod
-    self.socketURL    = socketURL
+    self.__handleMethod = handleMethod
+    self.__socketURL    = socketURL
 
-    self.keepAlive   = True
-    self.connNumMax  = 0
-    self.receiveLock = threading.Lock()
-    self.sendLock    = threading.Lock()
-    self.sendQueues  = {}
+    self.__keepAlive   = True
+    self.__connNumMax  = 0
+    self.__receiveLock = threading.Lock()
+    self.__sendLock    = threading.Lock()
+    self.__sendQueues  = {}
 
 
-  async def socketConnected(self, ws, path):
+  async def __socketConnected(self, ws, path):
     # When a new socket connection from the client browser,
     # this method is called to handle it in an asynchronous loop.
-    self.connNumMax
-    connectionNum = self.connNumMax
-    self.connNumMax += 1
+    connectionNum = self.__connNumMax
+    self.__connNumMax += 1
 
-    with self.sendLock:
-      self.sendQueues[connectionNum] = []
+    with self.__sendLock:
+      self.__sendQueues[connectionNum] = []
 
     # Loop until the client closes or the server is shutting down.
-    while self.keepAlive:
+    while self.__keepAlive:
       try:
         # Send any pending messages
-        with self.sendLock:
-          for data in self.sendQueues[connectionNum]:
+        with self.__sendLock:
+          for data in self.__sendQueues[connectionNum]:
             await ws.send(data)
-          self.sendQueues[connectionNum] = []
+          self.__sendQueues[connectionNum] = []
 
         # Listen for any replies
         data = await asyncio.wait_for(ws.recv(), timeout=socketTimeout)
         if data:
-          with self.receiveLock:
-            self.handleMethod(data)
+          with self.__receiveLock:
+            self.__handleMethod(data)
 
       except asyncio.TimeoutError:
         continue
@@ -78,31 +77,32 @@ class clientSocket:
         break
 
     # Close and cleanup socket
-    with self.sendLock:
-      del self.sendQueues[connectionNum]
+    with self.__sendLock:
+      del self.__sendQueues[connectionNum]
     await ws.close()
 
 
   def send(self, msg):
     # This will broadcast this message to all clients via the socket connection.
-    with self.sendLock:
+    with self.__sendLock:
       data = json.dumps(msg)
-      for connectionNum in self.sendQueues.keys():
-        self.sendQueues[connectionNum].append(data)
+      for connectionNum in self.__sendQueues.keys():
+        self.__sendQueues[connectionNum].append(data)
 
 
   def startAndWait(self):
     # This method starts the socket event loop and waits until an interrupt kills it.
     loop  = asyncio.get_event_loop()
-    parts = self.socketURL.split(':')
+    parts = self.__socketURL.split(':')
     host  = parts[0]
     port  = int(parts[1])
 
     try:
-      start_server = websockets.serve(self.socketConnected, host, port)
+      start_server = websockets.serve(self.__socketConnected, host, port)
       loop.run_until_complete(start_server)
       loop.run_forever()
     except KeyboardInterrupt:
       pass
     finally:
+      self.__keepAlive = False
       loop.stop()
