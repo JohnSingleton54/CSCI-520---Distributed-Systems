@@ -186,7 +186,7 @@ def main():
   # Kicks off the file server thread, the Raft server threads,
   # and starts the main event loop to handle the socket.
   print('Use Ctrl+C to close server (Does not work unless webpage is open)')
-  print('For testing open https://localhost:%d'%(fileSharePort))
+  print('For testing open http://localhost:%d'%(fileSharePort))
 
   fs = fileServer.fileServer(fileSharePort, playerColor, socketURL)
   conn = connections.connection(raftConnected, receivedRaftMessage, raftNodeURL)
