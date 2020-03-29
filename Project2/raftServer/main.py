@@ -33,8 +33,8 @@ print("The Node Count is %d" % (nodeCount))
 
 
 # Constant values
-beatLowerBound = 1.0 # Lowest random time, in seconds, to add to timeout on heart beat
-beatUpperBound = 3.0 # Highest random time, in seconds, to add to timeout on heart beat
+heartBeatLowerBound = 0.15 # Lowest random time, in seconds, to add to timeout on heart beat
+heartBeatUpperBound = 0.30 # Highest random time, in seconds, to add to timeout on heart beat
 
 
 # Communication variables
@@ -45,10 +45,11 @@ senders  = {}
 
 # Raft variables
 currentTerm   = 0
-currentLeader = -1
+leaderNodeId  = -1
 leaderTimeout = None
 votedFor      = -1
 logs          = []
+whoVotedForMe = {}
 
 
 def clientConnected(color, conn):
@@ -68,10 +69,10 @@ def resetEverything():
 
 
 def clientPunch(color, hand):
-  if currentLeader != myNodeId:
+  if leaderNodeId != myNodeId:
     # TODO: What do we do during leader election
-    if currentLeader != -1:
-      sendToNode(currentLeader, {
+    if leaderNodeId != -1:
+      sendToNode(leaderNodeId, {
         'Type':  'ClientPunch',
         'Color': color,
         'Hand':  hand,
@@ -85,10 +86,10 @@ def clientPunch(color, hand):
 
 
 def clientBlock(color, hand):
-  if currentLeader != myNodeId:
+  if leaderNodeId != myNodeId:
     # TODO: What do we do during leader election
-    if currentLeader != -1:
-      sendToNode(currentLeader, {
+    if leaderNodeId != -1:
+      sendToNode(leaderNodeId, {
         'Type':  'ClientBlock',
         'Color': color,
         'Hand':  hand,
@@ -103,7 +104,7 @@ def clientBlock(color, hand):
 
 def leaderHasTimedOut():
   # The timeout for starting a new election has been reached.
-  # Start a new leader election
+  # Start a new leader election.
   #
   # TODO: Implement
   #
@@ -113,7 +114,7 @@ def leaderHasTimedOut():
 def heartBeat():
   # Received a heart beat from the leader so bump the timeout
   # to keep a new leader election from being kicked off.
-  dt = random.Random() * (beatLowerBound - beatUpperBound) + beatLowerBound
+  dt = random.Random() * (heartBeatLowerBound - heartBeatUpperBound) + heartBeatLowerBound
   leaderTimeout.addTime(dt)
 
 
@@ -136,15 +137,14 @@ def requestVoteReply(fromNodeID, termNum, granted):
 def appendEntriesRequest(fromNodeID, termNum, entries):
   # This handles a AppendEntries Request from the leader.
   # If entries is empty then this is only for a heartbeat.
-  # Check that the node it is from is the current leader, otherwise ignore.
-  if fromNodeID == currentLeader:
-    heartBeat()
-    if entries:
-      # Apply the entries
-      #
-      # TODO: Implement
-      #
-      pass
+  leaderNodeId = fromNodeID
+  heartBeat()
+  if entries:
+    # Apply the entries
+    #
+    # TODO: Implement
+    #
+    pass
 
 
 def appendEntriesReply(fromNodeID, termNum, success):
