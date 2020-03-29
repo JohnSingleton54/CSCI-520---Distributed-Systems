@@ -64,14 +64,19 @@ punchCheckIn = time.time()
 
 def resetGame():
   # This is called when a client has requested a reset or everything.
+  conn.send({
+    'Type': 'Reset'
+  })
+
+
+def gameHasBeenReset():
+  # This is called when the raft servers have been reset.
   punchTimeout.stop()
   socket.send({
     'Type': 'Reset'
   })
-  conn.send({
-    'Type': 'Reset'
-  })
   print('Reset!')
+
 
 
 def performPunch(hand, otherHand):
@@ -166,6 +171,8 @@ def receivedRaftMessage(msg):
     gameOver(msg['Color'])
   elif msgType == 'PunchBlocked':
     punchWasBlocked(msg['Color'])
+  elif msgType == 'GameReset':
+    gameHasBeenReset()
   else:
     print("Unknown message (2):")
     print(msg)

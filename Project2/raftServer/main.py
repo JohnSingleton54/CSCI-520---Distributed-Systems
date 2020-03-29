@@ -33,8 +33,9 @@ print("The Node Count is %d" % (nodeCount))
 
 
 # Constant values
-heartBeatLowerBound = 0.15 # Lowest random time, in seconds, to add to timeout on heart beat
-heartBeatUpperBound = 0.30 # Highest random time, in seconds, to add to timeout on heart beat
+heartbeatInterval   = 0.10 # Time, in seconds, between a leader's heartbeat message
+heartbeatLowerBound = 0.15 # Lowest random time, in seconds, to add to timeout on heartbeat
+heartbeatUpperBound = 0.30 # Highest random time, in seconds, to add to timeout on heartbeat
 
 stateNeutral           = 0
 stateRightBlock        = 1
@@ -70,13 +71,22 @@ def clientConnected(color, conn):
   print('%s client connected'%(color))
 
 
-def resetEverything():
-  # The client has asked to reset the game.
-  # So reset variables
-  #
-  # TODO: Implement
-  #
-  print('Reset!')
+def resetLog():
+  # The client or another instance has asked to reset the game.
+  # So reset the logs. If logs are empty, don't resend message. 
+  global logs
+  if logs:
+    print('Reset!')
+    logs = []
+    sendToAllNodes({
+      'Type': 'Reset',
+    })
+    sendToClient('Red', {
+      'Type': 'Reset',
+    })
+    sendToClient('Blue', {
+      'Type': 'Reset',
+    })
 
 
 def clientPunch(color, hand):
@@ -128,7 +138,7 @@ def leaderHasTimedOut():
   votedFor      = myNodeId
 
   lastLogIndex = len(logs)-1
-  lastLogTerm = -1
+  lastLogTerm  = -1
   if lastLogIndex >= 0:
     lastLogTerm = logs[lastLogIndex]['Term']
 
@@ -142,23 +152,52 @@ def leaderHasTimedOut():
   print('Start election')
 
 
-def heartBeat():
-  # Received a heart beat from the leader so bump the timeout
+def heartbeat():
+  # Received a heartbeat from the leader so bump the timeout
   # to keep a new leader election from being kicked off.
-  dt = random.Random() * (heartBeatLowerBound - heartBeatUpperBound) + heartBeatLowerBound
+  dt = random.Random() * (heartbeatLowerBound - heartbeatUpperBound) + heartbeatLowerBound
   leaderTimeout.addTime(dt)
+
+
+def sendOutHeartbeat():
+  # We are (should be) the leader so send out AppendEntries requests.
+  # Even empty the AppendEntries works as a heartbeat.
+  if leaderNodeId == myNodeId:
+    leaderHeartbeat.addTime(heartbeatInterval)
+    #
+    # TODO: Implement
+    #
 
 
 def requestVoteRequest(fromNodeID, termNum, lastLogIndex, lastLogTerm):
   # This handles a RequestVote Request from another raft instance.
+  global currentTerm
   global votedFor
-  if votedFor == -1:
-    votedFor = fromNodeID
-    
-  #
-  # TODO: Implement
-  #
-  print('requestVoteRequest')
+  global logs
+  granted = False
+  if termNum >= currentTerm:
+    currentTerm = termNum
+    if votedFor == fromNodeID:
+      granted = True
+    elif votedFor == -1:
+
+      # Get the information for the current local log
+      curLogIndex = len(logs)-1
+      curLogTerm  = -1
+      if curLogIndex >= 0:
+        curLogTerm = logs[lastLogIndex]['Term']
+
+      # Compare local log with the candidates log
+      if (lastLogTerm > curLogTerm) or ((lastLogTerm == curLogTerm) and (lastLogIndex > curLogIndex)):
+        votedFor = fromNodeID
+        granted  = True
+
+  sendToNode(fromNodeID, {
+    'Type':    'RequestVoteReply',
+    'From':    myNodeId,
+    'Term':    currentTerm,
+    'Granted': granted,
+  })
 
 
 def requestVoteReply(fromNodeID, termNum, granted):
@@ -174,12 +213,13 @@ def appendEntriesRequest(fromNodeID, termNum, entries):
   # If entries is empty then this is only for a heartbeat.
 
   # Maybe the first from the leader, deal with leader selection
-  leaderNodeId  = fromNodeID
-  whoVotedForMe = {}
-  votedFor      = -1
+  leaderNodeId    = fromNodeID
+  leaderHeartbeat.Stop()
+  whoVotedForMe   = {}
+  votedFor        = -1
 
-  # Bump the timer for leader election
-  heartBeat()
+  # Bump the timer to keep from leader election
+  heartbeat()
   if entries:
     # Apply the entries
     #
@@ -242,7 +282,7 @@ def receiveMessage(msg, conn):
   # This method handles all messages from the client server instance(s).
   msgType = msg['Type']
 
-  # Handle client messages
+  # Handle client messages (or messages repeated by another instance on behalf of the client)
   if msgType == 'ClientConnected':
     clientConnected(msg['Color'], conn)
   elif msgType == 'ClientPunch':
@@ -250,7 +290,7 @@ def receiveMessage(msg, conn):
   elif msgType == 'ClientBlock':
     clientBlock(msg['Color'], msg['Hand'])
   elif msgType == 'Reset':
-    resetEverything()
+    resetLog()
 
   # Handle Raft messages
   elif msgType == 'RequestVoteRequest':
@@ -286,8 +326,8 @@ def main():
   # Setup the timeout used to start elections of a leader.
   leaderTimeout = customTimer.customTimer(leaderHasTimedOut)
 
-  # TODO: Working on when a leader should "beat the heart"
-  #leaderHeartbeat = customTimer.customTimer(leaderHasTimedOut)
+  # Setup the timeout which is used by the leader to send out heartbeats.
+  leaderHeartbeat = customTimer.customTimer(sendOutHeartbeat)
 
   # Keep server alive and wait
   input("Press Enter to Exit\n")
@@ -298,6 +338,7 @@ def main():
     sender.close()
   listener.close()
   leaderTimeout.close()
+  leaderHeartbeat.close()
 
 
 if __name__ == "__main__":
