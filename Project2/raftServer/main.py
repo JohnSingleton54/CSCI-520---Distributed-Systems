@@ -42,6 +42,7 @@ clients  = {}
 listener = None
 senders  = {}
 
+
 # Raft variables
 currentTerm   = 0
 currentLeader = -1
@@ -67,19 +68,37 @@ def resetEverything():
 
 
 def clientPunch(color, hand):
-  # Client has punched
-  #
-  # TODO: Implement
-  #
-  print('%s punched with %s hand'%(color, hand))
+  if currentLeader != myNodeId:
+    # TODO: What do we do during leader election
+    if currentLeader != -1:
+      sendToNode(currentLeader, {
+        'Type':  'ClientPunch',
+        'Color': color,
+        'Hand':  hand,
+      })
+  else:
+    # We are the leader, deal with the punch
+    print('%s punched with %s hand'%(color, hand))
+    #
+    # TODO: Implement
+    #
 
 
 def clientBlock(color, hand):
-  # Client has blocked
-  #
-  # TODO: Implement
-  #
-  print('%s blocking with %s hand' % (color, hand))
+  if currentLeader != myNodeId:
+    # TODO: What do we do during leader election
+    if currentLeader != -1:
+      sendToNode(currentLeader, {
+        'Type':  'ClientBlock',
+        'Color': color,
+        'Hand':  hand,
+      })
+  else:
+    # We are the leader, deal with the block
+    print('%s blocking with %s hand' % (color, hand))
+    #
+    # TODO: Implement
+    #
 
 
 def leaderHasTimedOut():
