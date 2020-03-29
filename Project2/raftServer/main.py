@@ -37,12 +37,17 @@ beatLowerBound = 1.0 # Lowest random time, in seconds, to add to timeout on hear
 beatUpperBound = 3.0 # Highest random time, in seconds, to add to timeout on heart beat
 
 
-# Global variables
+# Communication variables
 clients  = {}
 listener = None
 senders  = {}
+
+# Raft variables
+currentTerm   = 0
 currentLeader = -1
 leaderTimeout = None
+votedFor      = -1
+logs          = []
 
 
 def clientConnected(color, conn):

@@ -88,8 +88,9 @@ def performPunch(hand, otherHand):
   punchCheckIn = time.time()
   punchTimeout.addTime(punchWait)
   socket.send({
-    'Type': 'PlayerChanged',
-    hand:   'Punch'
+    'Type':    'PlayerChanged',
+    hand:      'Punch',
+    otherHand: 'Neutral'
   })
   conn.send({
     'Type':  'ClientPunch',
@@ -101,8 +102,9 @@ def performPunch(hand, otherHand):
 def performBlock(hand, otherHand):
   # Perform a block and log it.
   socket.send({
-    'Type': 'PlayerChanged',
-    hand:   'Block'
+    'Type':    'PlayerChanged',
+    hand:      'Block',
+    otherHand: 'Neutral'
   })
   conn.send({
     'Type':  'ClientBlock',
