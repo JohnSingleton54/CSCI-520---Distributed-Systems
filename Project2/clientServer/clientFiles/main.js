@@ -207,8 +207,6 @@ function main(config) {
     socket = new WebSocket("ws://" + config['SocketURL']);
     socket.onopen = function (e) {
         console.log('Connected websocket to server');
-        // Let the server know we're loaded and ready.
-        socket.send('Ready');
     };
     socket.onclose = function (event) {
         if (event.wasClean) {
