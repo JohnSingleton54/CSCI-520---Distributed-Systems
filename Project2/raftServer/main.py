@@ -16,11 +16,11 @@ import customTimer
 # The configurations for the raft servers.
 useMyHost = False
 nodeIdToURL = {
-  0: 'localhost:8084',
-  1: 'localhost:8085',
-  2: 'localhost:8086',
-  3: 'localhost:8087',
-  4: 'localhost:8088',
+  0: 'localhost:49507',
+  1: 'localhost:49510',
+  2: 'localhost:49511',
+  3: 'localhost:49512',
+  4: 'localhost:49513',
 }
 
 

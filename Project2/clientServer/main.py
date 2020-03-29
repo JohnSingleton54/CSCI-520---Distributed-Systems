@@ -29,14 +29,14 @@ configs = {
   0: {
     'playerColor':   'Red',
     'fileSharePort': 8080,
-    'socketURL':     'localhost:8081',
-    'raftNodeURL':   'localhost:8084',
+    'socketURL':     'localhost:49506',
+    'raftNodeURL':   'localhost:49507',
   },
   1: {
     'playerColor':   'Blue',
-    'fileSharePort': 8082,
-    'socketURL':     'localhost:8083',
-    'raftNodeURL':   'localhost:8085',
+    'fileSharePort': 49508,
+    'socketURL':     'localhost:49509',
+    'raftNodeURL':   'localhost:49510',
   },
 }
 
