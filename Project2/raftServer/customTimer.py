@@ -17,37 +17,37 @@ class customTimer:
   # This is a timer which can be bumped to run longer.
 
   def __init__(self, onTimedOut):
-    self.onTimedOut = onTimedOut
-    self.doneTime = None
-    self.keepAlive = True
+    self.__onTimedOut = onTimedOut
+    self.__doneTime = None
+    self.__keepAlive = True
     threading.Thread(target=self.__run).start()
 
 
   def __run(self):
     # Periodically check if the time is done.
-    while self.keepAlive:
-      if self.doneTime:
+    while self.__keepAlive:
+      if self.__doneTime:
         now = time.time()
-        if now > self.doneTime:
-          self.doneTime = None
-          self.onTimedOut()
+        if now > self.__doneTime:
+          self.__doneTime = None
+          self.__onTimedOut()
       time.sleep(checkTimeoutTime)
 
 
   def addTime(self, duration):
     # Adds the duration in seconds. If the time is up this will start
     # a new timeout. If timeout has happened yet, this will increase the timeout.
-    if not self.doneTime:
-      self.doneTime = time.time() + duration
+    if not self.__doneTime:
+      self.__doneTime = time.time() + duration
     else:
-      self.doneTime += duration
+      self.__doneTime += duration
 
 
   def stop(self):
     # Stops the current timeout without closing the whole timer thread.
-    self.doneTime = None
+    self.__doneTime = None
 
 
   def close(self):
     # Stops the timeout and closes the timer thread.
-    self.keepAlive = False
+    self.__keepAlive = False

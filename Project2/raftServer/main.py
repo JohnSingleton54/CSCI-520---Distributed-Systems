@@ -44,12 +44,13 @@ senders  = {}
 
 
 # Raft variables
-currentTerm   = 0
-leaderNodeId  = -1
-leaderTimeout = None
-votedFor      = -1
-logs          = []
-whoVotedForMe = {}
+currentTerm     = 0
+leaderNodeId    = -1
+leaderTimeout   = None
+leaderHeartbeat = None
+votedFor        = -1
+logs            = []
+whoVotedForMe   = {}
 
 
 def clientConnected(color, conn):
@@ -70,6 +71,7 @@ def resetEverything():
 
 def clientPunch(color, hand):
   if leaderNodeId != myNodeId:
+    # We are a follower, send the message to the leader.
     # TODO: What do we do during leader election
     if leaderNodeId != -1:
       sendToNode(leaderNodeId, {
@@ -87,6 +89,7 @@ def clientPunch(color, hand):
 
 def clientBlock(color, hand):
   if leaderNodeId != myNodeId:
+    # We are a follower, send the message to the leader.
     # TODO: What do we do during leader election
     if leaderNodeId != -1:
       sendToNode(leaderNodeId, {
@@ -105,9 +108,15 @@ def clientBlock(color, hand):
 def leaderHasTimedOut():
   # The timeout for starting a new election has been reached.
   # Start a new leader election.
-  #
-  # TODO: Implement
-  #
+  global whoVotedForMe
+  global leaderNodeId
+  whoVotedForMe = {}
+  leaderNodeId  = -1
+  sendToAllNodes({
+    'Type': 'RequestVoteRequest',
+    'From': myNodeId,
+    'Term': currentTerm
+  })
   print('Start election')
 
 
@@ -123,7 +132,7 @@ def requestVoteRequest(fromNodeID, termNum):
   #
   # TODO: Implement
   #
-  pass
+  print('requestVoteRequest')
 
 
 def requestVoteReply(fromNodeID, termNum, granted):
@@ -231,6 +240,7 @@ def main():
   global listener
   global senders
   global leaderTimeout
+  global leaderHeartbeat
 
   # Setup the listener to start watching for incoming messages.
   listener = connections.listener(receiveMessage, nodeIdToURL[myNodeId], useMyHost)
@@ -243,6 +253,9 @@ def main():
 
   # Setup the timeout used to start elections of a leader.
   leaderTimeout = customTimer.customTimer(leaderHasTimedOut)
+
+  # TODO: Working on when a leader should "beat the heart"
+  #leaderHeartbeat = customTimer.customTimer(leaderHasTimedOut)
 
   # Keep server alive and wait
   input("Press Enter to Exit\n")
