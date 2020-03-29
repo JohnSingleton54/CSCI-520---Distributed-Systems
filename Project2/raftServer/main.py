@@ -3,7 +3,7 @@
 # Grant Nelson and John M. Singleton
 # CSCI 520 - Distributed Systems
 # Project 2 (Consensus Project)
-# due Apr 6, 2020 by 11:59 PM
+# due Apr 6, 2020 by 11:59 PM (HI JOHN, I'm a conflict!!!)
 
 
 import sys
@@ -213,10 +213,10 @@ def appendEntriesRequest(fromNodeID, termNum, entries):
   # If entries is empty then this is only for a heartbeat.
 
   # Maybe the first from the leader, deal with leader selection
-  leaderNodeId    = fromNodeID
+  leaderNodeId  = fromNodeID
   leaderHeartbeat.Stop()
-  whoVotedForMe   = {}
-  votedFor        = -1
+  whoVotedForMe = {}
+  votedFor      = -1
 
   # Bump the timer to keep from leader election
   heartbeat()
