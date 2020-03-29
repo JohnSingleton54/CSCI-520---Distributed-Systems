@@ -36,6 +36,16 @@ print("The Node Count is %d" % (nodeCount))
 heartBeatLowerBound = 0.15 # Lowest random time, in seconds, to add to timeout on heart beat
 heartBeatUpperBound = 0.30 # Highest random time, in seconds, to add to timeout on heart beat
 
+stateNeutral           = 0
+stateRightBlock        = 1
+stateLeftBlock         = 2
+stateRightPunchMissed  = 3
+stateLeftPunchMissed   = 4
+stateRightPunchBlocked = 5
+stateLeftPunchBlocked  = 6
+stateRightPunchHit     = 7
+stateLeftPunchHit      = 8
+
 
 # Communication variables
 clients  = {}
@@ -108,14 +118,26 @@ def clientBlock(color, hand):
 def leaderHasTimedOut():
   # The timeout for starting a new election has been reached.
   # Start a new leader election.
+  global currentTerm
   global whoVotedForMe
   global leaderNodeId
+  global votedFor
+  currentTerm  += 1
   whoVotedForMe = {}
   leaderNodeId  = -1
+  votedFor      = myNodeId
+
+  lastLogIndex = len(logs)-1
+  lastLogTerm = -1
+  if lastLogIndex >= 0:
+    lastLogTerm = logs[lastLogIndex]['Term']
+
   sendToAllNodes({
     'Type': 'RequestVoteRequest',
     'From': myNodeId,
-    'Term': currentTerm
+    'Term': currentTerm,
+    'LastLogIndex': lastLogIndex,
+    'LastLogTerm':  lastLogTerm,
   })
   print('Start election')
 
@@ -127,8 +149,12 @@ def heartBeat():
   leaderTimeout.addTime(dt)
 
 
-def requestVoteRequest(fromNodeID, termNum):
+def requestVoteRequest(fromNodeID, termNum, lastLogIndex, lastLogTerm):
   # This handles a RequestVote Request from another raft instance.
+  global votedFor
+  if votedFor == -1:
+    votedFor = fromNodeID
+    
   #
   # TODO: Implement
   #
@@ -146,7 +172,13 @@ def requestVoteReply(fromNodeID, termNum, granted):
 def appendEntriesRequest(fromNodeID, termNum, entries):
   # This handles a AppendEntries Request from the leader.
   # If entries is empty then this is only for a heartbeat.
-  leaderNodeId = fromNodeID
+
+  # Maybe the first from the leader, deal with leader selection
+  leaderNodeId  = fromNodeID
+  whoVotedForMe = {}
+  votedFor      = -1
+
+  # Bump the timer for leader election
   heartBeat()
   if entries:
     # Apply the entries
@@ -222,7 +254,7 @@ def receiveMessage(msg, conn):
 
   # Handle Raft messages
   elif msgType == 'RequestVoteRequest':
-    requestVoteRequest(msg['From'], msg['Term']) # TODO: Add in log index stuff
+    requestVoteRequest(msg['From'], msg['Term'], msg['LastLogIndex'], msg['LastLogTerm'])
   elif msgType == 'RequestVoteReply':
     requestVoteReply(msg['From'], msg['Term'], msg['Granted'])
   elif msgType == 'AppendEntriesRequest':
