@@ -3,7 +3,7 @@
 # Grant Nelson and John M. Singleton
 # CSCI 520 - Distributed Systems
 # Project 2 (Consensus Project)
-# due Apr 6, 2018 by 11:59 PM
+# due Apr 6, 2020 by 11:59 PM
 
 # This serves the client files and creates a socket to the client
 # so that it can relay the game information into the Raft servers.
