@@ -3,7 +3,6 @@
 # Grant Nelson and John M. Singleton
 # CSCI 520 - Distributed Systems
 # Project 2 (Consensus Project)
-# Duplicated from Project 1 (Replicated Log Project)
 # due Apr 6, 2020 by 11:59 PM
 
 # This file contains the code for listening and sending on a channel.
@@ -12,6 +11,7 @@ import threading
 import time
 import socket
 import sys
+import json
 import select
 
 # helpful links:
@@ -65,7 +65,8 @@ class listener:
         data = conn.recv(4096)
         if data:
           # Got a message send it to the handle method.
-          self.__handleMethod(data.decode())
+          msg = json.loads(data.decode())
+          self.__handleMethod(msg, conn)
       except socket.timeout: 
         continue
     conn.close()
@@ -115,8 +116,8 @@ class sender:
           # Check if there are any pending messages and send all of them.
           with self.__queueLock:
             while self.__pendingQueue:
-              message = self.__pendingQueue.pop(0)
-              sock.sendall(message.encode())
+              data = self.__pendingQueue.pop(0)
+              sock.sendall(data.encode())
 
           # Sleep for a bit to let new messages get pended.
           time.sleep(1)
@@ -137,7 +138,8 @@ class sender:
     # If this is not connected, the message will be ignored.
     if self.__connected:
       with self.__queueLock:
-        self.__pendingQueue.append(message)
+        data = json.dumps(message)
+        self.__pendingQueue.append(data)
 
 
   def close(self):
