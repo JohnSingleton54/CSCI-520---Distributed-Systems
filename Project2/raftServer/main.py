@@ -9,6 +9,7 @@
 import sys
 import json
 import random
+import threading
 
 import connections
 import customTimer
@@ -55,6 +56,7 @@ senders  = {}
 
 
 # Raft variables
+dataLock        = threading.Lock()
 currentTerm     = 0
 leaderNodeId    = -1
 leaderTimeout   = None
@@ -66,18 +68,25 @@ whoVotedForMe   = {}
 
 def clientConnected(color, conn):
   # Indicates a client has been connected to this raft instance.
-  global clients
-  clients[color] = conn
+  with dataLock:
+    global clients
+    clients[color] = conn
   print('%s client connected'%(color))
 
 
 def resetLog():
   # The client or another instance has asked to reset the game.
-  # So reset the logs. If logs are empty, don't resend message. 
-  global logs
-  if logs:
+  # So reset the logs. If logs are empty, don't resend message.
+  # This does not follow typical Raft, it is for testing only.
+  needsReset = False
+  with dataLock:
+    global logs
+    if logs:
+      logs = []
+      needsReset = True
+  
+  if needsReset:
     print('Reset!')
-    logs = []
     sendToAllNodes({
       'Type': 'Reset',
     })
@@ -125,6 +134,16 @@ def clientBlock(color, hand):
     #
 
 
+def lastLogInfo():
+  # Gets the last entries on the log.
+  with dataLock:
+    lastLogIndex = len(logs)-1
+    lastLogTerm  = -1
+    if lastLogIndex >= 0:
+      lastLogTerm = logs[lastLogIndex]['Term']
+    return (lastLogIndex, lastLogTerm)
+
+
 def leaderHasTimedOut():
   # The timeout for starting a new election has been reached.
   # Start a new leader election.
@@ -132,16 +151,13 @@ def leaderHasTimedOut():
   global whoVotedForMe
   global leaderNodeId
   global votedFor
-  currentTerm  += 1
-  whoVotedForMe = {}
-  leaderNodeId  = -1
-  votedFor      = myNodeId
+  with dataLock:
+    currentTerm  += 1
+    whoVotedForMe = {}
+    leaderNodeId  = -1
+    votedFor      = myNodeId
 
-  lastLogIndex = len(logs)-1
-  lastLogTerm  = -1
-  if lastLogIndex >= 0:
-    lastLogTerm = logs[lastLogIndex]['Term']
-
+  lastLogIndex, lastLogTerm = lastLogInfo()
   sendToAllNodes({
     'Type': 'RequestVoteRequest',
     'From': myNodeId,
@@ -156,7 +172,7 @@ def heartbeat():
   # Received a heartbeat from the leader so bump the timeout
   # to keep a new leader election from being kicked off.
   dt = random.Random() * (heartbeatLowerBound - heartbeatUpperBound) + heartbeatLowerBound
-  leaderTimeout.addTime(dt)
+  leaderTimeout.addTime(dt, heartbeatUpperBound)
 
 
 def sendOutHeartbeat():
@@ -181,16 +197,16 @@ def requestVoteRequest(fromNodeID, termNum, lastLogIndex, lastLogTerm):
       granted = True
     elif votedFor == -1:
 
-      # Get the information for the current local log
-      curLogIndex = len(logs)-1
-      curLogTerm  = -1
-      if curLogIndex >= 0:
-        curLogTerm = logs[lastLogIndex]['Term']
-
       # Compare local log with the candidates log
-      if (lastLogTerm > curLogTerm) or ((lastLogTerm == curLogTerm) and (lastLogIndex > curLogIndex)):
+      curLogIndex, curLogTerm = lastLogInfo()
+      if (lastLogTerm > curLogTerm) or ((lastLogTerm == curLogTerm) and (lastLogIndex >= curLogIndex)):
         votedFor = fromNodeID
         granted  = True
+
+  if granted:
+    print('%d voted for %d'%(myNodeId, fromNodeID))
+  else:
+    print('%d did not vote for %d'%(myNodeId, fromNodeID))
 
   sendToNode(fromNodeID, {
     'Type':    'RequestVoteReply',
@@ -202,10 +218,17 @@ def requestVoteRequest(fromNodeID, termNum, lastLogIndex, lastLogTerm):
 
 def requestVoteReply(fromNodeID, termNum, granted):
   # This handles a RequestVote Reply from another raft instance.
-  #
-  # TODO: Implement
-  #
-  pass
+  global currentTerm
+  global whoVotedForMe
+  if granted and (termNum == currentTerm):
+    whoVotedForMe[fromNodeID] = True
+
+  if len(whoVotedForMe) > nodeCount/2:
+    # Look at me. I'm the leader now.
+    leaderNodeId = fromNodeID
+    leaderTimeout.stop()
+    leaderHeartbeat.addTime(0.0)
+    print('%d is now the leader'%(fromNodeID))
 
 
 def appendEntriesRequest(fromNodeID, termNum, entries):
@@ -213,12 +236,12 @@ def appendEntriesRequest(fromNodeID, termNum, entries):
   # If entries is empty then this is only for a heartbeat.
 
   # Maybe the first from the leader, deal with leader selection
+  leaderHeartbeat.stop()
   leaderNodeId  = fromNodeID
-  leaderHeartbeat.Stop()
   whoVotedForMe = {}
   votedFor      = -1
 
-  # Bump the timer to keep from leader election
+  # Bump the timer to keep from leader election from being kicked off.
   heartbeat()
   if entries:
     # Apply the entries
@@ -275,7 +298,8 @@ def sendToNode(nodeId, data):
 def sendToAllNodes(data):
   # Broadcasts a message to all raft server instances.
   for nodeId in senders.keys():
-    senders[nodeId].send(data)
+    if nodeId != myNodeId:
+      senders[nodeId].send(data)
 
 
 def receiveMessage(msg, conn):
@@ -308,6 +332,10 @@ def receiveMessage(msg, conn):
     print(msg)
 
 
+def showLogs():
+  pass
+
+
 def main():
   global listener
   global senders
@@ -329,8 +357,31 @@ def main():
   # Setup the timeout which is used by the leader to send out heartbeats.
   leaderHeartbeat = customTimer.customTimer(sendOutHeartbeat)
 
-  # Keep server alive and wait
-  input("Press Enter to Exit\n")
+  # Wait for user input.
+  while True:
+    print("What would you like to do?")
+    print("  1. Timeout")
+    print("  2. Stop Heartbeat")
+    print("  3. Show Log")
+    print("  4. Exit")
+
+    try:
+      choice = int(input("Enter your choice: "))
+    except:
+      print("Invalid choice. Try again.")
+      continue
+
+    if choice == 1:
+      leaderTimeout.stop()
+      leaderHasTimedOut()
+    elif choice == 2:
+      leaderHeartbeat.stop()
+    elif choice == 3:
+      showLogs()
+    elif choice == 4:
+      break
+    else:
+      print("Invalid choice \"%s\". Try again." % (choice))
 
   # Socket closed so clean up and shut down
   print('Closing...')
