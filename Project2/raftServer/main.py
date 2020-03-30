@@ -169,6 +169,9 @@ def getLogValue(color):
   with dataLock:
     for entry in reversed(logs):
       if entry['Color'] == color:
+        #
+        # TODO: Should we only look at committed entries?
+        #
         return entry['State']
     return stateNeutral
 
@@ -403,25 +406,28 @@ def receiveMessage(msg, conn):
 
 
 def showStatus():
-  # Prints the current status of this node
-  print("My Node Id: %d" % (myNodeId))
-  print("Node Count: %d" % (nodeCount))
-  print('Leader Id:  %d' % (leaderNodeId))
-  print('Term Num:   %d' % (currentTerm))
+  # Prints the current status of this node.
+  print("Status:")
+  print('  My Node Id: %d' % (myNodeId))
+  print('  Node Count: %d' % (nodeCount))
+  print('  Leader Id:  %d' % (leaderNodeId))
+  print('  Term Num:   %d' % (currentTerm))
   if 'Red' in clients:
-    print('Has Red Client')
+    print('  Has Red Client')
   if 'Blue' in clients:
-    print('Has Blue Client')
+    print('  Has Blue Client')
 
 
 def showLogs():
+  # Prints the logs in this node.
   with dataLock:
+    print('Logs:')
     for entry in logs:
       term = entry['Term']
       color = entry['Color']
       state = entry['State']
       check = 'X' if entry['Committed'] else ' '
-      print('[%s] %d: %s <- %s'%(check, term, color, state))
+      print('   [%s] %d: %s <- %s'%(check, term, color, state))
 
 
 def main():
