@@ -35,12 +35,13 @@ print("The Node Count is %d" % (nodeCount))
 
 # Constant values
 heartbeatInterval   = 0.10 # Time, in seconds, between a leader's heartbeat message
-heartbeatLowerBound = 0.15 # Lowest random time, in seconds, to add to timeout on heartbeat
-heartbeatUpperBound = 0.30 # Highest random time, in seconds, to add to timeout on heartbeat
+heartbeatLowerBound = 0.50 # Lowest random time, in seconds, to add to timeout on heartbeat
+heartbeatUpperBound = 1.00 # Highest random time, in seconds, to add to timeout on heartbeat
+heartbeatMaximum    = 3.00 # The maximum allowed heatbeat timeout, in seconds.
 
 stateNeutral           = 0
-stateRightBlock        = 1
-stateLeftBlock         = 2
+stateRightBlock        = 1 # blocking_with_right
+stateLeftBlock         = 2 # blocking_with_left
 stateRightPunchMissed  = 3
 stateLeftPunchMissed   = 4
 stateRightPunchBlocked = 5
@@ -71,7 +72,7 @@ def clientConnected(color, conn):
   with dataLock:
     global clients
     clients[color] = conn
-  print('%s client connected'%(color))
+  print('%s client connected' % (color))
 
 
 def resetLog():
@@ -110,7 +111,7 @@ def clientPunch(color, hand):
       })
   else:
     # We are the leader, deal with the punch
-    print('%s punched with %s hand'%(color, hand))
+    print('%s punched with %s hand' % (color, hand))
     #
     # TODO: Implement
     #
@@ -129,9 +130,10 @@ def clientBlock(color, hand):
   else:
     # We are the leader, deal with the block
     print('%s blocking with %s hand' % (color, hand))
-    #
-    # TODO: Implement
-    #
+    if hand == 'Right':
+      addNewLogEntry(color, stateRightBlock)
+    else:
+      addNewLogEntry(color, stateLeftBlock)
 
 
 def lastLogInfo():
@@ -142,6 +144,27 @@ def lastLogInfo():
     if lastLogIndex >= 0:
       lastLogTerm = logs[lastLogIndex]['Term']
     return (lastLogIndex, lastLogTerm)
+
+
+def addNewLogEntry(color, state):
+  # This will append a new log entry which sets our color (variable) to state (value).
+  global logs
+  with dataLock:
+    logs.append({
+      'Term':  currentTerm,
+      'Color': color,
+      'State': state,
+    })
+
+
+def getLogValue(color):
+  # This will find the most recent state (value) for the given color (variable).
+  global logs
+  with dataLock:
+    for entry in reversed(logs):
+      if entry['Color'] == color:
+        return entry['State']
+    return stateNeutral
 
 
 def leaderHasTimedOut():
@@ -165,14 +188,14 @@ def leaderHasTimedOut():
     'LastLogIndex': lastLogIndex,
     'LastLogTerm':  lastLogTerm,
   })
-  print('Start election')
+  print('%d started election' % (myNodeId))
 
 
 def heartbeat():
   # Received a heartbeat from the leader so bump the timeout
   # to keep a new leader election from being kicked off.
-  dt = random.Random() * (heartbeatLowerBound - heartbeatUpperBound) + heartbeatLowerBound
-  leaderTimeout.addTime(dt, heartbeatUpperBound)
+  dt = random.random() * (heartbeatLowerBound - heartbeatUpperBound) + heartbeatLowerBound
+  leaderTimeout.addTime(dt, heartbeatMaximum)
 
 
 def sendOutHeartbeat():
@@ -180,9 +203,17 @@ def sendOutHeartbeat():
   # Even empty the AppendEntries works as a heartbeat.
   if leaderNodeId == myNodeId:
     leaderHeartbeat.addTime(heartbeatInterval)
+    entries = []
     #
-    # TODO: Implement
+    # TODO: Determine the entries to be sending
+    #       Also add "prevLogIndex" and "prevLogTerm"
     #
+    sendToAllNodes({
+      'Type':    'AppendEntriesRequest',
+      'From':    myNodeId,
+      'Term':    currentTerm,
+      'Entries': entries,
+    })
 
 
 def requestVoteRequest(fromNodeID, termNum, lastLogIndex, lastLogTerm):
@@ -190,23 +221,27 @@ def requestVoteRequest(fromNodeID, termNum, lastLogIndex, lastLogTerm):
   global currentTerm
   global votedFor
   global logs
+
+  # Someone is trying to start an election so beat the heart to keep from everyone timing out.
+  heartbeat()
+
+  # Determine if the node should vote (granted) for the candidate making the request.
   granted = False
   if termNum >= currentTerm:
     currentTerm = termNum
-    if votedFor == fromNodeID:
-      granted = True
-    elif votedFor == -1:
-
-      # Compare local log with the candidates log
-      curLogIndex, curLogTerm = lastLogInfo()
-      if (lastLogTerm > curLogTerm) or ((lastLogTerm == curLogTerm) and (lastLogIndex >= curLogIndex)):
+    curLogIndex, curLogTerm = lastLogInfo()
+    if (lastLogTerm > curLogTerm) or ((lastLogTerm == curLogTerm) and (lastLogIndex >= curLogIndex)):
+      if votedFor == fromNodeID:
+        granted = True
+      elif votedFor == -1:
         votedFor = fromNodeID
         granted  = True
 
+  # Tell the candidate this node's decision.
   if granted:
-    print('%d voted for %d'%(myNodeId, fromNodeID))
+    print('%d voted for %d' % (myNodeId, fromNodeID))
   else:
-    print('%d did not vote for %d'%(myNodeId, fromNodeID))
+    print('%d did not vote for %d' % (myNodeId, fromNodeID))
 
   sendToNode(fromNodeID, {
     'Type':    'RequestVoteReply',
@@ -219,36 +254,45 @@ def requestVoteRequest(fromNodeID, termNum, lastLogIndex, lastLogTerm):
 def requestVoteReply(fromNodeID, termNum, granted):
   # This handles a RequestVote Reply from another raft instance.
   global currentTerm
+  global votedFor
   global whoVotedForMe
+  global leaderNodeId
   if granted and (termNum == currentTerm):
     whoVotedForMe[fromNodeID] = True
 
   if len(whoVotedForMe) > nodeCount/2:
     # Look at me. I'm the leader now.
-    leaderNodeId = fromNodeID
+    votedFor = -1
+    leaderNodeId = myNodeId
     leaderTimeout.stop()
+    print('%d is now the leader' % (myNodeId))
     leaderHeartbeat.addTime(0.0)
-    print('%d is now the leader'%(fromNodeID))
 
 
 def appendEntriesRequest(fromNodeID, termNum, entries):
   # This handles a AppendEntries Request from the leader.
   # If entries is empty then this is only for a heartbeat.
+  global leaderNodeId
+  global whoVotedForMe
+  global votedFor
+  global currentTerm
+  if termNum >= currentTerm:
 
-  # Maybe the first from the leader, deal with leader selection
-  leaderHeartbeat.stop()
-  leaderNodeId  = fromNodeID
-  whoVotedForMe = {}
-  votedFor      = -1
+    # Maybe the first from the leader, deal with leader selection.
+    leaderHeartbeat.stop()
+    leaderNodeId  = fromNodeID
+    whoVotedForMe = {}
+    votedFor      = -1
+    currentTerm   = termNum
 
-  # Bump the timer to keep from leader election from being kicked off.
-  heartbeat()
-  if entries:
-    # Apply the entries
-    #
-    # TODO: Implement
-    #
-    pass
+    # Bump the timer to keep from leader election from being kicked off.
+    heartbeat()
+    if entries:
+      # Apply the entries
+      #
+      # TODO: Implement
+      #
+      pass
 
 
 def appendEntriesReply(fromNodeID, termNum, success):
@@ -296,7 +340,7 @@ def sendToNode(nodeId, data):
 
 
 def sendToAllNodes(data):
-  # Broadcasts a message to all raft server instances.
+  # Broadcasts a message to all raft server instances other than this node.
   for nodeId in senders.keys():
     if nodeId != myNodeId:
       senders[nodeId].send(data)
@@ -332,8 +376,23 @@ def receiveMessage(msg, conn):
     print(msg)
 
 
+def showStatus():
+  # Prints the current status of this node
+  print("My Node Id: %d" % (myNodeId))
+  print("Node Count: %d" % (nodeCount))
+  print('Leader Id:  %d' % (leaderNodeId))
+  print('Term Num:   %d' % (currentTerm))
+  if 'Red' in clients:
+    print('Has Red Client')
+  if 'Blue' in clients:
+    print('Has Blue Client')
+
+
 def showLogs():
-  pass
+  #
+  # TODO: Implement
+  #
+  print("Implement")
 
 
 def main():
@@ -362,8 +421,9 @@ def main():
     print("What would you like to do?")
     print("  1. Timeout")
     print("  2. Stop Heartbeat")
-    print("  3. Show Log")
-    print("  4. Exit")
+    print("  3. Show Status")
+    print("  4. Show Log")
+    print("  5. Exit")
 
     try:
       choice = int(input("Enter your choice: "))
@@ -377,8 +437,10 @@ def main():
     elif choice == 2:
       leaderHeartbeat.stop()
     elif choice == 3:
-      showLogs()
+      showStatus()
     elif choice == 4:
+      showLogs()
+    elif choice == 5:
       break
     else:
       print("Invalid choice \"%s\". Try again." % (choice))
