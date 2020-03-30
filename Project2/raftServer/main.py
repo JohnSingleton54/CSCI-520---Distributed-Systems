@@ -34,20 +34,20 @@ print("The Node Count is %d" % (nodeCount))
 
 
 # Constant values
-heartbeatInterval   = 0.10 # Time, in seconds, between a leader's heartbeat message
+heartbeatInterval   = 0.10 # Time, in seconds, between an election or a leader's heartbeat message
 heartbeatLowerBound = 0.50 # Lowest random time, in seconds, to add to timeout on heartbeat
-heartbeatUpperBound = 1.00 # Highest random time, in seconds, to add to timeout on heartbeat
-heartbeatMaximum    = 3.00 # The maximum allowed heatbeat timeout, in seconds.
+heartbeatUpperBound = 1.50 # Highest random time, in seconds, to add to timeout on heartbeat
+heartbeatMaximum    = 5.00 # The maximum allowed heatbeat timeout, in seconds.
 
-stateNeutral           = 0
-stateRightBlock        = 1 # blocking_with_right
-stateLeftBlock         = 2 # blocking_with_left
-stateRightPunchMissed  = 3
-stateLeftPunchMissed   = 4
-stateRightPunchBlocked = 5
-stateLeftPunchBlocked  = 6
-stateRightPunchHit     = 7
-stateLeftPunchHit      = 8
+stateNeutral           = 'neutral'
+stateRightBlock        = 'blocking_with_right'
+stateLeftBlock         = 'blocking_with_left'
+stateRightPunchMissed  = 'right_punch_missed'
+stateLeftPunchMissed   = 'left_punch_missed'
+stateRightPunchBlocked = 'right_punch_blocked'
+stateLeftPunchBlocked  = 'left_punch_blocked'
+stateRightPunchHit     = 'right_punch_hit'
+stateLeftPunchHit      = 'left_punch_hit'
 
 
 # Communication variables
@@ -57,14 +57,15 @@ senders  = {}
 
 
 # Raft variables
-dataLock        = threading.Lock()
-currentTerm     = 0
-leaderNodeId    = -1
-leaderTimeout   = None
-leaderHeartbeat = None
-votedFor        = -1
-logs            = []
-whoVotedForMe   = {}
+dataLock      = threading.Lock()
+currentTerm   = 0
+leaderNodeId  = -1
+votedFor      = -1
+logs          = []
+whoVotedForMe = {}
+leaderTimeout     = None
+leaderHeartbeat   = None
+electionHeartbeat = None
 
 
 def clientConnected(color, conn):
@@ -102,7 +103,9 @@ def resetLog():
 def clientPunch(color, hand):
   if leaderNodeId != myNodeId:
     # We are a follower, send the message to the leader.
+    #
     # TODO: What do we do during leader election
+    #
     if leaderNodeId != -1:
       sendToNode(leaderNodeId, {
         'Type':  'ClientPunch',
@@ -120,7 +123,9 @@ def clientPunch(color, hand):
 def clientBlock(color, hand):
   if leaderNodeId != myNodeId:
     # We are a follower, send the message to the leader.
+    #
     # TODO: What do we do during leader election
+    #
     if leaderNodeId != -1:
       sendToNode(leaderNodeId, {
         'Type':  'ClientBlock',
@@ -151,9 +156,10 @@ def addNewLogEntry(color, state):
   global logs
   with dataLock:
     logs.append({
-      'Term':  currentTerm,
-      'Color': color,
-      'State': state,
+      'Term':      currentTerm,
+      'Color':     color,
+      'State':     state,
+      'Committed': False,
     })
 
 
@@ -176,29 +182,39 @@ def leaderHasTimedOut():
   global votedFor
   with dataLock:
     currentTerm  += 1
-    whoVotedForMe = {}
+    whoVotedForMe = {myNodeId: True}
     leaderNodeId  = -1
     votedFor      = myNodeId
 
+  print('%d: %d started election' % (currentTerm, myNodeId))
+  electionHeartbeat.addTime(0.0)
+
+
+def sendOutElectionHeartbeat():
+  # Periodically send out the message to all nodes which haven't replied.
   lastLogIndex, lastLogTerm = lastLogInfo()
-  sendToAllNodes({
-    'Type': 'RequestVoteRequest',
-    'From': myNodeId,
-    'Term': currentTerm,
+  msg = {
+    'Type':         'RequestVoteRequest',
+    'From':         myNodeId,
+    'Term':         currentTerm,
     'LastLogIndex': lastLogIndex,
     'LastLogTerm':  lastLogTerm,
-  })
-  print('%d started election' % (myNodeId))
+  }
+  for nodeId in senders.keys():
+    if not nodeId in whoVotedForMe:
+      sendToNode(nodeId, msg)
+  electionHeartbeat.addTime(heartbeatInterval)
 
 
 def heartbeat():
   # Received a heartbeat from the leader so bump the timeout
   # to keep a new leader election from being kicked off.
-  dt = random.random() * (heartbeatLowerBound - heartbeatUpperBound) + heartbeatLowerBound
+  dt = random.random() * (heartbeatUpperBound - heartbeatLowerBound) + heartbeatLowerBound
   leaderTimeout.addTime(dt, heartbeatMaximum)
+  #print('%d, %d timeout is %0.5fs' % (currentTerm, myNodeId, leaderTimeout.timeLeft()))
 
 
-def sendOutHeartbeat():
+def sendOutLeaderHeartbeat():
   # We are (should be) the leader so send out AppendEntries requests.
   # Even empty the AppendEntries works as a heartbeat.
   if leaderNodeId == myNodeId:
@@ -222,7 +238,7 @@ def requestVoteRequest(fromNodeID, termNum, lastLogIndex, lastLogTerm):
   global votedFor
   global logs
 
-  # Someone is trying to start an election so beat the heart to keep from everyone timing out.
+  # Some one has started an election so beat the heart to keep from kicking of another one.
   heartbeat()
 
   # Determine if the node should vote (granted) for the candidate making the request.
@@ -238,11 +254,10 @@ def requestVoteRequest(fromNodeID, termNum, lastLogIndex, lastLogTerm):
         granted  = True
 
   # Tell the candidate this node's decision.
-  if granted:
-    print('%d voted for %d' % (myNodeId, fromNodeID))
-  else:
-    print('%d did not vote for %d' % (myNodeId, fromNodeID))
-
+  # if granted:
+  #   print('%d: %d voted for %d' % (currentTerm, myNodeId, fromNodeID))
+  # else:
+  #   print('%d: %d did not vote for %d' % (currentTerm, myNodeId, fromNodeID))
   sendToNode(fromNodeID, {
     'Type':    'RequestVoteReply',
     'From':    myNodeId,
@@ -257,16 +272,24 @@ def requestVoteReply(fromNodeID, termNum, granted):
   global votedFor
   global whoVotedForMe
   global leaderNodeId
-  if granted and (termNum == currentTerm):
-    whoVotedForMe[fromNodeID] = True
+  if termNum == currentTerm:
+    whoVotedForMe[fromNodeID] = granted
 
-  if len(whoVotedForMe) > nodeCount/2:
-    # Look at me. I'm the leader now.
-    votedFor = -1
-    leaderNodeId = myNodeId
-    leaderTimeout.stop()
-    print('%d is now the leader' % (myNodeId))
-    leaderHeartbeat.addTime(0.0)
+    # Count how many votes were granted to this node.
+    count = 0
+    for nodeGranted in whoVotedForMe.values():
+      if nodeGranted:
+        count += 1
+
+    if count > nodeCount/2:
+      # Look at me. I'm the leader now.
+      votedFor = -1
+      whoVotedForMe = {}
+      leaderNodeId = myNodeId
+      leaderTimeout.stop()
+      electionHeartbeat.stop()
+      leaderHeartbeat.addTime(0.0)
+      print('%d: %d is now the leader' % (currentTerm, myNodeId))
 
 
 def appendEntriesRequest(fromNodeID, termNum, entries):
@@ -279,11 +302,14 @@ def appendEntriesRequest(fromNodeID, termNum, entries):
   if termNum >= currentTerm:
 
     # Maybe the first from the leader, deal with leader selection.
-    leaderHeartbeat.stop()
-    leaderNodeId  = fromNodeID
-    whoVotedForMe = {}
-    votedFor      = -1
-    currentTerm   = termNum
+    if (leaderNodeId != fromNodeID) or (termNum > currentTerm):
+      leaderHeartbeat.stop()
+      electionHeartbeat.stop()
+      leaderNodeId  = fromNodeID
+      whoVotedForMe = {}
+      votedFor      = -1
+      currentTerm   = termNum
+      print('%d: %d is now the leader' % (currentTerm, leaderNodeId))
 
     # Bump the timer to keep from leader election from being kicked off.
     heartbeat()
@@ -389,10 +415,13 @@ def showStatus():
 
 
 def showLogs():
-  #
-  # TODO: Implement
-  #
-  print("Implement")
+  with dataLock:
+    for entry in logs:
+      term = entry['Term']
+      color = entry['Color']
+      state = entry['State']
+      check = 'X' if entry['Committed'] else ' '
+      print('[%s] %d: %s <- %s'%(check, term, color, state))
 
 
 def main():
@@ -400,6 +429,7 @@ def main():
   global senders
   global leaderTimeout
   global leaderHeartbeat
+  global electionHeartbeat
 
   # Setup the listener to start watching for incoming messages.
   listener = connections.listener(receiveMessage, nodeIdToURL[myNodeId], useMyHost)
@@ -410,11 +440,13 @@ def main():
       sender = connections.sender(hostAndPort)
       senders[nodeId] = sender
 
-  # Setup the timeout used to start elections of a leader.
+  # Setup the timers used to keep Raft elections working.
   leaderTimeout = customTimer.customTimer(leaderHasTimedOut)
+  leaderHeartbeat = customTimer.customTimer(sendOutLeaderHeartbeat)
+  electionHeartbeat = customTimer.customTimer(sendOutElectionHeartbeat)
 
-  # Setup the timeout which is used by the leader to send out heartbeats.
-  leaderHeartbeat = customTimer.customTimer(sendOutHeartbeat)
+  # Start the leader timeout by forcing a heartbeat.
+  heartbeat()
 
   # Wait for user input.
   while True:
@@ -452,6 +484,7 @@ def main():
   listener.close()
   leaderTimeout.close()
   leaderHeartbeat.close()
+  electionHeartbeat.close()
 
 
 if __name__ == "__main__":
