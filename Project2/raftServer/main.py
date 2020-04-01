@@ -134,7 +134,7 @@ class mainObject:
         newState = stateRightPunchBlocked
       else:
         # Check if the 10% possibility hit has happened.
-        hit = random.Random() <= 0.1
+        hit = random.random() <= 0.1
         if hand == 'Left':
           newState = stateLeftPunchHit if hit else stateLeftPunchMissed
         else:
@@ -297,6 +297,8 @@ class mainObject:
     # This handles a AppendEntries Reply from another raft instance.
     #
     # TODO: Implement
+    # once a state had been committed we need to update the client
+    # about the state change, for things like opponents state and end game hits.
     #
     pass
 
