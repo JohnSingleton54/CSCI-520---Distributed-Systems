@@ -121,11 +121,28 @@ class mainObject:
         with self.dataLock:
           self.pendingEvents.append(msg)
     else:
-      # We are the leader, deal with the punch
+      # We are the leader, deal with the punch.
       print('%s punched with %s hand' % (color, hand))
-      #
-      # TODO: Implement
-      #
+
+      # Find out what state the opponent is at.
+      opponentState = self.getLogValue('Blue' if color == 'Red' else 'Red')
+
+      # Find the new state of this player.
+      if (hand == 'Left') and (opponentState == stateRightBlock):
+        newState = stateLeftPunchBlocked
+      elif (hand == 'Right') and (opponentState == stateLeftBlock):
+        newState = stateRightPunchBlocked
+      else:
+        # Check if the 10% possibility hit has happened.
+        hit = random.Random() <= 0.1
+        if hand == 'Left':
+          newState = stateLeftPunchHit if hit else stateLeftPunchMissed
+        else:
+          newState = stateRightPunchHit if hit else stateRightPunchMissed
+      
+      # Write new state to logs as an uncommitted entry,
+      # the next heartbeat will pick it up and start sharing it.
+      self.addNewLogEntry(color, newState)
 
 
   def clientBlock(self, color, hand):
@@ -145,10 +162,11 @@ class mainObject:
     else:
       # We are the leader, deal with the block
       print('%s blocking with %s hand' % (color, hand))
-      if hand == 'Right':
-        self.addNewLogEntry(color, stateRightBlock)
-      else:
-        self.addNewLogEntry(color, stateLeftBlock)
+      newState = stateLeftBlock if hand == 'Left' else stateRightBlock
+
+      # Write new state to logs as an uncommitted entry,
+      # the next heartbeat will pick it up and start sharing it.
+      self.addNewLogEntry(color, newState)
 
 
   def lastLogInfo(self):
@@ -295,7 +313,6 @@ class mainObject:
     # Set this node as a candidate and start a new leader election.
     # This usually happens when the timeout for starting a new election has been reached.
     with self.dataLock:
-      self.leaderTimeout.stop()
       self.currentTerm  += 1
       self.whoVotedForMe = {myNodeId: True}
       self.leaderNodeId  = -1
@@ -303,6 +320,7 @@ class mainObject:
       self.nodeStatus    = statusCandidate
       print('%d: %d started election' % (self.currentTerm, myNodeId))
       self.electionHeartbeat.addTime(0.0)
+    self.heartbeat()
 
 
   def setAsLeader(self):
