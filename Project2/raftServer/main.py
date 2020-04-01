@@ -181,20 +181,6 @@ class mainObject:
       return stateNeutral
 
 
-  def leaderHasTimedOut(self):
-    # The timeout for starting a new election has been reached.
-    # Start a new leader election.
-    with self.dataLock:
-      self.currentTerm  += 1
-      self.whoVotedForMe = {myNodeId: True}
-      self.leaderNodeId  = -1
-      self.votedFor      = myNodeId
-      self.nodeStatus    = statusCandidate
-
-    print('%d: %d started election' % (self.currentTerm, myNodeId))
-    self.electionHeartbeat.addTime(0.0)
-
-
   def sendOutElectionHeartbeat(self):
     # Periodically send out the message to all nodes which haven't replied.
     lastLogIndex, lastLogTerm = self.lastLogInfo()
@@ -209,14 +195,6 @@ class mainObject:
       if not nodeId in self.whoVotedForMe:
         self.sendToNode(nodeId, msg)
     self.electionHeartbeat.addTime(heartbeatInterval)
-
-
-  def heartbeat(self):
-    # Received a heartbeat from the leader so bump the timeout
-    # to keep a new leader election from being kicked off.
-    dt = random.random() * (heartbeatUpperBound - heartbeatLowerBound) + heartbeatLowerBound
-    self.leaderTimeout.addTime(dt, heartbeatMaximum)
-    #print('%d, %d timeout is %0.5fs' % (currentTerm, myNodeId, leaderTimeout.timeLeft()))
 
 
   def sendOutLeaderHeartbeat(self):
@@ -275,20 +253,7 @@ class mainObject:
 
       if count > nodeCount/2:
         # Look at me. I'm the leader now.
-        pending = []
-        with self.dataLock:
-          pending = self.pendingEvents
-          self.votedFor      = -1
-          self.whoVotedForMe = {}
-          self.leaderNodeId  = myNodeId
-          self.nodeStatus    = statusLeader
-          self.pendingEvents = []
-          self.leaderTimeout.stop()
-          self.electionHeartbeat.stop()
-          self.leaderHeartbeat.addTime(0.0)
-        print('%d: %d is now the leader' % (self.currentTerm, myNodeId))
-        for event in pending:
-          receiveMessage(event)
+        self.setAsLeader()
 
 
   def appendEntriesRequest(self, fromNodeID, termNum, entries):
@@ -297,21 +262,8 @@ class mainObject:
     if termNum >= self.currentTerm:
 
       # Maybe the first from the leader, deal with leader selection.
-      pending = []
-      with self.dataLock:
-        if (self.leaderNodeId != fromNodeID) or (termNum > self.currentTerm):
-          self.leaderHeartbeat.stop()
-          self.electionHeartbeat.stop()
-          pending = self.pendingEvents
-          self.pendingEvents = []
-          self.leaderNodeId  = fromNodeID
-          self.whoVotedForMe = {}
-          self.votedFor      = -1
-          self.currentTerm   = termNum
-          self.nodeStatus    = statusFollower
-          print('%d: %d is now the leader' % (self.currentTerm, self.leaderNodeId))
-      for event in pending:
-        self.receiveMessage(event)
+      if (self.leaderNodeId != fromNodeID) or (termNum > self.currentTerm) or (self.votedFor != -1):
+        self.setAsFollower(fromNodeID, termNum)
 
       # Bump the timer to keep from leader election from being kicked off.
       self.heartbeat()
@@ -329,6 +281,64 @@ class mainObject:
     # TODO: Implement
     #
     pass
+
+
+  def heartbeat(self):
+    # Received a heartbeat from the leader so bump the timeout
+    # to keep a new leader election from being kicked off.
+    dt = random.random() * (heartbeatUpperBound - heartbeatLowerBound) + heartbeatLowerBound
+    self.leaderTimeout.addTime(dt, heartbeatMaximum)
+    #print('%d, %d timeout is %0.5fs' % (self.currentTerm, myNodeId, self.leaderTimeout.timeLeft()))
+
+
+  def setAsCandidate(self):
+    # Set this node as a candidate and start a new leader election.
+    # This usually happens when the timeout for starting a new election has been reached.
+    with self.dataLock:
+      self.leaderTimeout.stop()
+      self.currentTerm  += 1
+      self.whoVotedForMe = {myNodeId: True}
+      self.leaderNodeId  = -1
+      self.votedFor      = myNodeId
+      self.nodeStatus    = statusCandidate
+      print('%d: %d started election' % (self.currentTerm, myNodeId))
+      self.electionHeartbeat.addTime(0.0)
+
+
+  def setAsLeader(self):
+    # Set this node as the leader and start sending out heartbeats.
+    pending = []
+    with self.dataLock:
+      self.leaderTimeout.stop()
+      self.electionHeartbeat.stop()
+      pending = self.pendingEvents
+      self.votedFor      = -1
+      self.whoVotedForMe = {}
+      self.leaderNodeId  = myNodeId
+      self.nodeStatus    = statusLeader
+      self.pendingEvents = []
+      self.leaderHeartbeat.addTime(0.0)
+      print('%d: %d is now the leader' % (self.currentTerm, myNodeId))
+    for event in pending:
+      receiveMessage(event)
+
+
+  def setAsFollower(self, newLeader, newTerm):
+    # Set this node as a follower, update leader and term values.
+    pending = []
+    with self.dataLock:
+      self.leaderHeartbeat.stop()
+      self.electionHeartbeat.stop()
+      pending = self.pendingEvents
+      self.pendingEvents = []
+      self.leaderNodeId  = newLeader
+      self.whoVotedForMe = {}
+      self.votedFor      = -1
+      self.currentTerm   = newTerm
+      self.nodeStatus    = statusFollower
+      print('%d: %d is now the leader' % (self.currentTerm, self.leaderNodeId))
+    for event in pending:
+      self.receiveMessage(event)
 
 
   def tellClientPunchBlocked(self, color):
@@ -419,12 +429,13 @@ class mainObject:
     # Prints the current status of this node.
     with self.dataLock:
       print('Information:')
-      print('  Status:     %s' % (self.nodeStatus))
       print('  My Node Id: %d' % (myNodeId))
       print('  Node Count: %d' % (nodeCount))
+      print('  Status:     %s' % (self.nodeStatus))
       print('  Leader Id:  %d' % (self.leaderNodeId))
       print('  Term Num:   %d' % (self.currentTerm))
-      print('  Client(s):  ', end=' ')
+      print('  Timeout:    %0.5fs' % (self.leaderTimeout.timeLeft()))
+      print('  Client(s): ', end=' ')
       for client in self.clients:
           print(client, end=' ')
       print()
@@ -452,7 +463,7 @@ class mainObject:
         self.senders[nodeId] = connections.sender(hostAndPort)
 
     # Setup the timers used to keep Raft elections working.
-    self.leaderTimeout     = customTimer.customTimer(self.leaderHasTimedOut)
+    self.leaderTimeout     = customTimer.customTimer(self.setAsCandidate)
     self.leaderHeartbeat   = customTimer.customTimer(self.sendOutLeaderHeartbeat)
     self.electionHeartbeat = customTimer.customTimer(self.sendOutElectionHeartbeat)
 
@@ -475,8 +486,7 @@ class mainObject:
         continue
 
       if choice == 1:
-        self.leaderTimeout.stop()
-        self.leaderHasTimedOut()
+        self.setAsCandidate()
       elif choice == 2:
         self.leaderHeartbeat.stop()
       elif choice == 3:
