@@ -65,8 +65,11 @@ class listener:
         data = conn.recv(4096)
         if data:
           # Got a message send it to the handle method.
-          msg = json.loads(data.decode())
-          self.__handleMethod(msg, conn)
+          parts = data.decode().split('\0')
+          for part in parts:
+            if part:
+              msg = json.loads(part)
+              self.__handleMethod(msg, conn)
       except socket.timeout: 
         continue
     conn.close()
@@ -117,10 +120,10 @@ class sender:
           with self.__queueLock:
             while self.__pendingQueue:
               data = self.__pendingQueue.pop(0)
-              sock.sendall(data.encode())
+              sock.sendall((data+'\0').encode())
 
           # Sleep for a bit to let new messages get pended.
-          time.sleep(1)
+          time.sleep(0.025)
 
         # Close socket and exit thread
         sock.close()

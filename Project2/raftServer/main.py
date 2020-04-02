@@ -9,6 +9,7 @@
 import sys
 import json
 import random
+import threading
 
 import connections
 import customTimer
@@ -33,313 +34,499 @@ print("The Node Count is %d" % (nodeCount))
 
 
 # Constant values
-heartbeatInterval   = 0.10 # Time, in seconds, between a leader's heartbeat message
-heartbeatLowerBound = 0.15 # Lowest random time, in seconds, to add to timeout on heartbeat
-heartbeatUpperBound = 0.30 # Highest random time, in seconds, to add to timeout on heartbeat
+heartbeatInterval   = 0.10 # Time, in seconds, between an election or a leader's heartbeat message
+heartbeatLowerBound = 0.50 # Lowest random time, in seconds, to add to timeout on heartbeat
+heartbeatUpperBound = 1.50 # Highest random time, in seconds, to add to timeout on heartbeat
+heartbeatMaximum    = 5.00 # The maximum allowed heatbeat timeout, in seconds.
 
-stateNeutral           = 0
-stateRightBlock        = 1
-stateLeftBlock         = 2
-stateRightPunchMissed  = 3
-stateLeftPunchMissed   = 4
-stateRightPunchBlocked = 5
-stateLeftPunchBlocked  = 6
-stateRightPunchHit     = 7
-stateLeftPunchHit      = 8
+stateNeutral           = 'neutral'
+stateRightBlock        = 'blocking_with_right'
+stateLeftBlock         = 'blocking_with_left'
+stateRightPunchMissed  = 'right_punch_missed'
+stateLeftPunchMissed   = 'left_punch_missed'
+stateRightPunchBlocked = 'right_punch_blocked'
+stateLeftPunchBlocked  = 'left_punch_blocked'
+stateRightPunchHit     = 'right_punch_hit'
+stateLeftPunchHit      = 'left_punch_hit'
 
-
-# Communication variables
-clients  = {}
-listener = None
-senders  = {}
-
-
-# Raft variables
-currentTerm     = 0
-leaderNodeId    = -1
-leaderTimeout   = None
-leaderHeartbeat = None
-votedFor        = -1
-logs            = []
-whoVotedForMe   = {}
+statusFollower  = 'Follower'
+statusCandidate = 'Candidate'
+statusLeader    = 'Leader'
 
 
-def clientConnected(color, conn):
-  # Indicates a client has been connected to this raft instance.
-  global clients
-  clients[color] = conn
-  print('%s client connected'%(color))
+class mainObject:
+  def __init__(self):
+
+    # Communication variables
+    self.clients  = {}
+    self.listener = None
+    self.senders  = {}
+
+    # Raft variables
+    self.nodeStatus    = statusFollower
+    self.dataLock      = threading.Lock()
+    self.currentTerm   = 0
+    self.leaderNodeId  = -1
+    self.votedFor      = -1
+    self.pendingEvents = []
+    self.logs          = []
+    self.whoVotedForMe = {}
+    self.leaderTimeout     = None
+    self.leaderHeartbeat   = None
+    self.electionHeartbeat = None
 
 
-def resetLog():
-  # The client or another instance has asked to reset the game.
-  # So reset the logs. If logs are empty, don't resend message. 
-  global logs
-  if logs:
-    print('Reset!')
-    logs = []
-    sendToAllNodes({
-      'Type': 'Reset',
-    })
-    sendToClient('Red', {
-      'Type': 'Reset',
-    })
-    sendToClient('Blue', {
-      'Type': 'Reset',
-    })
+  def clientConnected(self, color, conn):
+    # Indicates a client has been connected to this raft instance.
+    with self.dataLock:
+      self.clients[color] = conn
+    print('%s client connected' % (color))
 
 
-def clientPunch(color, hand):
-  if leaderNodeId != myNodeId:
-    # We are a follower, send the message to the leader.
-    # TODO: What do we do during leader election
-    if leaderNodeId != -1:
-      sendToNode(leaderNodeId, {
+  def resetLog(self):
+    # The client or another instance has asked to reset the game.
+    # So reset the logs. If logs are empty, don't resend message.
+    # This does not follow typical Raft, it is for testing only.
+    needsReset = False
+    with self.dataLock:
+      if self.logs:
+        self.logs = []
+        needsReset = True
+    
+    if needsReset:
+      print('Reset!')
+      self.sendToAllNodes({
+        'Type': 'Reset',
+      })
+      self.sendToClient('Red', {
+        'Type': 'Reset',
+      })
+      self.sendToClient('Blue', {
+        'Type': 'Reset',
+      })
+
+
+  def clientPunch(self, color, hand):
+    if self.leaderNodeId != myNodeId:
+      # We are a follower, send the message to the leader or put it
+      # into pending queue to send once the leader has been selected.
+      msg = {
         'Type':  'ClientPunch',
         'Color': color,
         'Hand':  hand,
-      })
-  else:
-    # We are the leader, deal with the punch
-    print('%s punched with %s hand'%(color, hand))
-    #
-    # TODO: Implement
-    #
+      }
+      if self.nodeStatus != statusLeader:
+        self.sendToNode(self.leaderNodeId, msg)
+      else:
+        with self.dataLock:
+          self.pendingEvents.append(msg)
+    else:
+      # We are the leader, deal with the punch.
+      print('%s punched with %s hand' % (color, hand))
+
+      # Find out what state the opponent is at.
+      opponentState = self.getLogValue('Blue' if color == 'Red' else 'Red')
+
+      # Find the new state of this player.
+      if (hand == 'Left') and (opponentState == stateRightBlock):
+        newState = stateLeftPunchBlocked
+      elif (hand == 'Right') and (opponentState == stateLeftBlock):
+        newState = stateRightPunchBlocked
+      else:
+        # Check if the 10% possibility hit has happened.
+        hit = random.random() <= 0.1
+        if hand == 'Left':
+          newState = stateLeftPunchHit if hit else stateLeftPunchMissed
+        else:
+          newState = stateRightPunchHit if hit else stateRightPunchMissed
+      
+      # Write new state to logs as an uncommitted entry,
+      # the next heartbeat will pick it up and start sharing it.
+      self.addNewLogEntry(color, newState)
 
 
-def clientBlock(color, hand):
-  if leaderNodeId != myNodeId:
-    # We are a follower, send the message to the leader.
-    # TODO: What do we do during leader election
-    if leaderNodeId != -1:
-      sendToNode(leaderNodeId, {
+  def clientBlock(self, color, hand):
+    if self.leaderNodeId != myNodeId:
+      # We are a follower, send the message to the leader or put it
+      # into pending queue to send once the leader has been selected.
+      msg = {
         'Type':  'ClientBlock',
         'Color': color,
         'Hand':  hand,
+      }
+      if self.nodeStatus != statusLeader:
+        self.sendToNode(self.leaderNodeId, msg)
+      else:
+        with self.dataLock:
+          self.pendingEvents.append(msg)
+    else:
+      # We are the leader, deal with the block
+      print('%s blocking with %s hand' % (color, hand))
+      newState = stateLeftBlock if hand == 'Left' else stateRightBlock
+
+      # Write new state to logs as an uncommitted entry,
+      # the next heartbeat will pick it up and start sharing it.
+      self.addNewLogEntry(color, newState)
+
+
+  def lastLogInfo(self):
+    # Gets the last entries on the log.
+    with self.dataLock:
+      lastLogIndex = len(self.logs)-1
+      lastLogTerm  = -1
+      if lastLogIndex >= 0:
+        lastLogTerm = self.logs[lastLogIndex]['Term']
+      return (lastLogIndex, lastLogTerm)
+
+
+  def addNewLogEntry(self, color, state):
+    # This will append a new log entry which sets our color (variable) to state (value).
+    with self.dataLock:
+      self.logs.append({
+        'Term':      self.currentTerm,
+        'Color':     color,
+        'State':     state,
+        'Committed': False,
       })
-  else:
-    # We are the leader, deal with the block
-    print('%s blocking with %s hand' % (color, hand))
+
+
+  def getLogValue(self, color):
+    # This will find the most recent state (value) for the given color (variable).
+    with self.dataLock:
+      for entry in reversed(self.logs):
+        if entry['Committed'] and (entry['Color'] == color):
+          return entry['State']
+      return stateNeutral
+
+
+  def sendOutElectionHeartbeat(self):
+    # Periodically send out the message to all nodes which haven't replied.
+    lastLogIndex, lastLogTerm = self.lastLogInfo()
+    msg = {
+      'Type':         'RequestVoteRequest',
+      'From':         myNodeId,
+      'Term':         self.currentTerm,
+      'LastLogIndex': lastLogIndex,
+      'LastLogTerm':  lastLogTerm,
+    }
+    for nodeId in self.senders.keys():
+      if not nodeId in self.whoVotedForMe:
+        self.sendToNode(nodeId, msg)
+    self.electionHeartbeat.addTime(heartbeatInterval)
+
+
+  def sendOutLeaderHeartbeat(self):
+    # We are (should be) the leader so send out AppendEntries requests.
+    # Even empty the AppendEntries works as a heartbeat.
+    if self.leaderNodeId == myNodeId:
+      self.leaderHeartbeat.addTime(heartbeatInterval)
+      entries = []
+      #
+      # TODO: Determine the entries to be sending
+      #       Also add "prevLogIndex" and "prevLogTerm"
+      #
+      self.sendToAllNodes({
+        'Type':    'AppendEntriesRequest',
+        'From':    myNodeId,
+        'Term':    self.currentTerm,
+        'Entries': entries,
+      })
+
+
+  def requestVoteRequest(self, fromNodeID, termNum, lastLogIndex, lastLogTerm):
+    # This handles a RequestVote Request from another raft instance.
+    # Some one has started an election so beat the heart to keep from kicking of another one.
+    self.heartbeat()
+
+    # Determine if the node should vote (granted) for the candidate making the request.
+    granted = False
+    if termNum >= self.currentTerm:
+      self.currentTerm = termNum
+      curLogIndex, curLogTerm = self.lastLogInfo()
+      if (lastLogTerm > curLogTerm) or ((lastLogTerm == curLogTerm) and (lastLogIndex >= curLogIndex)):
+        if (self.votedFor == fromNodeID) or (self.votedFor == -1):
+          self.votedFor = fromNodeID
+          granted = True
+
+    # Tell the candidate this node's decision.
+    self.sendToNode(fromNodeID, {
+      'Type':    'RequestVoteReply',
+      'From':    myNodeId,
+      'Term':    self.currentTerm,
+      'Granted': granted,
+    })
+
+
+  def requestVoteReply(self, fromNodeID, termNum, granted):
+    # This handles a RequestVote Reply from another raft instance.
+    if termNum == self.currentTerm:
+
+      # Count how many votes were granted to this node.
+      count = 0
+      with self.dataLock:
+        self.whoVotedForMe[fromNodeID] = granted
+        for nodeGranted in self.whoVotedForMe.values():
+          if nodeGranted:
+            count += 1
+
+      if count > nodeCount/2:
+        # Look at me. I'm the leader now.
+        self.setAsLeader()
+
+
+  def appendEntriesRequest(self, fromNodeID, termNum, entries):
+    # This handles a AppendEntries Request from the leader.
+    # If entries is empty then this is only for a heartbeat.
+    if termNum >= self.currentTerm:
+
+      # Maybe the first from the leader, deal with leader selection.
+      if (self.leaderNodeId != fromNodeID) or (termNum > self.currentTerm) or (self.votedFor != -1):
+        self.setAsFollower(fromNodeID, termNum)
+
+      # Bump the timer to keep from leader election from being kicked off.
+      self.heartbeat()
+      if entries:
+        # Apply the entries
+        #
+        # TODO: Implement
+        #
+        pass
+
+
+  def appendEntriesReply(self, fromNodeID, termNum, success):
+    # This handles a AppendEntries Reply from another raft instance.
     #
     # TODO: Implement
-    #
-
-
-def leaderHasTimedOut():
-  # The timeout for starting a new election has been reached.
-  # Start a new leader election.
-  global currentTerm
-  global whoVotedForMe
-  global leaderNodeId
-  global votedFor
-  currentTerm  += 1
-  whoVotedForMe = {}
-  leaderNodeId  = -1
-  votedFor      = myNodeId
-
-  lastLogIndex = len(logs)-1
-  lastLogTerm  = -1
-  if lastLogIndex >= 0:
-    lastLogTerm = logs[lastLogIndex]['Term']
-
-  sendToAllNodes({
-    'Type': 'RequestVoteRequest',
-    'From': myNodeId,
-    'Term': currentTerm,
-    'LastLogIndex': lastLogIndex,
-    'LastLogTerm':  lastLogTerm,
-  })
-  print('Start election')
-
-
-def heartbeat():
-  # Received a heartbeat from the leader so bump the timeout
-  # to keep a new leader election from being kicked off.
-  dt = random.Random() * (heartbeatLowerBound - heartbeatUpperBound) + heartbeatLowerBound
-  leaderTimeout.addTime(dt)
-
-
-def sendOutHeartbeat():
-  # We are (should be) the leader so send out AppendEntries requests.
-  # Even empty the AppendEntries works as a heartbeat.
-  if leaderNodeId == myNodeId:
-    leaderHeartbeat.addTime(heartbeatInterval)
-    #
-    # TODO: Implement
-    #
-
-
-def requestVoteRequest(fromNodeID, termNum, lastLogIndex, lastLogTerm):
-  # This handles a RequestVote Request from another raft instance.
-  global currentTerm
-  global votedFor
-  global logs
-  granted = False
-  if termNum >= currentTerm:
-    currentTerm = termNum
-    if votedFor == fromNodeID:
-      granted = True
-    elif votedFor == -1:
-
-      # Get the information for the current local log
-      curLogIndex = len(logs)-1
-      curLogTerm  = -1
-      if curLogIndex >= 0:
-        curLogTerm = logs[lastLogIndex]['Term']
-
-      # Compare local log with the candidates log
-      if (lastLogTerm > curLogTerm) or ((lastLogTerm == curLogTerm) and (lastLogIndex > curLogIndex)):
-        votedFor = fromNodeID
-        granted  = True
-
-  sendToNode(fromNodeID, {
-    'Type':    'RequestVoteReply',
-    'From':    myNodeId,
-    'Term':    currentTerm,
-    'Granted': granted,
-  })
-
-
-def requestVoteReply(fromNodeID, termNum, granted):
-  # This handles a RequestVote Reply from another raft instance.
-  #
-  # TODO: Implement
-  #
-  pass
-
-
-def appendEntriesRequest(fromNodeID, termNum, entries):
-  # This handles a AppendEntries Request from the leader.
-  # If entries is empty then this is only for a heartbeat.
-
-  # Maybe the first from the leader, deal with leader selection
-  leaderNodeId  = fromNodeID
-  leaderHeartbeat.Stop()
-  whoVotedForMe = {}
-  votedFor      = -1
-
-  # Bump the timer to keep from leader election
-  heartbeat()
-  if entries:
-    # Apply the entries
-    #
-    # TODO: Implement
+    # once a state had been committed we need to update the client
+    # about the state change, for things like opponents state and end game hits.
     #
     pass
 
 
-def appendEntriesReply(fromNodeID, termNum, success):
-  # This handles a AppendEntries Reply from another raft instance.
-  #
-  # TODO: Implement
-  #
-  pass
+  def heartbeat(self):
+    # Received a heartbeat from the leader so bump the timeout
+    # to keep a new leader election from being kicked off.
+    dt = random.random() * (heartbeatUpperBound - heartbeatLowerBound) + heartbeatLowerBound
+    self.leaderTimeout.addTime(dt, heartbeatMaximum)
+    #print('%d, %d timeout is %0.5fs' % (self.currentTerm, myNodeId, self.leaderTimeout.timeLeft()))
 
 
-def tellClientPunchBlocked(color):
-  # Sends a message to the client to tell it to delay punches longer
-  # because the punch was blocked.
-  sendToClient(color, {
-    'Type': 'PunchBlocked',
-    'Color': color,
-  })
+  def setAsCandidate(self):
+    # Set this node as a candidate and start a new leader election.
+    # This usually happens when the timeout for starting a new election has been reached.
+    with self.dataLock:
+      self.currentTerm  += 1
+      self.whoVotedForMe = {myNodeId: True}
+      self.leaderNodeId  = -1
+      self.votedFor      = myNodeId
+      self.nodeStatus    = statusCandidate
+      print('%d: %d started election' % (self.currentTerm, myNodeId))
+      self.electionHeartbeat.addTime(0.0)
+    self.heartbeat()
 
 
-def tellClientGameover(color):
-  # Tell the client(s) that the game is over.
-  sendToClient('Red', {
-    'Type':  'GameOver',
-    'Color': color,
-  })
-  sendToClient('Blue', {
-    'Type':  'GameOver',
-    'Color': color,
-  })
+  def setAsLeader(self):
+    # Set this node as the leader and start sending out heartbeats.
+    pending = []
+    with self.dataLock:
+      self.leaderTimeout.stop()
+      self.electionHeartbeat.stop()
+      pending = self.pendingEvents
+      self.votedFor      = -1
+      self.whoVotedForMe = {}
+      self.leaderNodeId  = myNodeId
+      self.nodeStatus    = statusLeader
+      self.pendingEvents = []
+      self.leaderHeartbeat.addTime(0.0)
+      print('%d: %d is now the leader' % (self.currentTerm, myNodeId))
+    for event in pending:
+      receiveMessage(event)
 
 
-def sendToClient(color, data):
-  # Sends a message to the client with the given color,
-  # if that client exists, otherwise this has no effect.
-  if color in clients:
-    conn = clients[color]
-    conn.send(json.dumps(data).encode())
+  def setAsFollower(self, newLeader, newTerm):
+    # Set this node as a follower, update leader and term values.
+    pending = []
+    with self.dataLock:
+      self.leaderHeartbeat.stop()
+      self.electionHeartbeat.stop()
+      pending = self.pendingEvents
+      self.pendingEvents = []
+      self.leaderNodeId  = newLeader
+      self.whoVotedForMe = {}
+      self.votedFor      = -1
+      self.currentTerm   = newTerm
+      self.nodeStatus    = statusFollower
+      print('%d: %d is now the leader' % (self.currentTerm, self.leaderNodeId))
+    for event in pending:
+      self.receiveMessage(event)
 
 
-def sendToNode(nodeId, data):
-  # Sends a message to the raft server instance with the given node ID,
-  # if a server with that ID exists, otherwise this has no effect.
-  if nodeId in senders:
-    senders[nodeId].send(data)
+  def tellClientPunchBlocked(self, color):
+    # Sends a message to the client to tell it to delay punches longer
+    # because the punch was blocked.
+    self.sendToClient(color, {
+      'Type': 'PunchBlocked',
+      'Color': color,
+    })
 
 
-def sendToAllNodes(data):
-  # Broadcasts a message to all raft server instances.
-  for nodeId in senders.keys():
-    senders[nodeId].send(data)
+  def tellClientGameover(self, color):
+    # Tell the client(s) that the game is over.
+    self.sendToClient('Red', {
+      'Type':  'GameOver',
+      'Color': color,
+    })
+    self.sendToClient('Blue', {
+      'Type':  'GameOver',
+      'Color': color,
+    })
 
 
-def receiveMessage(msg, conn):
-  # This method handles all messages from the client server instance(s).
-  msgType = msg['Type']
-
-  # Handle client messages (or messages repeated by another instance on behalf of the client)
-  if msgType == 'ClientConnected':
-    clientConnected(msg['Color'], conn)
-  elif msgType == 'ClientPunch':
-    clientPunch(msg['Color'], msg['Hand'])
-  elif msgType == 'ClientBlock':
-    clientBlock(msg['Color'], msg['Hand'])
-  elif msgType == 'Reset':
-    resetLog()
-
-  # Handle Raft messages
-  elif msgType == 'RequestVoteRequest':
-    requestVoteRequest(msg['From'], msg['Term'], msg['LastLogIndex'], msg['LastLogTerm'])
-  elif msgType == 'RequestVoteReply':
-    requestVoteReply(msg['From'], msg['Term'], msg['Granted'])
-  elif msgType == 'AppendEntriesRequest':
-    appendEntriesRequest(msg['From'], msg['Term'], msg['Entries'])
-  elif msgType == 'AppendEntriesReplay':
-    appendEntriesReply(msg['From'], msg['Term'], msg['Success'])
-
-  # Handle unknown messages
-  else:
-    print("Unknown message: ")
-    print(msg)
+  def sendToClient(self, color, data):
+    # Sends a message to the client with the given color,
+    # if that client exists, otherwise this has no effect.
+    conn = None
+    with self.dataLock:
+      if color in self.clients:
+        conn = self.clients[color]
+    if conn:
+        conn.send(json.dumps(data).encode())
 
 
-def main():
-  global listener
-  global senders
-  global leaderTimeout
-  global leaderHeartbeat
+  def sendToNode(self, nodeId, data):
+    # Sends a message to the raft server instance with the given node ID,
+    # if a server with that ID exists, otherwise this has no effect.
+    conn = None
+    with self.dataLock:
+      if nodeId in self.senders:
+        conn = self.senders[nodeId]
+    if conn:
+      conn.send(data)
 
-  # Setup the listener to start watching for incoming messages.
-  listener = connections.listener(receiveMessage, nodeIdToURL[myNodeId], useMyHost)
 
-  # Setup the collection of connections to talk to the other instances.
-  for nodeId, hostAndPort in nodeIdToURL.items():
-    if (nodeId != myNodeId) and (nodeId < nodeCount):
-      sender = connections.sender(hostAndPort)
-      senders[nodeId] = sender
+  def sendToAllNodes(self, data):
+    # Broadcasts a message to all raft server instances other than this node.
+    conns = []
+    with self.dataLock:
+      for nodeId in self.senders.keys():
+        if nodeId != myNodeId:
+          conns.append(self.senders[nodeId])
+    for conn in conns:
+      conn.send(data)
 
-  # Setup the timeout used to start elections of a leader.
-  leaderTimeout = customTimer.customTimer(leaderHasTimedOut)
 
-  # Setup the timeout which is used by the leader to send out heartbeats.
-  leaderHeartbeat = customTimer.customTimer(sendOutHeartbeat)
+  def receiveMessage(self, msg, conn):
+    # This method handles all messages from the client server instance(s).
+    msgType = msg['Type']
 
-  # Keep server alive and wait
-  input("Press Enter to Exit\n")
+    # Handle client messages (or messages repeated by another instance on behalf of the client)
+    if msgType == 'ClientConnected':
+      self.clientConnected(msg['Color'], conn)
+    elif msgType == 'ClientPunch':
+      self.clientPunch(msg['Color'], msg['Hand'])
+    elif msgType == 'ClientBlock':
+      self.clientBlock(msg['Color'], msg['Hand'])
+    elif msgType == 'Reset':
+      self.resetLog()
 
-  # Socket closed so clean up and shut down
-  print('Closing...')
-  for sender in senders.values():
-    sender.close()
-  listener.close()
-  leaderTimeout.close()
-  leaderHeartbeat.close()
+    # Handle Raft messages
+    elif msgType == 'RequestVoteRequest':
+      self.requestVoteRequest(msg['From'], msg['Term'], msg['LastLogIndex'], msg['LastLogTerm'])
+    elif msgType == 'RequestVoteReply':
+      self.requestVoteReply(msg['From'], msg['Term'], msg['Granted'])
+    elif msgType == 'AppendEntriesRequest':
+      self.appendEntriesRequest(msg['From'], msg['Term'], msg['Entries'])
+    elif msgType == 'AppendEntriesReplay':
+      self.appendEntriesReply(msg['From'], msg['Term'], msg['Success'])
+
+    # Handle unknown messages
+    else:
+      print("Unknown message: ")
+      print(msg)
+
+
+  def showInfo(self):
+    # Prints the current status of this node.
+    with self.dataLock:
+      print('Information:')
+      print('  My Node Id: %d' % (myNodeId))
+      print('  Node Count: %d' % (nodeCount))
+      print('  Status:     %s' % (self.nodeStatus))
+      print('  Leader Id:  %d' % (self.leaderNodeId))
+      print('  Term Num:   %d' % (self.currentTerm))
+      print('  Timeout:    %0.5fs' % (self.leaderTimeout.timeLeft()))
+      print('  Client(s): ', end=' ')
+      for client in self.clients:
+          print(client, end=' ')
+      print()
+
+
+  def showLogs(self):
+    # Prints the logs in this node.
+    with self.dataLock:
+      print('Logs:')
+      for entry in self.logs:
+        term  = entry['Term']
+        color = entry['Color']
+        state = entry['State']
+        check = 'X' if entry['Committed'] else ' '
+        print('   [%s] %d: %s <- %s'%(check, term, color, state))
+
+
+  def main(self):
+    # Setup the listener to start watching for incoming messages.
+    self.listener = connections.listener(self.receiveMessage, nodeIdToURL[myNodeId], useMyHost)
+
+    # Setup the collection of connections to talk to the other instances.
+    for nodeId, hostAndPort in nodeIdToURL.items():
+      if (nodeId != myNodeId) and (nodeId < nodeCount):
+        self.senders[nodeId] = connections.sender(hostAndPort)
+
+    # Setup the timers used to keep Raft elections working.
+    self.leaderTimeout     = customTimer.customTimer(self.setAsCandidate)
+    self.leaderHeartbeat   = customTimer.customTimer(self.sendOutLeaderHeartbeat)
+    self.electionHeartbeat = customTimer.customTimer(self.sendOutElectionHeartbeat)
+
+    # Start the leader timeout by forcing a heartbeat.
+    self.heartbeat()
+
+    # Wait for user input.
+    while True:
+      print("What would you like to do?")
+      print("  1. Timeout")
+      print("  2. Stop Heartbeat")
+      print("  3. Show Info")
+      print("  4. Show Log")
+      print("  5. Exit")
+
+      try:
+        choice = int(input("Enter your choice: "))
+      except:
+        print("Invalid choice. Try again.")
+        continue
+
+      if choice == 1:
+        self.setAsCandidate()
+      elif choice == 2:
+        self.leaderHeartbeat.stop()
+      elif choice == 3:
+        self.showInfo()
+      elif choice == 4:
+        self.showLogs()
+      elif choice == 5:
+        break
+      else:
+        print("Invalid choice \"%s\". Try again." % (choice))
+
+    # Socket closed so clean up and shut down
+    print('Closing...')
+    for sender in self.senders.values():
+      sender.close()
+    self.listener.close()
+    self.leaderTimeout.close()
+    self.leaderHeartbeat.close()
+    self.electionHeartbeat.close()
 
 
 if __name__ == "__main__":
-  main()
+  mainObject().main()

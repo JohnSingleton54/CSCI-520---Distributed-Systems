@@ -220,6 +220,7 @@ function main(config) {
         console.log(`[error] ${error.message}`);
     };
     socket.onmessage = function (event) {
+        //console.log(`received: ${event.data}`);
         handleServerMessage(JSON.parse(event.data));
     };
 

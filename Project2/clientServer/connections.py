@@ -22,7 +22,7 @@ import select
 # - https://www.geeksforgeeks.org/start-and-stop-a-thread-in-python/
 
 
-connectionTimeout = 0.5  # in seconds
+connectionTimeout  = 0.025  # in seconds
 maximumMessageSize = 4096
 
 
@@ -75,13 +75,17 @@ class connection:
               with self.__queueLock:
                 while self.__pendingQueue:
                   data = self.__pendingQueue.pop(0)
-                  sock.sendall(data.encode())
+                  sock.sendall((data+'\0').encode())
 
               # Read the socket for any incoming messages.
               data = sock.recv(maximumMessageSize)
               if data:
                 # Got a message send it to the handle method.
-                self.__handleMethod(data.decode())
+                parts = data.decode().split('\0')
+                for part in parts:
+                  if part:
+                    msg = json.loads(part)
+                    self.__handleMethod(msg)
             except socket.timeout:
               continue
 

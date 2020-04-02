@@ -23,9 +23,9 @@ class fileServer:
 
   def __init__(self, fileSharePort, playerColor, socketURL):
     self.__fileSharePort = fileSharePort
-    self.__playerColor   = playerColor
-    self.__socketURL     = socketURL
     self.__keepAlive     = True
+    self.playerColor     = playerColor
+    self.socketURL       = socketURL
 
     # Start thread for serving up client files
     threading.Thread(target=self.__run).start()
@@ -48,8 +48,8 @@ class fileServer:
         self.send_header('Content-type', 'application/json')
         self.end_headers()
         data = json.dumps({
-          'PlayerColor': parent.__playerColor,
-          'SocketURL':   parent.__socketURL,
+          'PlayerColor': parent.playerColor,
+          'SocketURL':   parent.socketURL,
         })
         self.wfile.write(bytes(data, "utf8"))
 
