@@ -34,10 +34,9 @@ print("The Node Count is %d" % (nodeCount))
 
 
 # Constant values
-heartbeatInterval   = 0.10 # Time, in seconds, between an election or a leader's heartbeat message
-heartbeatLowerBound = 0.50 # Lowest random time, in seconds, to add to timeout on heartbeat
-heartbeatUpperBound = 1.50 # Highest random time, in seconds, to add to timeout on heartbeat
-heartbeatMaximum    = 5.00 # The maximum allowed heatbeat timeout, in seconds.
+heartbeatInterval   = 0.1 # Time, in seconds, between an election or a leader's heartbeat message
+heartbeatLowerBound = 1.0 # Lowest random time, in seconds, to add to timeout on heartbeat
+heartbeatUpperBound = 3.0 # Highest random time, in seconds, to add to timeout on heartbeat
 
 stateNeutral           = 'neutral'
 stateRightBlock        = 'blocking_with_right'
@@ -212,7 +211,6 @@ class mainObject:
     for nodeId in self.senders.keys():
       if not nodeId in self.whoVoted:
         self.sendToNode(nodeId, msg)
-    self.electionHeartbeat.addTime(heartbeatInterval)
 
 
   def requestVoteRequest(self, fromNodeID, termNum, lastLogIndex, lastLogTerm):
@@ -266,7 +264,6 @@ class mainObject:
     # We are (should be) the leader so send out AppendEntries requests.
     # Even empty the AppendEntries works as a heartbeat.
     if self.nodeStatus == statusLeader:
-      self.leaderHeartbeat.addTime(heartbeatInterval)
       entries = []
       #
       # TODO: Determine the entries to be sending
@@ -312,11 +309,8 @@ class mainObject:
   def heartbeat(self):
     # Received a heartbeat from the leader so bump the timeout
     # to keep a new leader election from being kicked off.
-    #
-    # TODO: Check if the timeout is additive or just should be reset to a random number.
-    #
     dt = random.random() * (heartbeatUpperBound - heartbeatLowerBound) + heartbeatLowerBound
-    self.leaderTimeout.addTime(dt, heartbeatMaximum)
+    self.leaderTimeout.start(dt)
     #print('%d, %d timeout is %0.5fs' % (self.currentTerm, myNodeId, self.leaderTimeout.timeLeft()))
 
 
@@ -330,7 +324,8 @@ class mainObject:
       self.votedFor     = myNodeId
       self.nodeStatus   = statusCandidate
       print('%d: %d started election' % (self.currentTerm, myNodeId))
-      self.electionHeartbeat.addTime(0.0)
+      self.electionHeartbeat.start(0.0)
+    # Beat the heart to restart the timeout for this election.
     self.heartbeat()
 
 
@@ -346,7 +341,7 @@ class mainObject:
       self.leaderNodeId  = myNodeId
       self.nodeStatus    = statusLeader
       self.pendingEvents = []
-      self.leaderHeartbeat.addTime(0.0)
+      self.leaderHeartbeat.start(0.0)
       print('%d: %d is now the leader' % (self.currentTerm, myNodeId))
     for event in pending:
       self.receiveMessage(event)
@@ -492,9 +487,9 @@ class mainObject:
         self.senders[nodeId] = connections.sender(hostAndPort)
 
     # Setup the timers used to keep Raft elections working.
-    self.leaderTimeout     = customTimer.customTimer(self.setAsCandidate)
-    self.leaderHeartbeat   = customTimer.customTimer(self.sendOutLeaderHeartbeat)
-    self.electionHeartbeat = customTimer.customTimer(self.sendOutElectionHeartbeat)
+    self.leaderTimeout     = customTimer.customTimer(self.setAsCandidate) # Does not repeat
+    self.leaderHeartbeat   = customTimer.customTimer(self.sendOutLeaderHeartbeat, heartbeatInterval)
+    self.electionHeartbeat = customTimer.customTimer(self.sendOutElectionHeartbeat, heartbeatInterval)
 
     # Start the leader timeout by forcing a heartbeat.
     self.heartbeat()
