@@ -39,6 +39,13 @@ class customTimer:
       time.sleep(checkTimeoutTime)
 
 
+  def setTime(self, duration):
+    # Sets the duration in seconds.
+    with self.__lock:
+      now = time.time()
+      self.__doneTime = now + duration
+
+
   def addTime(self, duration, maximum = None):
     # Adds the duration in seconds. If the time is up this will start
     # a new timeout. If timeout has happened yet, this will increase the timeout.

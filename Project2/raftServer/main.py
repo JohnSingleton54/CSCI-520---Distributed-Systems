@@ -312,6 +312,9 @@ class mainObject:
   def heartbeat(self):
     # Received a heartbeat from the leader so bump the timeout
     # to keep a new leader election from being kicked off.
+    #
+    # TODO: Check if the timeout is additive or just should be reset to a random number.
+    #
     dt = random.random() * (heartbeatUpperBound - heartbeatLowerBound) + heartbeatLowerBound
     self.leaderTimeout.addTime(dt, heartbeatMaximum)
     #print('%d, %d timeout is %0.5fs' % (self.currentTerm, myNodeId, self.leaderTimeout.timeLeft()))
@@ -346,7 +349,7 @@ class mainObject:
       self.leaderHeartbeat.addTime(0.0)
       print('%d: %d is now the leader' % (self.currentTerm, myNodeId))
     for event in pending:
-      receiveMessage(event)
+      self.receiveMessage(event)
 
 
   def setAsFollower(self, newLeader, newTerm):
@@ -467,10 +470,10 @@ class mainObject:
       print()
 
 
-  def showLogs(self):
-    # Prints the logs in this node.
+  def showLog(self):
+    # Prints the log in this node.
     with self.dataLock:
-      print('Logs:')
+      print('Log:')
       for entry in self.logs:
         term  = entry['Term']
         color = entry['Color']
@@ -518,7 +521,7 @@ class mainObject:
       elif choice == 3:
         self.showInfo()
       elif choice == 4:
-        self.showLogs()
+        self.showLog()
       elif choice == 5:
         break
       else:
