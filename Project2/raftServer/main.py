@@ -215,24 +215,6 @@ class mainObject:
     self.electionHeartbeat.addTime(heartbeatInterval)
 
 
-  def sendOutLeaderHeartbeat(self):
-    # We are (should be) the leader so send out AppendEntries requests.
-    # Even empty the AppendEntries works as a heartbeat.
-    if self.nodeStatus == statusLeader:
-      self.leaderHeartbeat.addTime(heartbeatInterval)
-      entries = []
-      #
-      # TODO: Determine the entries to be sending
-      #       Also add "prevLogIndex" and "prevLogTerm"
-      #
-      self.sendToAllNodes({
-        'Type':    'AppendEntriesRequest',
-        'From':    myNodeId,
-        'Term':    self.currentTerm,
-        'Entries': entries,
-      })
-
-
   def requestVoteRequest(self, fromNodeID, termNum, lastLogIndex, lastLogTerm):
     # This handles a RequestVote Request from another raft instance.
     # Some one has started an election so beat the heart to keep from kicking of another one.
@@ -278,6 +260,24 @@ class mainObject:
       if count > nodeCount/2:
         # Look at me. I'm the leader now.
         self.setAsLeader()
+
+
+  def sendOutLeaderHeartbeat(self):
+    # We are (should be) the leader so send out AppendEntries requests.
+    # Even empty the AppendEntries works as a heartbeat.
+    if self.nodeStatus == statusLeader:
+      self.leaderHeartbeat.addTime(heartbeatInterval)
+      entries = []
+      #
+      # TODO: Determine the entries to be sending
+      #       Also add "prevLogIndex" and "prevLogTerm"
+      #
+      self.sendToAllNodes({
+        'Type':    'AppendEntriesRequest',
+        'From':    myNodeId,
+        'Term':    self.currentTerm,
+        'Entries': entries,
+      })
 
 
   def appendEntriesRequest(self, fromNodeID, termNum, entries):
