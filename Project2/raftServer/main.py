@@ -325,13 +325,19 @@ class mainObject:
       self.heartbeat()
       if entries:
         # Apply the entries
+        wasAccepted = False
         #
         # TODO: Implement
         #
-        pass
+        self.sendToNode(fromNodeID, {
+          'Type': 'AppendEntriesReply',
+          'From': myNodeId,
+          'Term': self.currentTerm,
+          'WasAccepted': wasAccepted
+        })
 
 
-  def appendEntriesReply(self, fromNodeID, termNum, success):
+  def appendEntriesReply(self, fromNodeID, termNum, wasAccepted):
     # This handles a AppendEntries Reply from another raft instance.
     #
     # TODO: Implement
@@ -476,7 +482,7 @@ class mainObject:
     elif msgType == 'AppendEntriesRequest':
       self.appendEntriesRequest(msg['From'], msg['Term'], msg['Entries'])
     elif msgType == 'AppendEntriesReplay':
-      self.appendEntriesReply(msg['From'], msg['Term'], msg['Success'])
+      self.appendEntriesReply(msg['From'], msg['Term'], msg['WasAccepted'])
 
     # Handle unknown messages
     else:

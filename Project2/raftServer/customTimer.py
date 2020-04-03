@@ -34,12 +34,11 @@ class customTimer:
       timedOut = False
       with self.__lock:
         if self.__doneTime:
-          now = time.time()
-          if now > self.__doneTime:
+          if time.time() > self.__doneTime:
             self.__doneTime = None
-            if self.__repeatDur:
-              self.__doneTime = now + self.__repeatDur
             timedOut = True
+            if self.__repeatDur:
+              self.__doneTime = time.time() + self.__repeatDur
       if timedOut:
         self.__onTimedOut()
       time.sleep(checkTimeoutTime)
