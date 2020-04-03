@@ -107,7 +107,7 @@ class mainObject:
 
 
   def clientPunch(self, color, hand):
-    if self.leaderNodeId != myNodeId:
+    if self.nodeStatus != statusLeader:
       # We are a follower, send the message to the leader or put it
       # into pending queue to send once the leader has been selected.
       msg = {
@@ -115,7 +115,7 @@ class mainObject:
         'Color': color,
         'Hand':  hand,
       }
-      if self.nodeStatus != statusLeader:
+      if self.leaderNodeId != -1:
         self.sendToNode(self.leaderNodeId, msg)
       else:
         with self.dataLock:
@@ -146,7 +146,7 @@ class mainObject:
 
 
   def clientBlock(self, color, hand):
-    if self.leaderNodeId != myNodeId:
+    if self.nodeStatus != statusLeader:
       # We are a follower, send the message to the leader or put it
       # into pending queue to send once the leader has been selected.
       msg = {
@@ -154,7 +154,7 @@ class mainObject:
         'Color': color,
         'Hand':  hand,
       }
-      if self.nodeStatus != statusLeader:
+      if self.leaderNodeId != -1:
         self.sendToNode(self.leaderNodeId, msg)
       else:
         with self.dataLock:
@@ -218,7 +218,7 @@ class mainObject:
   def sendOutLeaderHeartbeat(self):
     # We are (should be) the leader so send out AppendEntries requests.
     # Even empty the AppendEntries works as a heartbeat.
-    if self.leaderNodeId == myNodeId:
+    if self.nodeStatus == statusLeader:
       self.leaderHeartbeat.addTime(heartbeatInterval)
       entries = []
       #
