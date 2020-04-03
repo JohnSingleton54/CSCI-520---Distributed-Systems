@@ -285,11 +285,24 @@ class mainObject:
       for nodeId in self.senders.keys():
         self.nextIndex[nodeId] = self.lastLogIndex
 
-      # TODO: Determine the entries to be sending.
+      # TODO: Determine the entry to be sent.
       #       Also add "prevLogIndex" and "prevLogTerm"
+
+      # Send the log entry at nextIndex, which will in general be different for each follower.
+      # If the follower rejects the AppendEntries RPC, then decrement nextIndex and retry.
+      # If the follower accepts the AppendEntries RPC, then ...
       for nodeId in self.senders.keys():
-        entries = []
-        if 
+        entry = log[nextIndex[nodeId]]
+        wasAccepted = self.sendToNode(nodeId, {
+          'Type':    'AppendEntriesRequest',
+          'From':    myNodeId,
+          'Term':    self.currentTerm,
+          'Entries': entry
+          })
+        if wasAccepted:
+          ...
+        else:
+          nextIndex[nodeId] -= 1
 
 
 
