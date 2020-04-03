@@ -239,11 +239,17 @@ class mainObject:
     self.heartbeat()
 
     # Determine if the node should vote (granted) for the candidate making the request.
+    # See page 8, last paragraph of 5.4.1
     granted = False
     if termNum >= self.currentTerm:
-      self.currentTerm = termNum
+      # If term has changed throw out who you voted for so you can vote again and update term.
+      if termNum > self.currentTerm:
+        self.currentTerm = termNum
+        self.votedFor = -1
+      # Check that you don't have a more up-to-date log than the candidate.
       curLogIndex, curLogTerm = self.lastLogInfo()
       if (lastLogTerm > curLogTerm) or ((lastLogTerm == curLogTerm) and (lastLogIndex >= curLogIndex)):
+        # The candidate has equal or better logs so vote for them if you haven't already voted.
         if (self.votedFor == fromNodeID) or (self.votedFor == -1):
           self.votedFor = fromNodeID
           granted = True
