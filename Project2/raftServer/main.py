@@ -66,11 +66,11 @@ class mainObject:
     self.nodeStatus    = statusFollower
     self.dataLock      = threading.Lock()
     self.currentTerm   = 0
-    self.leaderNodeId  = -1
-    self.votedFor      = -1
-    self.pendingEvents = []
-    self.logs          = []
-    self.whoVoted      = {}
+    self.leaderNodeId  = -1 # nodeId of who this node thinks is the leader, -1 for not set
+    self.votedFor      = -1 # nodeId of who this node has voted for, -1 means not voted yet
+    self.pendingEvents = [] # list of dict: {'Type': punch/block, 'Color': Red/Blue, 'Hand': Right/Left}
+    self.logs          = [] # list of dict: {'Term': <int>, 'Color':  Red/Blue, 'State': <string>, 'Committed': True/False}
+    self.whoVoted      = {} # dict: key = nodeId, value = (granted) True/False
     self.leaderTimeout     = None
     self.leaderHeartbeat   = None
     self.electionHeartbeat = None
