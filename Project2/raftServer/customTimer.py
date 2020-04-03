@@ -14,12 +14,16 @@ checkTimeoutTime = 0.025 # in seconds
 
 
 class customTimer:
-  # This is a timer which can be bumped to run longer.
+  # This is a timer which will a method after a specificed amount of time.
 
-  def __init__(self, onTimedOut):
+  def __init__(self, onTimedOut, repeatDuration=None):
+    # `onTimedOut` is the method to call when the timer has elapsed a duration.
+    # `repeatDuration` is the amount of time to automatically reset the timer
+    # to after a method call. Set to None to not repeat.
     self.__onTimedOut = onTimedOut
-    self.__doneTime = None
-    self.__keepAlive = True
+    self.__repeatDur  = repeatDuration
+    self.__doneTime   = None
+    self.__keepAlive  = True
     self.__lock = threading.Lock()
     threading.Thread(target=self.__run).start()
 
@@ -33,38 +37,27 @@ class customTimer:
           now = time.time()
           if now > self.__doneTime:
             self.__doneTime = None
+            if self.__repeatDur:
+              self.__doneTime = now + self.__repeatDur
             timedOut = True
       if timedOut:
         self.__onTimedOut()
       time.sleep(checkTimeoutTime)
 
 
-  def setTime(self, duration):
-    # Sets the duration in seconds.
-    with self.__lock:
-      now = time.time()
-      self.__doneTime = now + duration
-
-
-  def addTime(self, duration, maximum = None):
-    # Adds the duration in seconds. If the time is up this will start
-    # a new timeout. If timeout has happened yet, this will increase the timeout.
-    with self.__lock:
-      now = time.time()
-      if not self.__doneTime:
-        self.__doneTime = now + duration
-      else:
-        self.__doneTime += duration
-      if maximum:
-        self.__doneTime = min(self.__doneTime-now, maximum) + now
-
-
   def timeLeft(self):
-    # Gets the amount of time left before the time out.
+    # Gets the amount of time left before the next time the method is called.
     with self.__lock:
       if not self.__doneTime:
         return -1.0
       return self.__doneTime-time.time()
+
+
+  def start(self, duration):
+    # Starts the timer to run the given amount of duration before it calls the method.
+    with self.__lock:
+      now = time.time()
+      self.__doneTime = now + duration
 
 
   def stop(self):
