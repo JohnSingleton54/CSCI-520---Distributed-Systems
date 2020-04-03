@@ -70,7 +70,7 @@ class mainObject:
     self.votedFor      = -1
     self.pendingEvents = []
     self.logs          = []
-    self.whoVotedForMe = {}
+    self.whoVoted      = {}
     self.leaderTimeout     = None
     self.leaderHeartbeat   = None
     self.electionHeartbeat = None
@@ -210,7 +210,7 @@ class mainObject:
       'LastLogTerm':  lastLogTerm,
     }
     for nodeId in self.senders.keys():
-      if not nodeId in self.whoVotedForMe:
+      if not nodeId in self.whoVoted:
         self.sendToNode(nodeId, msg)
     self.electionHeartbeat.addTime(heartbeatInterval)
 
@@ -264,8 +264,8 @@ class mainObject:
       # Count how many votes were granted to this node.
       count = 0
       with self.dataLock:
-        self.whoVotedForMe[fromNodeID] = granted
-        for nodeGranted in self.whoVotedForMe.values():
+        self.whoVoted[fromNodeID] = granted
+        for nodeGranted in self.whoVoted.values():
           if nodeGranted:
             count += 1
 
@@ -315,11 +315,11 @@ class mainObject:
     # Set this node as a candidate and start a new leader election.
     # This usually happens when the timeout for starting a new election has been reached.
     with self.dataLock:
-      self.currentTerm  += 1
-      self.whoVotedForMe = {myNodeId: True}
-      self.leaderNodeId  = -1
-      self.votedFor      = myNodeId
-      self.nodeStatus    = statusCandidate
+      self.currentTerm += 1
+      self.whoVoted     = {myNodeId: True}
+      self.leaderNodeId = -1
+      self.votedFor     = myNodeId
+      self.nodeStatus   = statusCandidate
       print('%d: %d started election' % (self.currentTerm, myNodeId))
       self.electionHeartbeat.addTime(0.0)
     self.heartbeat()
@@ -333,7 +333,7 @@ class mainObject:
       self.electionHeartbeat.stop()
       pending = self.pendingEvents
       self.votedFor      = -1
-      self.whoVotedForMe = {}
+      self.whoVoted      = {}
       self.leaderNodeId  = myNodeId
       self.nodeStatus    = statusLeader
       self.pendingEvents = []
@@ -352,7 +352,7 @@ class mainObject:
       pending = self.pendingEvents
       self.pendingEvents = []
       self.leaderNodeId  = newLeader
-      self.whoVotedForMe = {}
+      self.whoVoted      = {}
       self.votedFor      = -1
       self.currentTerm   = newTerm
       self.nodeStatus    = statusFollower
