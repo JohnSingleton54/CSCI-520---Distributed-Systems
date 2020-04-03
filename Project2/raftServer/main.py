@@ -3,8 +3,7 @@
 # Grant Nelson and John M. Singleton
 # CSCI 520 - Distributed Systems
 # Project 2 (Consensus Project)
-
-# due Apr 6, 2018 by 11:59 PM (HI JOHN, I'm a conflict!!!)
+# due Apr 6, 2020 by 11:59 PM
 
 import sys
 import json
@@ -69,11 +68,16 @@ class mainObject:
     self.leaderNodeId  = -1 # nodeId of who this node thinks is the leader, -1 for not set
     self.votedFor      = -1 # nodeId of who this node has voted for, -1 means not voted yet
     self.pendingEvents = [] # list of dict: {'Type': punch/block, 'Color': Red/Blue, 'Hand': Right/Left}
-    self.logs          = [] # list of dict: {'Term': <int>, 'Color':  Red/Blue, 'State': <string>, 'Committed': True/False}
+    self.log          = [] # list of dict: {'Term': <int>, 'Color':  Red/Blue, 'State': <string>, 'Committed': True/False}
     self.whoVoted      = {} # dict: key = nodeId, value = (granted) True/False
     self.leaderTimeout     = None
     self.leaderHeartbeat   = None
     self.electionHeartbeat = None
+
+    # dict: key = nodeID, value = the index of the next log entry the leader will send to that
+    # follower (See the second column on p. 7, the sendOutLeaderHeartbeat method, 
+    self.nextIndex = {} 
+
 
 
   def clientConnected(self, color, conn):
@@ -85,12 +89,12 @@ class mainObject:
 
   def resetLog(self):
     # The client or another instance has asked to reset the game.
-    # So reset the logs. If logs are empty, don't resend message.
+    # So reset the log. If log is empty, don't resend message.
     # This does not follow typical Raft, it is for testing only.
     needsReset = False
     with self.dataLock:
-      if self.logs:
-        self.logs = []
+      if self.log:
+        self.log = []
         needsReset = True
     
     if needsReset:
@@ -140,7 +144,7 @@ class mainObject:
         else:
           newState = stateRightPunchHit if hit else stateRightPunchMissed
       
-      # Write new state to logs as an uncommitted entry,
+      # Write new state to log as an uncommitted entry,
       # the next heartbeat will pick it up and start sharing it.
       self.addNewLogEntry(color, newState)
 
@@ -164,7 +168,7 @@ class mainObject:
       print('%s blocking with %s hand' % (color, hand))
       newState = stateLeftBlock if hand == 'Left' else stateRightBlock
 
-      # Write new state to logs as an uncommitted entry,
+      # Write new state to log as an uncommitted entry,
       # the next heartbeat will pick it up and start sharing it.
       self.addNewLogEntry(color, newState)
 
@@ -172,17 +176,17 @@ class mainObject:
   def lastLogInfo(self):
     # Gets the last entries on the log.
     with self.dataLock:
-      lastLogIndex = len(self.logs)-1
+      lastLogIndex = len(self.log)-1
       lastLogTerm  = -1
       if lastLogIndex >= 0:
-        lastLogTerm = self.logs[lastLogIndex]['Term']
+        lastLogTerm = self.log[lastLogIndex]['Term']
       return (lastLogIndex, lastLogTerm)
 
 
   def addNewLogEntry(self, color, state):
     # This will append a new log entry which sets our color (variable) to state (value).
     with self.dataLock:
-      self.logs.append({
+      self.log.append({
         'Term':      self.currentTerm,
         'Color':     color,
         'State':     state,
@@ -193,7 +197,7 @@ class mainObject:
   def getLogValue(self, color):
     # This will find the most recent state (value) for the given color (variable).
     with self.dataLock:
-      for entry in reversed(self.logs):
+      for entry in reversed(self.log):
         if entry['Committed'] and (entry['Color'] == color):
           return entry['State']
       return stateNeutral
@@ -231,7 +235,7 @@ class mainObject:
       # Check that you don't have a more up-to-date log than the candidate.
       curLogIndex, curLogTerm = self.lastLogInfo()
       if (lastLogTerm > curLogTerm) or ((lastLogTerm == curLogTerm) and (lastLogIndex >= curLogIndex)):
-        # The candidate has equal or better logs so vote for them if you haven't already voted.
+        # The candidate has equal or better log so vote for them if you haven't already voted.
         if (self.votedFor == fromNodeID) or (self.votedFor == -1):
           self.votedFor = fromNodeID
           granted = True
@@ -261,27 +265,45 @@ class mainObject:
         # Look at me. I'm the leader now.
         self.setAsLeader()
 
+# temp notes for Log Replication (JMS):
+# - A log entry is committed once the leader that created the entry has replicated it on a majority
+# of the servers. These are the entries that are safe to apply to the local state machines.
+# - Q: In our implementation, where/what are the local state machines? Are they simply the log
+# entries with entry['Committed'] == True?
+# - The leader retries AppendEntries RPCs indefinitely (even after it has responded to the client)
+# until all followers eventually store all log entries.
+
+
 
   def sendOutLeaderHeartbeat(self):
     # We are (should be) the leader so send out AppendEntries requests.
     # Even empty the AppendEntries works as a heartbeat.
     if self.nodeStatus == statusLeader:
       self.leaderHeartbeat.addTime(heartbeatInterval)
-      entries = []
-      #
-      # TODO: Determine the entries to be sending
+
+      # Initialize all nextIndex values to the index just after the last one in its log.
+      for nodeId in self.senders.keys():
+        self.nextIndex[nodeId] = self.lastLogIndex
+
+      # TODO: Determine the entries to be sending.
       #       Also add "prevLogIndex" and "prevLogTerm"
-      #
-      self.sendToAllNodes({
-        'Type':    'AppendEntriesRequest',
-        'From':    myNodeId,
-        'Term':    self.currentTerm,
-        'Entries': entries,
-      })
+      for nodeId in self.senders.keys():
+        entries = []
+        if 
+
+
+
+
+      #self.sendToAllNodes({
+      #  'Type':    'AppendEntriesRequest',
+      #  'From':    myNodeId,
+      #  'Term':    self.currentTerm,
+      #  'Entries': entries,
+      #})
 
 
   def appendEntriesRequest(self, fromNodeID, termNum, entries):
-    # This handles a AppendEntries Request from the leader.
+    # This handles an AppendEntries Request from the leader.
     # If entries is empty then this is only for a heartbeat.
     if termNum >= self.currentTerm:
 
@@ -474,7 +496,7 @@ class mainObject:
     # Prints the log in this node.
     with self.dataLock:
       print('Log:')
-      for entry in self.logs:
+      for entry in self.log:
         term  = entry['Term']
         color = entry['Color']
         state = entry['State']
