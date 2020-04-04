@@ -82,8 +82,9 @@ class mainObject:
     # remain that way for the rest of the term.
     self.success = {}
 
-    # VARIABLES USED BY FOLLOWERS:
 
+    # VARIABLES USED BY FOLLOWERS:
+    # Are there any?
 
 
   def clientConnected(self, color, conn):
@@ -300,23 +301,16 @@ class mainObject:
             entries = log[self.nextIndex[nodeId]:lastLogIndex] 
 
         self.sendToNode(nodeId, {
-          'Type':    'AppendEntriesRequest',
-          'From':    myNodeId,
-          'Term':    self.currentTerm,
-          'Entries': entries
+          'Type':         'AppendEntriesRequest',
+          'From':         myNodeId,
+          'Term':         self.currentTerm
+          'PrevLogIndex': self.nextIndex[nodeId] - 1,
+          'PrevLogTerm':  self.log[self.nextIndex[nodeId] -1]['Term'],
+          'Entries':      entries
           })
 
 
-
-      #self.sendToAllNodes({
-      #  'Type':    'AppendEntriesRequest',
-      #  'From':    myNodeId,
-      #  'Term':    self.currentTerm,
-      #  'Entries': entries,
-      #})
-
-
-  def appendEntriesRequest(self, fromNodeId, termNum, entries):
+  def appendEntriesRequest(self, fromNodeId, termNum, prevLogIndex, prevLogTerm, entries):
     # This handles an AppendEntries Request from the leader.
     # If entries is empty then this is only for a heartbeat.
     if termNum >= self.currentTerm:
@@ -327,16 +321,27 @@ class mainObject:
 
       # Bump the timer to keep from leader election from being kicked off.
       self.heartbeat()
+
       if entries:
-        # Apply the entries
-        success = False
-        #
-        # TODO: Implement
-        #
+        # the consistency check (See page 7 paragraph 3 "The second property is guaranteed by...".)
+        if (len(self.log) - 1 != prevLogIndex) or
+           (self.log[self.lastLogIndex]['Term'] != prevLogTerm): # the consistency check fails
+          success = False
+        else: # the consistency check passes
+          success = True
+          # update the local log
+          if self.lastLogIndex == prevLogIndex:
+            self.log.append(entries[0]) # Or should I use self.addNewLogEntry() here?
+          else:
+            del self.log[prevLogIndex+1:len(self.log)]
+            for entry in range(len(entries)):
+              self.log.append(entry)
+
         self.sendToNode(fromNodeId, {
           'Type': 'AppendEntriesReply',
           'From': myNodeId,
           'Term': self.currentTerm,
+          'Index': self.currentIndex,
           'Success': success
         })
 
@@ -345,18 +350,17 @@ class mainObject:
     # This handles an AppendEntries reply from another raft instance.
     #
     # TODO: Implement
-    if termNum = currentTerm:
+
+    if !success:
+      self.nextIndex -= 1
+    else:
+      if !self.success[fromNodeId]:
+      # Is any other action needed here if it's the first time it has succeeded?
       self.success[fromNodeId] = success
-
-      if !success:
-        self.nextIndex -= 1
-
 
 
     # once a state had been committed we need to update the client
     # about the state change, for things like opponents state and end game hits.
-    #
-    pass
 
 
   def heartbeat(self):
@@ -498,9 +502,9 @@ class mainObject:
     elif msgType == 'RequestVoteReply':
       self.requestVoteReply(msg['From'], msg['Term'], msg['Granted'])
     elif msgType == 'AppendEntriesRequest':
-      self.appendEntriesRequest(msg['From'], msg['Term'], msg['Entries'])
+      self.appendEntriesRequest(msg['From'], msg['Term'], msg['PrevLogIndex'], msg['PrevLogTerm'], msg['Entries'])
     elif msgType == 'AppendEntriesReplay':
-      self.appendEntriesReply(msg['From'], msg['Term'], msg['Success'])
+      self.appendEntriesReply(msg['From'], msg['Term'], msg['Index'], msg['Success'])
 
     # Handle unknown messages
     else:
