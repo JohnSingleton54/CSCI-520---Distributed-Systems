@@ -13,9 +13,8 @@
 // Define enumerator values for game states.
 
 const gameState = {
-    Fight:       'Fight',
-    PlayerWins:  'You Win!',
-    PlayerLoses: 'You Lose!'
+    Fight:    'Fight',
+    GameOver: 'Game Over'
 }
 
 const color = {
@@ -36,12 +35,14 @@ const punchTimeout = 250; // in milliseconds
 var socket;
 var curState = gameState.Fight;
 
+var playerHit   = false;
 var playerColor = color.Red;
 var playerLeft  = condition.Neutral;
 var playerRight = condition.Neutral;
 var playerLeftPunchTimeout;
 var playerRightPunchTimeout;
 
+var opponentHit   = false;
 var opponentColor = color.Blue;
 var opponentLeft  = condition.Neutral;
 var opponentRight = condition.Neutral;
@@ -50,7 +51,7 @@ var opponentRightPunchTimeout;
 
 // Updates the player's images.
 function updatePlayerImages() {
-    var head = (curState == gameState.PlayerLoses) ? 'HeadPop' : 'Head';
+    var head = playerHit ? 'HeadPop' : 'Head';
     document.getElementById('leftForeImage').src = playerColor + 'Fore' + playerRight + '.png';
     document.getElementById('leftBodyImage').src = playerColor + 'Body.png';
     document.getElementById('leftHeadImage').src = playerColor + head + '.png';
@@ -59,7 +60,7 @@ function updatePlayerImages() {
 
 // Updates the opponent's images.
 function updateOpponentImages() {
-    var head = (curState == gameState.PlayerWins) ? 'HeadPop' : 'Head';
+    var head = opponentHit ? 'HeadPop' : 'Head';
     document.getElementById('rightForeImage').src = opponentColor + 'Fore' + opponentLeft + '.png';
     document.getElementById('rightBodyImage').src = opponentColor + 'Body.png';
     document.getElementById('rightHeadImage').src = opponentColor + head + '.png';
@@ -79,8 +80,22 @@ function setGameState(state) {
 }
 
 // This indicates that the player or opponent has won and updates the images.
-function gameOver(youWin) {
-    setGameState(youWin ? gameState.PlayerWins : gameState.PlayerLoses);
+function hit(color) {
+    // Do not reset the hits since both may have been hit
+    // and we need the other message to know.
+    if (playerColor == color) {
+        playerHit = true
+    } else {
+        opponentHit = true
+    }
+    setGameState(GameOver);
+}
+
+// This indicates the game has been reset.
+function gameReset() {
+    playerHit   = false;
+    opponentHit = false;
+    setGameState(gameState.Fight);
 }
 
 // This adds a callback for an event to the given element depending
@@ -121,7 +136,7 @@ addEvent(document, 'keydown', function (e) {
             case 'o': socket.send('TestLose');   break;
         }
     }
-    if (e.key === 'r') socket.send('Reset');
+    if (e.key === 'r') socket.send('ResetGame');
 });
 
 // This cancels any other time which is counting down to reset the punch.
@@ -190,11 +205,11 @@ function handleServerMessage(data) {
             if ('Right' in data) 
                 updateOpponentImages('Right', data['Right']);
             break;
-        case 'GameOver':
-            gameOver(data['YouWin']);
+        case 'Hit':
+            hit(data['Color']);
             break;
-        case 'Reset':
-            setGameState(gameState.Fight);
+        case 'GameReset':
+            gameReset();
             break;
         default:
             console.log("Unknown Message: ", data);

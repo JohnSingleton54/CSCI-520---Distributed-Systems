@@ -38,6 +38,7 @@ heartbeatLowerBound = 1.0 # Lowest random time, in seconds, to add to timeout on
 heartbeatUpperBound = 3.0 # Highest random time, in seconds, to add to timeout on heartbeat
 
 stateNeutral           = 'neutral'
+stateStartNewGame      = 'start_new_game'
 stateRightBlock        = 'blocking_with_right'
 stateLeftBlock         = 'blocking_with_left'
 stateRightPunchMissed  = 'right_punch_missed'
@@ -60,6 +61,9 @@ class mainObject:
     self.listener = None
     self.senders  = {}
 
+    self.lastCommittedRedState  = stateNeutral
+    self.lastCommittedBlueState = stateNeutral
+
     # Raft variables
     self.nodeStatus    = statusFollower
     self.dataLock      = threading.Lock()
@@ -67,7 +71,7 @@ class mainObject:
     self.leaderNodeId  = -1 # nodeId of who this node thinks is the leader, -1 for not set
     self.votedFor      = -1 # nodeId of who this node has voted for, -1 means not voted yet
     self.pendingEvents = [] # list of dict: {'Type': punch/block, 'Color': Red/Blue, 'Hand': Right/Left}
-    self.log          = [] # list of dict: {'Term': <int>, 'Color':  Red/Blue, 'State': <string>, 'Committed': True/False}
+    self.log           = [] # list of dict: {'Term': <int>, 'Color':  Red/Blue, 'State': <string>, 'Committed': True/False}
     self.whoVoted      = {} # dict: key = nodeId, value = (granted) True/False
     self.leaderTimeout     = None
     self.leaderHeartbeat   = None
@@ -86,27 +90,23 @@ class mainObject:
     print('%s client connected' % (color))
 
 
-  def resetLog(self):
+  def resetGame(self):
     # The client or another instance has asked to reset the game.
-    # So reset the log. If log is empty, don't resend message.
-    # This does not follow typical Raft, it is for testing only.
-    needsReset = False
-    with self.dataLock:
-      if self.log:
-        self.log = []
-        needsReset = True
-    
-    if needsReset:
-      print('Reset!')
-      self.sendToAllNodes({
-        'Type': 'Reset',
-      })
-      self.sendToClient('Red', {
-        'Type': 'Reset',
-      })
-      self.sendToClient('Blue', {
-        'Type': 'Reset',
-      })
+    if self.nodeStatus != statusLeader:
+      # We are a follower, send the message to the leader or put it
+      # into pending queue to send once the leader has been selected.
+      msg = {
+        'Type': 'ResetGame',
+      }
+      if self.leaderNodeId != -1:
+        self.sendToNode(self.leaderNodeId, msg)
+      else:
+        with self.dataLock:
+          self.pendingEvents.append(msg)
+    else:
+      # Write to both that game has been reset and we are starting a new game.
+      self.addNewLogEntry('Red',  stateStartNewGame)
+      self.addNewLogEntry('Blue', stateStartNewGame)
 
 
   def clientPunch(self, color, hand):
@@ -406,25 +406,124 @@ class mainObject:
       self.receiveMessage(event)
 
 
-  def tellClientPunchBlocked(self, color):
-    # Sends a message to the client to tell it to delay punches longer
-    # because the punch was blocked.
-    self.sendToClient(color, {
-      'Type': 'PunchBlocked',
-      'Color': color,
-    })
+  def updateClientsForNewCommits(self):
+    # This updates the connected clients for the state of the game.
+    if len(self.clients) <= 0:
+      # No clients so don't bother updating them.
+      return
+
+    redState = self.getLogValue('Red')
+    blueState = self.getLogValue('Blue')
+    
+    # Check for a game reset in both red and blue to know that no other action
+    # has been taken, otherwise treat a `stateStartNewGame` as a `stateNeutral`.
+    if redState == stateStartNewGame and blueState == stateStartNewGame:
+      self.sendToAllClients({
+        'Type': 'GameReset',
+      })
+      return
+    if redState == stateStartNewGame:
+      redState = stateNeutral
+    if blueState == stateStartNewGame:
+      blueState = stateNeutral
+
+    # Update the states of the clients.
+    if self.lastCommittedRedState != redState:
+      self.lastCommittedRedState = redState
+      updateColorForNewCommits('Red', 'Blue', redState)
+
+    if self.lastCommittedBlueState != blueState:
+      self.lastCommittedBlueState = blueState
+      updateColorForNewCommits('Blue', 'Red', blueState)
 
 
-  def tellClientGameover(self, color):
-    # Tell the client(s) that the game is over.
-    self.sendToClient('Red', {
-      'Type':  'GameOver',
-      'Color': color,
-    })
-    self.sendToClient('Blue', {
-      'Type':  'GameOver',
-      'Color': color,
-    })
+  def updateColorForNewCommits(self, player, opponent, state):
+    # This updates the player and opponent on the state of the player.
+    hand      = None
+    condition = None
+    if state == stateNeutral:
+      # Nothing to update
+      return
+    elif state == stateRightBlock:
+      hand      = 'Right'
+      condition = 'Block'
+    elif state == stateLeftBlock:
+      hand      = 'Left'
+      condition = 'Block'
+    elif state == stateRightPunchMissed:
+      hand      = 'Right'
+      condition = 'Punch'
+    elif state == stateLeftPunchMissed:
+      hand      = 'Left'
+      condition = 'Punch'
+    elif state == stateRightPunchBlocked:
+      hand      = 'Right'
+      condition = 'Punch'
+      self.sendToAllClients({
+        'Type':  'PunchBlocked',
+        'Color': player,
+      })
+    elif state == stateLeftPunchBlocked:
+      hand      = 'Left'
+      condition = 'Punch'
+      self.sendToAllClients({
+        'Type':  'PunchBlocked',
+        'Color': player,
+      })
+    elif state == stateRightPunchHit:
+      hand      = 'Right'
+      condition = 'Punch'
+      self.sendToAllClients({
+        'Type':  'Hit',
+        'Color': opponent
+      })
+    elif state == stateLeftPunchHit:
+      hand      = 'Left'
+      condition = 'Punch'
+      self.sendToAllClients({
+        'Type':   'Hit',
+        'Color':  opponent
+      })
+      
+    # Tells the opponent what consition its opponent (the player) is in.
+    if hand and condition:
+      self.sendToClient(opponent, {
+        'Type':      'OpponentChanged',
+        'Hand':      hand,
+        'Condition': condition
+      })
+
+
+  def __getLogFileName(self):
+    # Gets the name of the log file for this node ID.
+    return "log%d.json" % myNodeId
+
+
+  def saveLog(self):
+    # Save the log to the file. For debugging the logs are JSON'ed
+    # as is including the committed and uncommitted entries.
+    with self.dataLock:
+      data = json.dumps(self.log).encode()
+      
+    f = open(self.__getLogFileName(), "w")
+    f.write(data)
+    f.close()
+
+  
+  def loadLog(self):
+    # Loads the log from the file.
+    try:
+      f = open(self.__getLogFileName(), "r")
+      data = f.read()
+      f.close()
+
+      if data:
+        log = json.loads(data)
+        # (Optional) strip out uncommitted values.
+        with self.dataLock:
+          self.log = log
+    except Exception as e:
+      print("Failed to load from log file: %s"%(e))
 
 
   def sendToClient(self, color, data):
@@ -436,6 +535,17 @@ class mainObject:
         conn = self.clients[color]
     if conn:
         conn.send(json.dumps(data).encode())
+
+
+  def sendToAllClients(self, data):
+    # Sends a message to the all clients connected to this server,
+    # if any clients exist, otherwise this has no effect.
+    conns = None
+    with self.dataLock:
+      conns = self.clients.values()
+    msg = json.dumps(data).encode()
+    for conn in conns:
+      conn.send(msg)
 
 
   def sendToNode(self, nodeId, data):
@@ -471,8 +581,8 @@ class mainObject:
       self.clientPunch(msg['Color'], msg['Hand'])
     elif msgType == 'ClientBlock':
       self.clientBlock(msg['Color'], msg['Hand'])
-    elif msgType == 'Reset':
-      self.resetLog()
+    elif msgType == 'ResetGame':
+      self.resetGame()
 
     # Handle Raft messages
     elif msgType == 'RequestVoteRequest':
@@ -531,6 +641,9 @@ class mainObject:
     self.leaderTimeout     = customTimer.customTimer(self.setAsCandidate) # Does not repeat
     self.leaderHeartbeat   = customTimer.customTimer(self.sendOutLeaderHeartbeat, heartbeatInterval)
     self.electionHeartbeat = customTimer.customTimer(self.sendOutElectionHeartbeat, heartbeatInterval)
+
+    # Reload the log from a file
+    self.loadLog()
 
     # Start the leader timeout by forcing a heartbeat.
     self.heartbeat()
