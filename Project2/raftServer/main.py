@@ -89,6 +89,9 @@ class mainObject:
       self.clients[color] = conn
     print('%s client connected' % (color))
 
+    # Update the client with the state.
+    self.updateClientsForNewCommits()
+
 
   def resetGame(self):
     # The client or another instance has asked to reset the game.
@@ -342,6 +345,7 @@ class mainObject:
       # Bump the timer to keep from leader election from being kicked off.
       self.heartbeat()
 
+      # Add and update entries if possible
       if entries:
         # the consistency check (See page 7 paragraph 3 "The second property is guaranteed by...".)
         lastLogIndex, lastLogTerm = self.lastLogInfo()
@@ -366,7 +370,8 @@ class mainObject:
           'Success': success
         })
 
-      # TODO: Deal with LeaderCommit and updating the client and saving changes.
+      # Update the committed
+      self.commitEntries(leaderCommit)
 
 
   def appendEntriesReply(self, fromNodeId, termNum, index, success):
@@ -375,10 +380,45 @@ class mainObject:
       self.nextIndex[fromNodeId] -= 1
     else:
       self.nextIndex[fromNodeId] = index + 1
+      self.matchIndex[fromNodeId] = index + 1
 
-    # TODO: Update LeaderCommit and matchIndex, commitIndex, 
-    # once a state had been committed we need to update the client
-    # about the state change, for things like opponents state and end game hits.
+    # Update leader commits by checking for a majority.
+    leaderCommit = self.lastCommittedIndex()
+    nextCommit = -1
+    for i in range(leaderCommit, len(self.log)):
+      if not self.hasMajorityMatch(i):
+        break
+      nextCommit = i
+
+    if nextCommit > leaderCommit:
+      self.commitEntries(nextCommit)
+
+
+  def hasMajorityMatch(self, index):
+    # This checks if the majority of the nodes hav update to the given index.
+    count = 1 # Start at 1 since we know the leader has matched itself.
+    for nodeId in self.matchIndex.keys():
+      if nodeId != myNodeId:
+        if index <= self.matchIndex[nodeId]:
+          count +=1
+    return count >= nodeCount/2
+
+
+  def commitEntries(self, leaderCommit):
+    # Updates the committed logs up to the leaderCommit.
+    # This is done for all logs.
+    anyNewCommits = False
+    with self.dataLock:
+      for i in range(min(len(self.log), leaderCommit+1)):
+        entry = self.log[i]
+        if not entry['Committed']:
+          anyNewCommits = True
+          entry['Committed'] = True
+
+    # If there are new commits, persist the log and update the clients.
+    if anyNewCommits:
+      self.saveLog()
+      self.updateClientsForNewCommits()
 
 
   def heartbeat(self):
@@ -552,7 +592,7 @@ class mainObject:
     # Save the log to the file. For debugging the log are JSON'ed
     # as is including the committed and uncommitted entries.
     with self.dataLock:
-      data = json.dumps(self.log).encode()
+      data = json.dumps(self.log)
       
     f = open(self.__getLogFileName(), 'w')
     f.write(data)
