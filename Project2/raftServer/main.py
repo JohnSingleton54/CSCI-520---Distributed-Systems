@@ -300,7 +300,7 @@ class mainObject:
         self.sendToNode(nodeId, {
           'Type':         'AppendEntriesRequest',
           'From':         myNodeId,
-          'Term':         self.currentTerm
+          'Term':         self.currentTerm,
           'PrevLogIndex': self.nextIndex[nodeId] - 1,
           'PrevLogTerm':  self.log[self.nextIndex[nodeId] -1]['Term'],
           'Entries':      entries
