@@ -124,9 +124,9 @@ class sender:
         while not self.__timeToDie:
           # Check if there are any pending messages and send all of them.
           with self.__queueLock:
-            while self.__pendingQueue:
-              data = self.__pendingQueue.pop(0)
-              sock.sendall((data+'#').encode())
+            for data in self.__pendingQueue:
+              sock.sendall(data.encode())
+            self.__pendingQueue = []
 
           # Sleep for a bit to let new messages get pended.
           time.sleep(0.01)
@@ -147,7 +147,7 @@ class sender:
     # If this is not connected, the message will be ignored.
     if self.__connected:
       with self.__queueLock:
-        data = json.dumps(message)
+        data = json.dumps(message)+'#'
         self.__pendingQueue.append(data)
 
 

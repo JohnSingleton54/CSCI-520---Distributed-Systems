@@ -73,9 +73,9 @@ class connection:
             try:
               # Check if there are any pending messages and send all of them.
               with self.__queueLock:
-                while self.__pendingQueue:
-                  data = self.__pendingQueue.pop(0)
-                  sock.sendall((data+'#').encode())
+                for data in self.__pendingQueue:
+                  sock.sendall(data.encode())
+                self.__pendingQueue = []
 
               # Read the socket for any incoming messages.
               data = sock.recv(maximumMessageSize)
