@@ -294,7 +294,7 @@ class mainObject:
           entries = []
         # for a proper AppendEntries request
         else:
-          if !self.success[nodeId]:
+          if not self.success[nodeId]:
             entries = log[self.nextIndex[nodeId]:lastLogIndex] 
 
         self.sendToNode(nodeId, {
@@ -348,10 +348,10 @@ class mainObject:
     #
     # TODO: Implement
 
-    if !success:
+    if not success:
       self.nextIndex -= 1
     else:
-      if !self.success[fromNodeId]:
+      if not self.success[fromNodeId]:
       # Is any other action needed here if it's the first time it has succeeded?
       self.success[fromNodeId] = success
 
