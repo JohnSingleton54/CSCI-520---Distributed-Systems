@@ -73,9 +73,14 @@ class mainObject:
     self.leaderHeartbeat   = None
     self.electionHeartbeat = None
 
-    # dict: key = nodeID, value = the index of the next log entry the leader will send to that
-    # follower (See the second column on p. 7, the sendOutLeaderHeartbeat method, 
+    # dict: key = nodeId, value = the index of the next log entry the leader will send to that
+    # follower (See the second column on page 7 of the paper and the sendOutLeaderHeartbeat method.)
     self.nextIndex = {} 
+
+    # nested dict: wasAccepted[nodeId, index] == True/False, depending upon whether or not the
+    # follower nodeId has accepted 
+    self.wasAccepted = {}
+
 
 
 
@@ -278,9 +283,9 @@ class mainObject:
     # Even empty the AppendEntries works as a heartbeat.
     if self.nodeStatus == statusLeader:
 
-      # Initialize all nextIndex values to the index just after the last one in its log.
+      # Initialize wasAccepted to be a dictionary of # of followers empty dictionaries
       for nodeId in self.senders.keys():
-        self.nextIndex[nodeId] = self.lastLogIndex
+        wasAccepted[nodeId] = {}
 
       # TODO: Determine the entry to be sent.
       #       Also add "prevLogIndex" and "prevLogTerm"
@@ -290,14 +295,14 @@ class mainObject:
       # If the follower accepts the AppendEntries RPC, then ...
       for nodeId in self.senders.keys():
         entry = log[nextIndex[nodeId]]
-        wasAccepted = self.sendToNode(nodeId, {
+        self.sendToNode(nodeId, {
           'Type':    'AppendEntriesRequest',
           'From':    myNodeId,
           'Term':    self.currentTerm,
           'Entries': entry
           })
         if wasAccepted:
-          ...
+          
         else:
           nextIndex[nodeId] -= 1
 
@@ -381,6 +386,9 @@ class mainObject:
       self.whoVoted      = {}
       self.leaderNodeId  = myNodeId
       self.nodeStatus    = statusLeader
+      # Initialize all nextIndex values to the index just after the last one in its log.
+      for nodeId in self.senders.keys():
+        self.nextIndex[nodeId] = self.lastLogIndex
       self.pendingEvents = []
       self.leaderHeartbeat.start(0.0)
       print('%d: %d is now the leader' % (self.currentTerm, myNodeId))
