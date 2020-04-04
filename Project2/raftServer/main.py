@@ -74,9 +74,16 @@ class mainObject:
     self.leaderHeartbeat   = None
     self.electionHeartbeat = None
 
-    # dict: key = nodeID, value = the index of the next log entry the leader will send to that
-    # follower (See the second column on p. 7, the sendOutLeaderHeartbeat method, 
+    # VARIABLES USED BY LEADERS:
+    # dict: key = nodeId, value = the index of the next log entry the leader will send to that
+    # follower (See the second column on page 7 of the paper and the sendOutLeaderHeartbeat method.)
     self.nextIndex = {} 
+    # dict: key = nodeId, value = False until an AppendEntries request succeeds
+    # Once AppendEntries succeeds, the follower's log is consistent with the leader's, and it will
+    # remain that way for the rest of the term.
+    self.success = {}
+
+    # VARIABLES USED BY FOLLOWERS:
 
 
 
@@ -214,7 +221,7 @@ class mainObject:
         self.sendToNode(nodeId, msg)
 
 
-  def requestVoteRequest(self, fromNodeID, termNum, lastLogIndex, lastLogTerm):
+  def requestVoteRequest(self, fromNodeId, termNum, lastLogIndex, lastLogTerm):
     # This handles a RequestVote Request from another raft instance.
     # Some one has started an election so beat the heart to keep from kicking of another one.
     self.heartbeat()
@@ -231,12 +238,12 @@ class mainObject:
       curLogIndex, curLogTerm = self.lastLogInfo()
       if (lastLogTerm > curLogTerm) or ((lastLogTerm == curLogTerm) and (lastLogIndex >= curLogIndex)):
         # The candidate has equal or better log so vote for them if you haven't already voted.
-        if (self.votedFor == fromNodeID) or (self.votedFor == -1):
-          self.votedFor = fromNodeID
+        if (self.votedFor == fromNodeId) or (self.votedFor == -1):
+          self.votedFor = fromNodeId
           granted = True
 
     # Tell the candidate this node's decision.
-    self.sendToNode(fromNodeID, {
+    self.sendToNode(fromNodeId, {
       'Type':    'RequestVoteReply',
       'From':    myNodeId,
       'Term':    self.currentTerm,
@@ -244,14 +251,14 @@ class mainObject:
     })
 
 
-  def requestVoteReply(self, fromNodeID, termNum, granted):
+  def requestVoteReply(self, fromNodeId, termNum, granted):
     # This handles a RequestVote Reply from another raft instance.
     if termNum == self.currentTerm:
 
       # Count how many votes were granted to this node.
       count = 0
       with self.dataLock:
-        self.whoVoted[fromNodeID] = granted
+        self.whoVoted[fromNodeId] = granted
         for nodeGranted in self.whoVoted.values():
           if nodeGranted:
             count += 1
@@ -263,8 +270,6 @@ class mainObject:
 # temp notes for Log Replication (JMS):
 # - A log entry is committed once the leader that created the entry has replicated it on a majority
 # of the servers. These are the entries that are safe to apply to the local state machines.
-# - Q: In our implementation, where/what are the local state machines? Are they simply the log
-# entries with entry['Committed'] == True?
 # - The leader retries AppendEntries RPCs indefinitely (even after it has responded to the client)
 # until all followers eventually store all log entries.
 
@@ -275,29 +280,28 @@ class mainObject:
     # Even empty the AppendEntries works as a heartbeat.
     if self.nodeStatus == statusLeader:
 
-      # Initialize all nextIndex values to the index just after the last one in its log.
-      for nodeId in self.senders.keys():
-        self.nextIndex[nodeId] = self.lastLogIndex
-
       # TODO: Determine the entry to be sent.
       #       Also add "prevLogIndex" and "prevLogTerm"
 
-      # Send the log entry at nextIndex, which will in general be different for each follower.
-      # If the follower rejects the AppendEntries RPC, then decrement nextIndex and retry.
-      # If the follower accepts the AppendEntries RPC, then ...
+      # Send the sequence of log entries from nextIndex to lastLogIndex, which will in general be
+      # different for each follower.
+      lastLogIndex, lastLogTerm = self.lastLogInfo()
       for nodeId in self.senders.keys():
-        entry = log[nextIndex[nodeId]]
-        wasAccepted = self.sendToNode(nodeId, {
+
+        # for a heartbeat
+        if self.nextIndex[nodeId] > lastLogIndex:
+          entries = []
+        # for a proper AppendEntries request
+        else:
+          if !self.success[nodeId]:
+            entries = log[self.nextIndex[nodeId]:lastLogIndex] 
+
+        self.sendToNode(nodeId, {
           'Type':    'AppendEntriesRequest',
           'From':    myNodeId,
           'Term':    self.currentTerm,
-          'Entries': entry
+          'Entries': entries
           })
-        if wasAccepted:
-          ...
-        else:
-          nextIndex[nodeId] -= 1
-
 
 
 
@@ -309,35 +313,43 @@ class mainObject:
       #})
 
 
-  def appendEntriesRequest(self, fromNodeID, termNum, entries):
+  def appendEntriesRequest(self, fromNodeId, termNum, entries):
     # This handles an AppendEntries Request from the leader.
     # If entries is empty then this is only for a heartbeat.
     if termNum >= self.currentTerm:
 
       # Maybe the first from the leader, deal with leader selection.
-      if (self.leaderNodeId != fromNodeID) or (termNum > self.currentTerm) or (self.votedFor != -1):
-        self.setAsFollower(fromNodeID, termNum)
+      if (self.leaderNodeId != fromNodeId) or (termNum > self.currentTerm) or (self.votedFor != -1):
+        self.setAsFollower(fromNodeId, termNum)
 
       # Bump the timer to keep from leader election from being kicked off.
       self.heartbeat()
       if entries:
         # Apply the entries
-        wasAccepted = False
+        success = False
         #
         # TODO: Implement
         #
-        self.sendToNode(fromNodeID, {
+        self.sendToNode(fromNodeId, {
           'Type': 'AppendEntriesReply',
           'From': myNodeId,
           'Term': self.currentTerm,
-          'WasAccepted': wasAccepted
+          'Success': success
         })
 
 
-  def appendEntriesReply(self, fromNodeID, termNum, wasAccepted):
-    # This handles a AppendEntries Reply from another raft instance.
+  def appendEntriesReply(self, fromNodeId, termNum, index, success):
+    # This handles an AppendEntries reply from another raft instance.
     #
     # TODO: Implement
+    if termNum = currentTerm:
+      self.success[fromNodeId] = success
+
+      if !success:
+        self.nextIndex -= 1
+
+
+
     # once a state had been committed we need to update the client
     # about the state change, for things like opponents state and end game hits.
     #
@@ -378,6 +390,12 @@ class mainObject:
       self.whoVoted      = {}
       self.leaderNodeId  = myNodeId
       self.nodeStatus    = statusLeader
+      # Initialize all nextIndex values to the index just after the last one in its log.
+      for nodeId in self.senders.keys():
+        self.nextIndex[nodeId] = self.lastLogIndex + 1
+      # Initialize all success values to be False.
+      for nodeId in self.senders.keys():
+        success[nodeId] = False
       self.pendingEvents = []
       self.leaderHeartbeat.start(0.0)
       print('%d: %d is now the leader' % (self.currentTerm, myNodeId))
@@ -584,7 +602,7 @@ class mainObject:
     elif msgType == 'AppendEntriesRequest':
       self.appendEntriesRequest(msg['From'], msg['Term'], msg['Entries'])
     elif msgType == 'AppendEntriesReplay':
-      self.appendEntriesReply(msg['From'], msg['Term'], msg['WasAccepted'])
+      self.appendEntriesReply(msg['From'], msg['Term'], msg['Success'])
 
     # Handle unknown messages
     else:
