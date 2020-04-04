@@ -26,10 +26,10 @@ nodeIdToURL = {
 
 
 myNodeId = int(sys.argv[1])
-print("My Node Id is %d" % (myNodeId))
+print('My Node Id is %d' % (myNodeId))
 
 nodeCount = int(sys.argv[2])
-print("The Node Count is %d" % (nodeCount))
+print('The Node Count is %d' % (nodeCount))
 
 
 # Constant values
@@ -350,13 +350,12 @@ class mainObject:
         else: # the consistency check passes
           success = True
           # update the local log
-          if lastLogIndex == prevLogIndex:
-            with self.dataLock:
-              self.log.extend(entries)
-          else:
-            with self.dataLock:
+          with self.dataLock:
+            if lastLogIndex != prevLogIndex:
               del self.log[prevLogIndex+1:]
-              self.log.extend(entries)
+            for entry in entries:
+              entry['Committed'] = False
+              self.log.append(entry)
 
         logIndex = len(self.log)-1
         self.sendToNode(fromNodeId, {
@@ -367,11 +366,11 @@ class mainObject:
           'Success': success
         })
 
-      # TODO: Deal with LeaderCommit and 
+      # TODO: Deal with LeaderCommit and updating the client and saving changes.
 
 
   def appendEntriesReply(self, fromNodeId, termNum, index, success):
-    # This handles an AppendEntries reply from another raft instance.    
+    # This handles an AppendEntries reply from another raft instance.
     if not success:
       self.nextIndex[fromNodeId] -= 1
     else:
@@ -390,9 +389,15 @@ class mainObject:
     #print('%d, %d timeout is %0.5fs' % (self.currentTerm, myNodeId, self.leaderTimeout.timeLeft()))
 
 
+  def leaderHasTimedout(self):
+    # This handles when a leader timeout has elapsed making this node think the leader is not responding.
+    # If this isn't already the leader, start a new election.
+    if self.nodeStatus != statusLeader:
+      self.setAsCandidate()
+
+
   def setAsCandidate(self):
     # Set this node as a candidate and start a new leader election.
-    # This usually happens when the timeout for starting a new election has been reached.
     with self.dataLock:
       self.currentTerm += 1
       self.whoVoted     = {myNodeId: True}
@@ -540,7 +545,7 @@ class mainObject:
 
   def __getLogFileName(self):
     # Gets the name of the log file for this node ID.
-    return "log%d.json" % myNodeId
+    return 'log%d.json' % myNodeId
 
 
   def saveLog(self):
@@ -549,7 +554,7 @@ class mainObject:
     with self.dataLock:
       data = json.dumps(self.log).encode()
       
-    f = open(self.__getLogFileName(), "w")
+    f = open(self.__getLogFileName(), 'w')
     f.write(data)
     f.close()
 
@@ -557,7 +562,7 @@ class mainObject:
   def loadLog(self):
     # Loads the log from the file.
     try:
-      f = open(self.__getLogFileName(), "r")
+      f = open(self.__getLogFileName(), 'r')
       data = f.read()
       f.close()
 
@@ -567,7 +572,7 @@ class mainObject:
         with self.dataLock:
           self.log = log
     except Exception as e:
-      print("Failed to load from log file: %s"%(e))
+      print('Failed to load from log file: %s' % (e))
 
 
   def sendToClient(self, color, data):
@@ -642,8 +647,7 @@ class mainObject:
 
     # Handle unknown messages
     else:
-      print("Unknown message: ")
-      print(msg)
+      print('Unknown message:', msg)
 
 
   def showInfo(self):
@@ -656,15 +660,11 @@ class mainObject:
       print('  Leader Id:  %d' % (self.leaderNodeId))
       print('  Term Num:   %d' % (self.currentTerm))
       print('  Timeout:    %0.5fs' % (self.leaderTimeout.timeLeft()))
-      print('  Client(s): ', end=' ')
-      for client in self.clients:
-          print(client, end=' ')
+      if self.clients:
+        print('  Client(s): ', ', '.join(self.clients.keys()))
       if self.nodeStatus == statusLeader:
-        print('  nextIndex: ', end=' ')
-        print(self.nextIndex)
-        print('  matchIndex:', end=' ')
-        print(self.matchIndex)
-      print()
+        print('  nextIndex: ', self.nextIndex)
+        print('  matchIndex:', self.matchIndex)
 
 
   def showLog(self):
@@ -681,9 +681,12 @@ class mainObject:
 
   def addTestEntries(self):
     # Add in a few test log entries to this nodes log even if they aren't the leader.
+    newNums = []
     for i in range(4):
-      r = random.randint(0, 1000)
-      self.addNewLogEntry('Test', str(r))
+      r = str(random.randint(0, 1000))
+      newNums.append(r)
+      self.addNewLogEntry('Test', r)
+    print('New Test Logs:', ', '.join(newNums))
 
 
   def main(self):
@@ -696,7 +699,7 @@ class mainObject:
         self.senders[nodeId] = connections.sender(hostAndPort)
 
     # Setup the timers used to keep Raft elections working.
-    self.leaderTimeout     = customTimer.customTimer(self.setAsCandidate) # Does not repeat
+    self.leaderTimeout     = customTimer.customTimer(self.leaderHasTimedout) # Does not repeat
     self.leaderHeartbeat   = customTimer.customTimer(self.sendOutLeaderHeartbeat, heartbeatInterval)
     self.electionHeartbeat = customTimer.customTimer(self.sendOutElectionHeartbeat, heartbeatInterval)
 
@@ -708,18 +711,18 @@ class mainObject:
 
     # Wait for user input.
     while True:
-      print("What would you like to do?")
-      print("  1. Timeout")
-      print("  2. Stop Heartbeat")
-      print("  3. Show Info")
-      print("  4. Show Log")
-      print("  5. Add Test Entries")
-      print("  6. Exit")
+      print('What would you like to do?')
+      print('  1. Timeout')
+      print('  2. Stop Heartbeat')
+      print('  3. Show Info')
+      print('  4. Show Log')
+      print('  5. Add Test Entries')
+      print('  6. Exit')
 
       try:
-        choice = int(input("Enter your choice: "))
+        choice = int(input('Enter your choice: '))
       except:
-        print("Invalid choice. Try again.")
+        print('Invalid choice. Try again.')
         continue
 
       if choice == 1:
@@ -735,7 +738,7 @@ class mainObject:
       elif choice == 6:
         break
       else:
-        print("Invalid choice \"%s\". Try again." % (choice))
+        print('Invalid choice "%s". Try again.' % (choice))
 
     # Socket closed so clean up and shut down
     print('Closing...')
@@ -747,5 +750,5 @@ class mainObject:
     self.electionHeartbeat.close()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
   mainObject().main()
