@@ -65,7 +65,7 @@ punchCheckIn = time.time()
 def resetGame():
   # This is called when a client has requested a reset or everything.
   conn.send({
-    'Type': 'Reset'
+    'Type': 'ResetGame'
   })
 
 
@@ -73,10 +73,9 @@ def gameHasBeenReset():
   # This is called when the raft servers have been reset.
   punchTimeout.stop()
   socket.send({
-    'Type': 'Reset'
+    'Type': 'GameReset'
   })
-  print('Reset!')
-
+  print('Game Reset!')
 
 
 def performPunch(hand, otherHand):
@@ -118,13 +117,11 @@ def performBlock(hand, otherHand):
   })
 
 
-def gameOver(color):
-  # This tells the client the game is over and indicates
-  # if "you" (meaning the color for this server) has one.
-  youWin = color == playerColor
+def hit(color):
+  # This tells the client the game is over and indicates who got hit.
   socket.send({
-    'Type':   'GameOver',
-    'YouWin': youWin
+    'Type':  'Hit',
+    'Color': color
   })
 
 
@@ -138,14 +135,24 @@ def canPunchAgain():
 
 def punchWasBlocked(color):
   # Adds 2 seconds for a total of 3 seconds for punch timeout.
-  print("$s's punch was blocked"%(color))
+  print("%s's punch was blocked" % (color))
   if color == playerColor:
     punchTimeout.addTime(punchBlockedWait)
 
 
+def opponentChanged(hand, condition):
+  # Updates the shown condition of a opponent punching or blocking.
+  otherHand = 'Left' if hand == 'Right' else 'Right'
+  socket.send({
+    'Type':    'OpponentChanged',
+    hand:      condition,
+    otherHand: 'Neutral'
+  })
+
+
 def receivedClientMessage(msg):
   # This method handles all messages from the client socket.
-  if msg == 'Reset':
+  if msg == 'ResetGame':
     resetGame()
   elif msg == 'LeftPunch':
     performPunch('Left', 'Right')
@@ -155,10 +162,6 @@ def receivedClientMessage(msg):
     performBlock('Left', 'Right')
   elif msg == 'RightBlock':
     performBlock('Right', 'Left')
-  elif msg == 'TestWin':
-    gameOver(True)
-  elif msg == 'TestLose':
-    gameOver(False)
   else:
     print("Unknown message (1):")
     print(msg)
@@ -167,10 +170,12 @@ def receivedClientMessage(msg):
 def receivedRaftMessage(msg):
   # This method handles all messages from the raft server instance.
   msgType = msg['Type']
-  if msgType == 'GameOver':
-    gameOver(msg['Color'])
+  if msgType == 'Hit':
+    hit(msg['Color'])
   elif msgType == 'PunchBlocked':
     punchWasBlocked(msg['Color'])
+  elif msgType == 'OpponentChanged':
+    opponentChanged(msg['Hand'], msg['Condition'])
   elif msgType == 'GameReset':
     gameHasBeenReset()
   else:

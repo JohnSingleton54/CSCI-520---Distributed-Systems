@@ -65,11 +65,17 @@ class listener:
         data = conn.recv(4096)
         if data:
           # Got a message send it to the handle method.
-          parts = data.decode().split('\0')
+          parts = data.decode().split('#')
           for part in parts:
             if part:
-              msg = json.loads(part)
-              self.__handleMethod(msg, conn)
+              try:
+                msg = json.loads(part)
+              except Exception as e:
+                print('Error parsing JSON(%s): %s' % (part, e))
+              try:
+                self.__handleMethod(msg, conn)
+              except Exception as e:
+                print('Exception in handler of (%s): %s' % (part, e))
       except socket.timeout: 
         continue
     conn.close()
@@ -120,10 +126,10 @@ class sender:
           with self.__queueLock:
             while self.__pendingQueue:
               data = self.__pendingQueue.pop(0)
-              sock.sendall((data+'\0').encode())
+              sock.sendall((data+'#').encode())
 
           # Sleep for a bit to let new messages get pended.
-          time.sleep(0.025)
+          time.sleep(0.01)
 
         # Close socket and exit thread
         sock.close()
