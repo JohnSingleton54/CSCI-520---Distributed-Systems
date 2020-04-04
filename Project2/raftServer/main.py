@@ -78,9 +78,8 @@ class mainObject:
     # VARIABLES USED BY LEADERS:
     # dict: key = nodeId, value = the index of the next log entry the leader will send to that
     # follower (See the second column on page 7 of the paper and the sendOutLeaderHeartbeat method.)
-    self.nextIndex    = {}
-    self.matchIndex   = {} # The index of highest log entry known to be replicated on server.
-    self.successIndex = {} # The index at which the follower has said success for.
+    self.nextIndex  = {}
+    self.matchIndex = {} # The index of highest log entry known to be replicated on server.
     self.leaderHeartbeat = None
 
 
@@ -230,7 +229,7 @@ class mainObject:
         'LastLogTerm':  lastLogTerm,
       }
       for nodeId in self.senders.keys():
-        if not nodeId in self.whoVoted:
+        if not nodeId in self.whoVoted and nodeId != myNodeId:
           self.sendToNode(nodeId, msg)
 
 
@@ -245,7 +244,8 @@ class mainObject:
     if termNum >= self.currentTerm:
       # If term has changed throw out who you voted for so you can vote again and update term.
       if termNum > self.currentTerm:
-        self.setAsFollower(-1, termNum)
+        self.currentTerm = termNum
+        self.votedFor = -1
       # Check that you don't have a more up-to-date log than the candidate.
       curLogIndex, curLogTerm = self.lastLogInfo()
       if (lastLogTerm > curLogTerm) or ((lastLogTerm == curLogTerm) and (lastLogIndex >= curLogIndex)):
@@ -306,12 +306,13 @@ class mainObject:
           # Skip over my nodeId since I'm the leader.
           continue
 
-        if self.nextIndex[nodeId] <= lastLogIndex:
+        if self.nextIndex[nodeId] > lastLogIndex:
           # for a heartbeat
           entries = []
         else:
           # for a proper AppendEntries request
-          entries = log[self.nextIndex[nodeId]:lastLogIndex]
+          with self.dataLock:
+            entries = self.log[self.nextIndex[nodeId]:]
 
         prevLogIndex = self.nextIndex[nodeId] - 1
         prevLogTerm  = -1
@@ -342,8 +343,6 @@ class mainObject:
       self.heartbeat()
 
       if entries:
-        print(">> %d: prev: %d, %d, len(entries): %d, leaderCommit: %d" % (termNum, prevLogIndex, prevLogTerm, len(entries), leaderCommit)) # TODO: REMOVE
-
         # the consistency check (See page 7 paragraph 3 "The second property is guaranteed by...".)
         lastLogIndex, lastLogTerm = self.lastLogInfo()
         if (lastLogIndex != prevLogIndex) or (lastLogTerm != prevLogTerm): # the consistency check fails
@@ -359,7 +358,7 @@ class mainObject:
               del self.log[prevLogIndex+1:]
               self.log.extend(entries)
 
-        logIndex = len(self.logs)-1
+        logIndex = len(self.log)-1
         self.sendToNode(fromNodeId, {
           'Type': 'AppendEntriesReply',
           'From': myNodeId,
@@ -372,10 +371,7 @@ class mainObject:
 
 
   def appendEntriesReply(self, fromNodeId, termNum, index, success):
-    # This handles an AppendEntries reply from another raft instance.
-
-    print("<< %d: index: %d, success: %r" % (termNum, index, success)) # TODO: REMOVE
-    
+    # This handles an AppendEntries reply from another raft instance.    
     if not success:
       self.nextIndex[fromNodeId] -= 1
     else:
@@ -548,7 +544,7 @@ class mainObject:
 
 
   def saveLog(self):
-    # Save the log to the file. For debugging the logs are JSON'ed
+    # Save the log to the file. For debugging the log are JSON'ed
     # as is including the committed and uncommitted entries.
     with self.dataLock:
       data = json.dumps(self.log).encode()
@@ -641,7 +637,7 @@ class mainObject:
     # Handle Raft Messages for AppendEntries
     elif msgType == 'AppendEntriesRequest':
       self.appendEntriesRequest(msg['From'], msg['Term'], msg['PrevLogIndex'], msg['PrevLogTerm'], msg['Entries'], msg['LeaderCommit'])
-    elif msgType == 'AppendEntriesReplay':
+    elif msgType == 'AppendEntriesReply':
       self.appendEntriesReply(msg['From'], msg['Term'], msg['Index'], msg['Success'])
 
     # Handle unknown messages
@@ -663,6 +659,11 @@ class mainObject:
       print('  Client(s): ', end=' ')
       for client in self.clients:
           print(client, end=' ')
+      if self.nodeStatus == statusLeader:
+        print('  nextIndex: ', end=' ')
+        print(self.nextIndex)
+        print('  matchIndex:', end=' ')
+        print(self.matchIndex)
       print()
 
 
@@ -681,7 +682,8 @@ class mainObject:
   def addTestEntries(self):
     # Add in a few test log entries to this nodes log even if they aren't the leader.
     for i in range(4):
-      self.addNewLogEntry('Test', str(i))
+      r = random.randint(0, 1000)
+      self.addNewLogEntry('Test', str(r))
 
 
   def main(self):
