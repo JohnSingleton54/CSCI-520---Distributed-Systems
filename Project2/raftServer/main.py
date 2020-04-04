@@ -61,7 +61,7 @@ class mainObject:
     self.listener = None
     self.senders  = {}
 
-    # Raft variables
+    # VARIABLES USED BY ALL NODE TYPES:
     self.nodeStatus    = statusFollower
     self.dataLock      = threading.Lock()
     self.currentTerm   = 0
@@ -69,23 +69,19 @@ class mainObject:
     self.votedFor      = -1 # nodeId of who this node has voted for, -1 means not voted yet
     self.pendingEvents = [] # list of dict: {'Type': punch/block, 'Color': Red/Blue, 'Hand': Right/Left}
     self.log           = [] # list of dict: {'Term': <int>, 'Color':  Red/Blue, 'State': <string>, 'Committed': True/False}
-    self.whoVoted      = {} # dict: key = nodeId, value = (granted) True/False
-    self.leaderTimeout     = None
-    self.leaderHeartbeat   = None
+    self.leaderTimeout = None
+
+    # VARIABLES USED BY CANDIDATES:
+    self.whoVoted = {} # dict: key = nodeId, value = (granted) True/False
     self.electionHeartbeat = None
 
     # VARIABLES USED BY LEADERS:
     # dict: key = nodeId, value = the index of the next log entry the leader will send to that
     # follower (See the second column on page 7 of the paper and the sendOutLeaderHeartbeat method.)
-    self.nextIndex = {} 
-    # dict: key = nodeId, value = False until an AppendEntries request succeeds
-    # Once AppendEntries succeeds, the follower's log is consistent with the leader's, and it will
-    # remain that way for the rest of the term.
-    self.success = {}
-
-
-    # VARIABLES USED BY FOLLOWERS:
-    # Are there any?
+    self.nextIndex    = {}
+    self.matchIndex   = {} # The index of highest log entry known to be replicated on server.
+    self.successIndex = {} # The index at which the follower has said success for.
+    self.leaderHeartbeat = None
 
 
   def clientConnected(self, color, conn):
@@ -187,6 +183,15 @@ class mainObject:
       return (lastLogIndex, lastLogTerm)
 
 
+  def lastCommittedIndex(self):
+    # Gets the index of the last committed index in the log.
+    with self.dataLock:
+      for i in reversed(range(len(self.log))):
+        if self.log[i]['Committed']:
+          return i
+      return -1
+
+
   def addNewLogEntry(self, color, state):
     # This will append a new log entry which sets our color (variable) to state (value).
     with self.dataLock:
@@ -207,19 +212,26 @@ class mainObject:
       return stateNeutral
 
 
+  #=========================================================
+  # Candidate Election (RequestVote) Message Handlers
+  #=========================================================
+
   def sendOutElectionHeartbeat(self):
-    # Periodically send out the message to all nodes which haven't replied.
-    lastLogIndex, lastLogTerm = self.lastLogInfo()
-    msg = {
-      'Type':         'RequestVoteRequest',
-      'From':         myNodeId,
-      'Term':         self.currentTerm,
-      'LastLogIndex': lastLogIndex,
-      'LastLogTerm':  lastLogTerm,
-    }
-    for nodeId in self.senders.keys():
-      if not nodeId in self.whoVoted:
-        self.sendToNode(nodeId, msg)
+    # This is the start of a candidate sending out RequestVote.
+    # This is called periodically by a timer to send out the
+    # messages to all nodes which this candidate thinks hasn't voted yet.
+    if self.nodeStatus == statusCandidate:
+      lastLogIndex, lastLogTerm = self.lastLogInfo()
+      msg = {
+        'Type':         'RequestVoteRequest',
+        'From':         myNodeId,
+        'Term':         self.currentTerm,
+        'LastLogIndex': lastLogIndex,
+        'LastLogTerm':  lastLogTerm,
+      }
+      for nodeId in self.senders.keys():
+        if not nodeId in self.whoVoted:
+          self.sendToNode(nodeId, msg)
 
 
   def requestVoteRequest(self, fromNodeId, termNum, lastLogIndex, lastLogTerm):
@@ -233,8 +245,7 @@ class mainObject:
     if termNum >= self.currentTerm:
       # If term has changed throw out who you voted for so you can vote again and update term.
       if termNum > self.currentTerm:
-        self.currentTerm = termNum
-        self.votedFor = -1
+        self.setAsFollower(-1, termNum)
       # Check that you don't have a more up-to-date log than the candidate.
       curLogIndex, curLogTerm = self.lastLogInfo()
       if (lastLogTerm > curLogTerm) or ((lastLogTerm == curLogTerm) and (lastLogIndex >= curLogIndex)):
@@ -268,46 +279,57 @@ class mainObject:
         # Look at me. I'm the leader now.
         self.setAsLeader()
 
-# temp notes for Log Replication (JMS):
-# - A log entry is committed once the leader that created the entry has replicated it on a majority
-# of the servers. These are the entries that are safe to apply to the local state machines.
-# - The leader retries AppendEntries RPCs indefinitely (even after it has responded to the client)
-# until all followers eventually store all log entries.
 
+  #=========================================================
+  # Leader Heartbeat (AppendEntries) Message Handlers
+  #=========================================================
+
+  # temp notes for Log Replication (JMS):
+  # - A log entry is committed once the leader that created the entry has replicated it on a majority
+  # of the servers. These are the entries that are safe to apply to the local state machines.
+  # - The leader retries AppendEntries RPCs indefinitely (even after it has responded to the client)
+  # until all followers eventually store all log entries.
 
 
   def sendOutLeaderHeartbeat(self):
-    # We are (should be) the leader so send out AppendEntries requests.
+    # We are the leader so send out AppendEntries requests.
+    # This method is called periodically by a timer.
     # Even empty the AppendEntries works as a heartbeat.
     if self.nodeStatus == statusLeader:
-
-      # TODO: Determine the entry to be sent.
-      #       Also add "prevLogIndex" and "prevLogTerm"
 
       # Send the sequence of log entries from nextIndex to lastLogIndex, which will in general be
       # different for each follower.
       lastLogIndex, lastLogTerm = self.lastLogInfo()
+      leaderCommit = self.lastCommittedIndex()
       for nodeId in self.senders.keys():
+        if nodeId == myNodeId:
+          # Skip over my nodeId since I'm the leader.
+          continue
 
-        # for a heartbeat
-        if self.nextIndex[nodeId] > lastLogIndex:
+        if self.nextIndex[nodeId] <= lastLogIndex:
+          # for a heartbeat
           entries = []
-        # for a proper AppendEntries request
         else:
-          if not self.success[nodeId]:
-            entries = log[self.nextIndex[nodeId]:lastLogIndex] 
+          # for a proper AppendEntries request
+          entries = log[self.nextIndex[nodeId]:lastLogIndex]
+
+        prevLogIndex = self.nextIndex[nodeId] - 1
+        prevLogTerm  = -1
+        if prevLogIndex >= 0:
+          prevLogTerm = self.log[prevLogIndex]['Term']
 
         self.sendToNode(nodeId, {
           'Type':         'AppendEntriesRequest',
           'From':         myNodeId,
           'Term':         self.currentTerm,
-          'PrevLogIndex': self.nextIndex[nodeId] - 1,
-          'PrevLogTerm':  self.log[self.nextIndex[nodeId] -1]['Term'],
-          'Entries':      entries
-          })
+          'PrevLogIndex': prevLogIndex,
+          'PrevLogTerm':  prevLogTerm,
+          'Entries':      entries,
+          'LeaderCommit': leaderCommit
+        })
 
 
-  def appendEntriesRequest(self, fromNodeId, termNum, prevLogIndex, prevLogTerm, entries):
+  def appendEntriesRequest(self, fromNodeId, termNum, prevLogIndex, prevLogTerm, entries, leaderCommit):
     # This handles an AppendEntries Request from the leader.
     # If entries is empty then this is only for a heartbeat.
     if termNum >= self.currentTerm:
@@ -320,42 +342,46 @@ class mainObject:
       self.heartbeat()
 
       if entries:
+        print(">> %d: prev: %d, %d, len(entries): %d, leaderCommit: %d" % (termNum, prevLogIndex, prevLogTerm, len(entries), leaderCommit)) # TODO: REMOVE
+
         # the consistency check (See page 7 paragraph 3 "The second property is guaranteed by...".)
-        if (len(self.log) - 1 != prevLogIndex) or
-           (self.log[self.lastLogIndex]['Term'] != prevLogTerm): # the consistency check fails
+        lastLogIndex, lastLogTerm = self.lastLogInfo()
+        if (lastLogIndex != prevLogIndex) or (lastLogTerm != prevLogTerm): # the consistency check fails
           success = False
         else: # the consistency check passes
           success = True
           # update the local log
-          if self.lastLogIndex == prevLogIndex:
-            self.log.append(entries[0]) # Or should I use self.addNewLogEntry() here?
+          if lastLogIndex == prevLogIndex:
+            with self.dataLock:
+              self.log.extend(entries)
           else:
-            del self.log[prevLogIndex+1:len(self.log)]
-            for entry in range(len(entries)):
-              self.log.append(entry)
+            with self.dataLock:
+              del self.log[prevLogIndex+1:]
+              self.log.extend(entries)
 
+        logIndex = len(self.logs)-1
         self.sendToNode(fromNodeId, {
           'Type': 'AppendEntriesReply',
           'From': myNodeId,
           'Term': self.currentTerm,
-          'Index': self.currentIndex,
+          'Index': logIndex,
           'Success': success
         })
+
+      # TODO: Deal with LeaderCommit and 
 
 
   def appendEntriesReply(self, fromNodeId, termNum, index, success):
     # This handles an AppendEntries reply from another raft instance.
-    #
-    # TODO: Implement
 
+    print("<< %d: index: %d, success: %r" % (termNum, index, success)) # TODO: REMOVE
+    
     if not success:
-      self.nextIndex -= 1
+      self.nextIndex[fromNodeId] -= 1
     else:
-      if not self.success[fromNodeId]:
-      # Is any other action needed here if it's the first time it has succeeded?
-      self.success[fromNodeId] = success
+      self.nextIndex[fromNodeId] = index + 1
 
-
+    # TODO: Update LeaderCommit and matchIndex, commitIndex, 
     # once a state had been committed we need to update the client
     # about the state change, for things like opponents state and end game hits.
 
@@ -390,19 +416,24 @@ class mainObject:
       self.leaderTimeout.stop()
       self.electionHeartbeat.stop()
       pending = self.pendingEvents
+
       self.votedFor      = -1
       self.whoVoted      = {}
       self.leaderNodeId  = myNodeId
       self.nodeStatus    = statusLeader
-      # Initialize all nextIndex values to the index just after the last one in its log.
-      for nodeId in self.senders.keys():
-        self.nextIndex[nodeId] = self.lastLogIndex + 1
-      # Initialize all success values to be False.
-      for nodeId in self.senders.keys():
-        success[nodeId] = False
       self.pendingEvents = []
-      self.leaderHeartbeat.start(0.0)
+
+      # Initialize all nextIndex values to the index just after the last one in its log.
+      logLength = len(self.log)
+      for nodeId in self.senders.keys():
+        self.nextIndex[nodeId]  = logLength
+        self.matchIndex[nodeId] = 0
+
+      # Start the leader heartbeat.
       print('%d: %d is now the leader' % (self.currentTerm, myNodeId))
+      self.leaderHeartbeat.start(0.0)
+
+    # Send any messages which were pended during leader election.
     for event in pending:
       self.receiveMessage(event)
 
@@ -414,6 +445,7 @@ class mainObject:
       self.leaderHeartbeat.stop()
       self.electionHeartbeat.stop()
       pending = self.pendingEvents
+
       self.pendingEvents = []
       self.leaderNodeId  = newLeader
       self.whoVoted      = {}
@@ -421,6 +453,8 @@ class mainObject:
       self.currentTerm   = newTerm
       self.nodeStatus    = statusFollower
       print('%d: %d is now the leader' % (self.currentTerm, self.leaderNodeId))
+
+    # Send any messages which were pended during leader election.
     for event in pending:
       self.receiveMessage(event)
 
@@ -598,13 +632,15 @@ class mainObject:
     elif msgType == 'ResetGame':
       self.resetGame()
 
-    # Handle Raft messages
+    # Handle Raft Messages for RequestVote
     elif msgType == 'RequestVoteRequest':
       self.requestVoteRequest(msg['From'], msg['Term'], msg['LastLogIndex'], msg['LastLogTerm'])
     elif msgType == 'RequestVoteReply':
       self.requestVoteReply(msg['From'], msg['Term'], msg['Granted'])
+    
+    # Handle Raft Messages for AppendEntries
     elif msgType == 'AppendEntriesRequest':
-      self.appendEntriesRequest(msg['From'], msg['Term'], msg['PrevLogIndex'], msg['PrevLogTerm'], msg['Entries'])
+      self.appendEntriesRequest(msg['From'], msg['Term'], msg['PrevLogIndex'], msg['PrevLogTerm'], msg['Entries'], msg['LeaderCommit'])
     elif msgType == 'AppendEntriesReplay':
       self.appendEntriesReply(msg['From'], msg['Term'], msg['Index'], msg['Success'])
 
@@ -642,6 +678,12 @@ class mainObject:
         print('   [%s] %d: %s <- %s'%(check, term, color, state))
 
 
+  def addTestEntries(self):
+    # Add in a few test log entries to this nodes log even if they aren't the leader.
+    for i in range(4):
+      self.addNewLogEntry('Test', str(i))
+
+
   def main(self):
     # Setup the listener to start watching for incoming messages.
     self.listener = connections.listener(self.receiveMessage, nodeIdToURL[myNodeId], useMyHost)
@@ -669,7 +711,8 @@ class mainObject:
       print("  2. Stop Heartbeat")
       print("  3. Show Info")
       print("  4. Show Log")
-      print("  5. Exit")
+      print("  5. Add Test Entries")
+      print("  6. Exit")
 
       try:
         choice = int(input("Enter your choice: "))
@@ -686,6 +729,8 @@ class mainObject:
       elif choice == 4:
         self.showLog()
       elif choice == 5:
+        self.addTestEntries()
+      elif choice == 6:
         break
       else:
         print("Invalid choice \"%s\". Try again." % (choice))
