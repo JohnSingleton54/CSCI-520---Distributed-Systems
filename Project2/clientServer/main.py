@@ -135,7 +135,7 @@ def canPunchAgain():
 
 def punchWasBlocked(color):
   # Adds 2 seconds for a total of 3 seconds for punch timeout.
-  print("$s's punch was blocked"%(color))
+  print("%s's punch was blocked" % (color))
   if color == playerColor:
     punchTimeout.addTime(punchBlockedWait)
 

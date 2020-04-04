@@ -61,9 +61,6 @@ class mainObject:
     self.listener = None
     self.senders  = {}
 
-    self.lastCommittedRedState  = stateNeutral
-    self.lastCommittedBlueState = stateNeutral
-
     # Raft variables
     self.nodeStatus    = statusFollower
     self.dataLock      = threading.Lock()
@@ -428,13 +425,8 @@ class mainObject:
       blueState = stateNeutral
 
     # Update the states of the clients.
-    if self.lastCommittedRedState != redState:
-      self.lastCommittedRedState = redState
-      updateColorForNewCommits('Red', 'Blue', redState)
-
-    if self.lastCommittedBlueState != blueState:
-      self.lastCommittedBlueState = blueState
-      updateColorForNewCommits('Blue', 'Red', blueState)
+    self.updateColorForNewCommits('Red', 'Blue', redState)
+    self.updateColorForNewCommits('Blue', 'Red', blueState)
 
 
   def updateColorForNewCommits(self, player, opponent, state):

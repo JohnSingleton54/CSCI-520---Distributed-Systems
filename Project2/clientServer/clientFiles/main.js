@@ -88,7 +88,7 @@ function hit(color) {
     } else {
         opponentHit = true
     }
-    setGameState(GameOver);
+    setGameState(gameState.GameOver);
 }
 
 // This indicates the game has been reset.
@@ -201,9 +201,9 @@ function handleServerMessage(data) {
             break;
         case 'OpponentChanged':
             if ('Left' in data) 
-                updateOpponentImages('Left', data['Left']);
+                setOpponentCondition('Left', data['Left']);
             if ('Right' in data) 
-                updateOpponentImages('Right', data['Right']);
+                setOpponentCondition('Right', data['Right']);
             break;
         case 'Hit':
             hit(data['Color']);

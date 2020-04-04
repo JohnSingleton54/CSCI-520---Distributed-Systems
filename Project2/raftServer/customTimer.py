@@ -10,7 +10,7 @@ import threading
 import time
 
 
-checkTimeoutTime = 0.025 # in seconds
+checkTimeoutTime = 0.01 # in seconds
 
 
 class customTimer:
