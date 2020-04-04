@@ -73,14 +73,15 @@ class mainObject:
     self.leaderHeartbeat   = None
     self.electionHeartbeat = None
 
+    # VARIABLES USED BY LEADERS:
     # dict: key = nodeId, value = the index of the next log entry the leader will send to that
     # follower (See the second column on page 7 of the paper and the sendOutLeaderHeartbeat method.)
     self.nextIndex = {} 
-
-    # nested dict: wasAccepted[nodeId, index] == True/False, depending upon whether or not the
-    # follower nodeId has accepted 
+    # nested dict: wasAccepted[nodeId][index] == True/False, depending upon whether or not the
+    # follower nodeId has accepted the log entry at index index
     self.wasAccepted = {}
 
+    # VARIABLES USED BY FOLLOWERS:
 
 
 
@@ -283,25 +284,30 @@ class mainObject:
     # Even empty the AppendEntries works as a heartbeat.
     if self.nodeStatus == statusLeader:
 
-      # Initialize wasAccepted to be a dictionary of # of followers empty dictionaries
-      for nodeId in self.senders.keys():
-        wasAccepted[nodeId] = {}
-
       # TODO: Determine the entry to be sent.
       #       Also add "prevLogIndex" and "prevLogTerm"
 
       # Send the log entry at nextIndex, which will in general be different for each follower.
-      # If the follower rejects the AppendEntries RPC, then decrement nextIndex and retry.
-      # If the follower accepts the AppendEntries RPC, then ...
+      # If the follower rejects the AppendEntries request, then decrement nextIndex and retry.
+      # If the follower accepts the AppendEntries request, then ...
       for nodeId in self.senders.keys():
-        entry = log[nextIndex[nodeId]]
+
+        # for a heartbeat
+        if nextIndex[nodeId] > lastLogIndex:
+          entry = []
+        # for a proper AppendEntries request
+        else:
+          entry = log[nextIndex[nodeId]] 
+        
         self.sendToNode(nodeId, {
           'Type':    'AppendEntriesRequest',
           'From':    myNodeId,
           'Term':    self.currentTerm,
           'Entries': entry
           })
-        if wasAccepted:
+
+        if wasAccepted[nodeId][nextIndex[nodeId]] == False:
+
           
         else:
           nextIndex[nodeId] -= 1
@@ -388,7 +394,10 @@ class mainObject:
       self.nodeStatus    = statusLeader
       # Initialize all nextIndex values to the index just after the last one in its log.
       for nodeId in self.senders.keys():
-        self.nextIndex[nodeId] = self.lastLogIndex
+        self.nextIndex[nodeId] = self.lastLogIndex + 1
+      # Initialize wasAccepted to be a dictionary of [# of followers] empty dictionaries
+      for nodeId in self.senders.keys():
+        wasAccepted[nodeId] = {}
       self.pendingEvents = []
       self.leaderHeartbeat.start(0.0)
       print('%d: %d is now the leader' % (self.currentTerm, myNodeId))
