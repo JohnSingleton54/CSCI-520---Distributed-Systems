@@ -357,11 +357,11 @@ class mainObject:
       if entries:
         # the consistency check (See page 7 paragraph 3 "The second property is guaranteed by...".)
         lastLogIndex = len(self.log)-1
-        lastLogTerm  = -1
+        logTermAtPrevLogIndex  = -1
         if (prevLogIndex >= 0) and (prevLogIndex <= lastLogIndex):
-          lastLogTerm = self.log[prevLogIndex]['Term']
+          logTermAtPrevLogIndex = self.log[prevLogIndex]['Term']
 
-        if (prevLogIndex > lastLogIndex) or (lastLogTerm != prevLogTerm): # the consistency check fails
+        if (prevLogIndex > lastLogIndex) or (logTermAtPrevLogIndex != prevLogTerm): # the consistency check fails
           success = False
         else: # the consistency check passes
           success = True
