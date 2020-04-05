@@ -262,8 +262,7 @@ class mainObject:
     if termNum >= self.currentTerm:
       # If term has changed throw out who you voted for so you can vote again and update term.
       if termNum > self.currentTerm:
-        self.currentTerm = termNum
-        self.votedFor = -1
+        self.setAsFollower(-1, termNum)
       # Check that you don't have a more up-to-date log than the candidate.
       curLogIndex, curLogTerm = self.lastLogInfo()
       if (lastLogTerm > curLogTerm) or ((lastLogTerm == curLogTerm) and (lastLogIndex >= curLogIndex)):
@@ -357,11 +356,11 @@ class mainObject:
       if entries:
         # the consistency check (See page 7 paragraph 3 "The second property is guaranteed by...".)
         lastLogIndex = len(self.log)-1
-        logTermAtPrevLogIndex  = -1
+        logTermAtPrevLogIndex = -1
         if (prevLogIndex >= 0) and (prevLogIndex <= lastLogIndex):
           logTermAtPrevLogIndex = self.log[prevLogIndex]['Term']
 
-        if (prevLogIndex > lastLogIndex) or (logTermAtPrevLogIndex != prevLogTerm): # the consistency check fails
+        if logTermAtPrevLogIndex != prevLogTerm: # the consistency check fails
           success = False
         else: # the consistency check passes
           success = True
