@@ -36,10 +36,11 @@ class clientSocket:
   # to differentiate between the different sockets.
 
 
-  def __init__(self, onConnect, handleMethod, socketURL):
+  def __init__(self, onConnect, handleMethod, socketURL, useMyHost):
     self.__onConnect    = onConnect
     self.__handleMethod = handleMethod
     self.__socketURL    = socketURL
+    self.__useMyHost    = useMyHost
 
     self.__keepAlive   = True
     self.__connNumMax  = 0
@@ -98,7 +99,7 @@ class clientSocket:
     # This method starts the socket event loop and waits until an interrupt kills it.
     loop  = asyncio.get_event_loop()
     parts = self.__socketURL.split(':')
-    host  = parts[0]
+    host  = parts[0] if self.__useMyHost else ''
     port  = int(parts[1])
 
     try:

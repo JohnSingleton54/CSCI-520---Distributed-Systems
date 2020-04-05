@@ -25,17 +25,18 @@ import customTimer
 
 
 # The configurations for the two client servers.
+useMyHost = False
 configs = {
   0: {
     'playerColor':   'Red',
     'fileSharePort': 8181,
-    'socketURL':     '52.39.65.154:8080',
+    'socketURL':     'ec2-54-202-2-253.us-west-2.compute.amazonaws.com:8080',
     'raftNodeURL':   '35.155.81.205:8080',
   },
   1: {
     'playerColor':   'Blue',
     'fileSharePort': 8181,
-    'socketURL':     '3.94.179.217:8080',
+    'socketURL':     'ec2-54-202-2-253.us-west-2.compute.amazonaws.com:8080',
     'raftNodeURL':   '54.244.147.5:8080',
   },
 }
@@ -212,7 +213,7 @@ def main():
   conn = connections.connection(raftConnected, receivedRaftMessage, raftNodeURL)
   punchTimeout = customTimer.customTimer(canPunchAgain)
 
-  socket = clientSocket.clientSocket(clientSocketConnected, receivedClientMessage, socketURL)
+  socket = clientSocket.clientSocket(clientSocketConnected, receivedClientMessage, socketURL, useMyHost)
   socket.startAndWait()
 
   # Socket closed so clean up and shut down
