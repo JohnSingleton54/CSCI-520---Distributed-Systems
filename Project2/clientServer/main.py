@@ -130,14 +130,13 @@ def canPunchAgain():
   global noPunching
   global punchCheckIn
   noPunching = False
-  print("Can punch again (%0.2fs)" % (time.time() - punchCheckIn))
+  print('Can punch again (%0.2fs)' % (time.time() - punchCheckIn))
 
 
-def punchWasBlocked(color):
+def punchWasBlocked():
   # Adds 2 seconds for a total of 3 seconds for punch timeout.
-  print("%s's punch was blocked" % (color))
-  if color == playerColor:
-    punchTimeout.addTime(punchBlockedWait)
+  print('punch was blocked')
+  punchTimeout.addTime(punchBlockedWait)
 
 
 def opponentChanged(hand, condition):
@@ -147,6 +146,15 @@ def opponentChanged(hand, condition):
     'Type':    'OpponentChanged',
     hand:      condition,
     otherHand: 'Neutral'
+  })
+
+
+def clientSocketConnected():
+  # Handles when the browser socket had connected.
+  # Send the client connected message again to get client state.
+  conn.send({
+    'Type':  'ClientConnected',
+    'Color': playerColor
   })
 
 
@@ -163,8 +171,7 @@ def receivedClientMessage(msg):
   elif msg == 'RightBlock':
     performBlock('Right', 'Left')
   else:
-    print("Unknown message (1):")
-    print(msg)
+    print('Unknown message from client:', msg)
 
 
 def receivedRaftMessage(msg):
@@ -173,14 +180,13 @@ def receivedRaftMessage(msg):
   if msgType == 'Hit':
     hit(msg['Color'])
   elif msgType == 'PunchBlocked':
-    punchWasBlocked(msg['Color'])
+    punchWasBlocked()
   elif msgType == 'OpponentChanged':
     opponentChanged(msg['Hand'], msg['Condition'])
   elif msgType == 'GameReset':
     gameHasBeenReset()
   else:
-    print("Unknown message (2):")
-    print(msg)
+    print('Unknown message from raft:', msg)
 
 
 def raftConnected():
@@ -206,7 +212,7 @@ def main():
   conn = connections.connection(raftConnected, receivedRaftMessage, raftNodeURL)
   punchTimeout = customTimer.customTimer(canPunchAgain)
 
-  socket = clientSocket.clientSocket(receivedClientMessage, socketURL)
+  socket = clientSocket.clientSocket(clientSocketConnected, receivedClientMessage, socketURL)
   socket.startAndWait()
 
   # Socket closed so clean up and shut down
@@ -216,5 +222,5 @@ def main():
   punchTimeout.close()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
   main()

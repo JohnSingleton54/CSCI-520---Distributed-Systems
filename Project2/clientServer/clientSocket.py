@@ -36,7 +36,8 @@ class clientSocket:
   # to differentiate between the different sockets.
 
 
-  def __init__(self, handleMethod, socketURL):
+  def __init__(self, onConnect, handleMethod, socketURL):
+    self.__onConnect    = onConnect
     self.__handleMethod = handleMethod
     self.__socketURL    = socketURL
 
@@ -55,6 +56,9 @@ class clientSocket:
 
     with self.__sendLock:
       self.__sendQueues[connectionNum] = []
+
+    with self.__receiveLock:
+      self.__onConnect()
 
     # Loop until the client closes or the server is shutting down.
     while self.__keepAlive:

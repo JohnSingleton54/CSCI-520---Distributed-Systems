@@ -90,7 +90,7 @@ class mainObject:
     print('%s client connected' % (color))
 
     # Update the client with the state.
-    self.updateClientsForNewCommits()
+    self.updateClientsForNewCommits(-1)
 
 
   def resetGame(self):
@@ -213,6 +213,16 @@ class mainObject:
           return entry['State']
       return stateNeutral
 
+
+  def getLogNewestValue(self, color, lowestIndex):
+    # This will find the most recent state (value) for the given color (variable)
+    # which is above the given 'lowIndex'. This is used to find recently committed.
+    with self.dataLock:
+      for entry in reversed(self.log[lowestIndex:]):
+        if entry['Committed'] and (entry['Color'] == color):
+          return (True, entry['State'])
+      return (False, stateNeutral)
+  
 
   #=========================================================
   # Candidate Election (RequestVote) Message Handlers
@@ -408,17 +418,20 @@ class mainObject:
     # Updates the committed logs up to the leaderCommit.
     # This is done for all logs.
     anyNewCommits = False
+    lowestIndex = -1
     with self.dataLock:
       for i in range(min(len(self.log), leaderCommit+1)):
         entry = self.log[i]
         if not entry['Committed']:
+          if lowestIndex < 0:
+            lowestIndex = i
           anyNewCommits = True
           entry['Committed'] = True
 
     # If there are new commits, persist the log and update the clients.
     if anyNewCommits:
       self.saveLog()
-      self.updateClientsForNewCommits()
+      self.updateClientsForNewCommits(lowestIndex)
 
 
   def heartbeat(self):
@@ -500,14 +513,14 @@ class mainObject:
       self.receiveMessage(event)
 
 
-  def updateClientsForNewCommits(self):
+  def updateClientsForNewCommits(self, lowestIndex):
     # This updates the connected clients for the state of the game.
     if len(self.clients) <= 0:
       # No clients so don't bother updating them.
       return
 
-    redState = self.getLogValue('Red')
-    blueState = self.getLogValue('Blue')
+    newRedState, redState = self.getLogNewestValue('Red', lowestIndex)
+    newBlueState, blueState = self.getLogNewestValue('Blue', lowestIndex)
     
     # Check for a game reset in both red and blue to know that no other action
     # has been taken, otherwise treat a `stateStartNewGame` as a `stateNeutral`.
@@ -522,8 +535,10 @@ class mainObject:
       blueState = stateNeutral
 
     # Update the states of the clients.
-    self.updateColorForNewCommits('Red', 'Blue', redState)
-    self.updateColorForNewCommits('Blue', 'Red', blueState)
+    if newRedState:
+      self.updateColorForNewCommits('Red', 'Blue', redState)
+    if newBlueState:
+      self.updateColorForNewCommits('Blue', 'Red', blueState)
 
 
   def updateColorForNewCommits(self, player, opponent, state):
@@ -548,16 +563,14 @@ class mainObject:
     elif state == stateRightPunchBlocked:
       hand      = 'Right'
       condition = 'Punch'
-      self.sendToAllClients({
-        'Type':  'PunchBlocked',
-        'Color': player,
+      self.sendToClient(player, {
+        'Type': 'PunchBlocked'
       })
     elif state == stateLeftPunchBlocked:
       hand      = 'Left'
       condition = 'Punch'
-      self.sendToAllClients({
-        'Type':  'PunchBlocked',
-        'Color': player,
+      self.sendToClient(player, {
+        'Type': 'PunchBlocked'
       })
     elif state == stateRightPunchHit:
       hand      = 'Right'
@@ -623,7 +636,8 @@ class mainObject:
       if color in self.clients:
         conn = self.clients[color]
     if conn:
-        conn.send(json.dumps(data).encode())
+      msg = (json.dumps(data)+'#').encode()
+      conn.send(msg)
 
 
   def sendToAllClients(self, data):
@@ -632,7 +646,7 @@ class mainObject:
     conns = None
     with self.dataLock:
       conns = self.clients.values()
-    msg = json.dumps(data).encode()
+    msg = (json.dumps(data)+'#').encode()
     for conn in conns:
       conn.send(msg)
 

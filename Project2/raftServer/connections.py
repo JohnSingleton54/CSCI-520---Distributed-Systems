@@ -68,14 +68,16 @@ class listener:
           parts = data.decode().split('#')
           for part in parts:
             if part:
+              msg = ''
               try:
                 msg = json.loads(part)
               except Exception as e:
                 print('Error parsing JSON(%s): %s' % (part, e))
-              try:
-                self.__handleMethod(msg, conn)
-              except Exception as e:
-                print('Exception in handler of (%s): %s' % (part, e))
+              if msg:
+                try:
+                  self.__handleMethod(msg, conn)
+                except Exception as e:
+                  print('Exception in handler of (%s): %s' % (part, e))
       except socket.timeout: 
         continue
     conn.close()
@@ -113,8 +115,7 @@ class sender:
         # Prepare to try to connect/reconnect
         self.__connected = False
         with self.__queueLock:
-          if self.__pendingQueue:
-            self.__pendingQueue.clear()
+          self.__pendingQueue = []
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(3)

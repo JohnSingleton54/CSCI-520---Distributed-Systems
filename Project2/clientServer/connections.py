@@ -84,14 +84,16 @@ class connection:
                 parts = data.decode().split('#')
                 for part in parts:
                   if part:
+                    msg = ''
                     try:
                       msg = json.loads(part)
                     except Exception as e:
                       print('Error parsing JSON(%s): %s' % (part, e))
-                    try:
-                      self.__handleMethod(msg)
-                    except Exception as e:
-                      print('Exception in handler of (%s): %s' % (part, e))
+                    if msg:
+                      try:
+                        self.__handleMethod(msg)
+                      except Exception as e:
+                        print('Exception in handler of (%s): %s' % (part, e))
             except socket.timeout:
               continue
 
@@ -114,7 +116,7 @@ class connection:
     # If this is not connected, the message will be ignored.
     if self.__connected:
       with self.__queueLock:
-        data = json.dumps(message)
+        data = json.dumps(message)+'#'
         self.__pendingQueue.append(data)
 
 
