@@ -292,26 +292,10 @@ class mainObject:
         # Look at me. I'm the leader now.
         self.setAsLeader()
 
-<<<<<<< Updated upstream
-=======
-# temp notes for Log Replication (JMS):
-# - A log entry is committed once the leader that created the entry has replicated it on a majority
-# of the servers. These are the entries that are safe to apply to the local state machines.
-# - The leader retries AppendEntries RPCs indefinitely (even after it has responded to the client)
-# until all followers eventually store all log entries. [JMS: I think this occurs in our current
-# implementation.]
->>>>>>> Stashed changes
 
   #=========================================================
   # Leader Heartbeat (AppendEntries) Message Handlers
   #=========================================================
-
-  # temp notes for Log Replication (JMS):
-  # - A log entry is committed once the leader that created the entry has replicated it on a majority
-  # of the servers. These are the entries that are safe to apply to the local state machines.
-  # - The leader retries AppendEntries RPCs indefinitely (even after it has responded to the client)
-  # until all followers eventually store all log entries.
-
 
   def sendOutLeaderHeartbeat(self):
     # We are the leader so send out AppendEntries requests.
