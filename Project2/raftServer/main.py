@@ -356,8 +356,12 @@ class mainObject:
       # Add and update entries if possible
       if entries:
         # the consistency check (See page 7 paragraph 3 "The second property is guaranteed by...".)
-        lastLogIndex, lastLogTerm = self.lastLogInfo()
-        if (lastLogIndex != prevLogIndex) or (lastLogTerm != prevLogTerm): # the consistency check fails
+        lastLogIndex = len(self.log)-1
+        lastLogTerm  = -1
+        if (prevLogIndex >= 0) and (prevLogIndex <= lastLogIndex):
+          lastLogTerm = self.log[prevLogIndex]['Term']
+
+        if (prevLogIndex > lastLogIndex) or (lastLogTerm != prevLogTerm): # the consistency check fails
           success = False
         else: # the consistency check passes
           success = True
@@ -385,7 +389,7 @@ class mainObject:
   def appendEntriesReply(self, fromNodeId, termNum, index, success):
     # This handles an AppendEntries reply from another raft instance.
     if not success:
-      self.nextIndex[fromNodeId] -= 1
+      self.nextIndex[fromNodeId] = max(-1, self.nextIndex[fromNodeId]-1)
     else:
       self.nextIndex[fromNodeId] = index + 1
       self.matchIndex[fromNodeId] = index + 1
