@@ -555,8 +555,8 @@ class mainObject:
     hand      = None
     condition = None
     if state == stateNeutral:
-      # Nothing to update
-      return
+      hand      = 'Right' # Doesn't matter which hand
+      condition = 'Neutral'
     elif state == stateRightBlock:
       hand      = 'Right'
       condition = 'Block'
