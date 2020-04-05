@@ -15,13 +15,13 @@ import customTimer
 
 
 # The configurations for the raft servers.
-useMyHost = True
+useMyHost = False
 nodeIdToURL = {
-  0: 'localhost:49507',
-  1: 'localhost:49510',
-  2: 'localhost:49511',
-  3: 'localhost:49512',
-  4: 'localhost:49513',
+  0: '35.155.81.205:8080',
+  1: '54.244.147.5:8080',
+  2: '52.39.65.154:8080',
+  3: '52.23.184.92:8080',
+  4: '18.233.170.107:8080',
 }
 
 

@@ -28,15 +28,15 @@ import customTimer
 configs = {
   0: {
     'playerColor':   'Red',
-    'fileSharePort': 8080,
-    'socketURL':     'localhost:49506',
-    'raftNodeURL':   'localhost:49507',
+    'fileSharePort': 8181,
+    'socketURL':     '52.39.65.154:8080',
+    'raftNodeURL':   '35.155.81.205:8080',
   },
   1: {
     'playerColor':   'Blue',
-    'fileSharePort': 49508,
-    'socketURL':     'localhost:49509',
-    'raftNodeURL':   'localhost:49510',
+    'fileSharePort': 8181,
+    'socketURL':     '3.94.179.217:8080',
+    'raftNodeURL':   '54.244.147.5:8080',
   },
 }
 
