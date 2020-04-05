@@ -122,9 +122,11 @@ class mainObject:
         'Hand':  hand,
       }
       if self.leaderNodeId != -1:
+        print('Sending to Server: %s punched with %s hand' % (color, hand))
         self.sendToNode(self.leaderNodeId, msg)
       else:
         with self.dataLock:
+          print('Pending: %s punched with %s hand' % (color, hand))
           self.pendingEvents.append(msg)
     else:
       # We are the leader, deal with the punch.
@@ -161,9 +163,11 @@ class mainObject:
         'Hand':  hand,
       }
       if self.leaderNodeId != -1:
+        print('Sending to Server: %s blocking with %s hand' % (color, hand))
         self.sendToNode(self.leaderNodeId, msg)
       else:
         with self.dataLock:
+          print('Pending: %s blocking with %s hand' % (color, hand))
           self.pendingEvents.append(msg)
     else:
       # We are the leader, deal with the block
@@ -196,6 +200,7 @@ class mainObject:
 
   def addNewLogEntry(self, color, state):
     # This will append a new log entry which sets our color (variable) to state (value).
+    print('New Log Entry: %s <- %s' % (color, state))
     with self.dataLock:
       self.log.append({
         'Term':      self.currentTerm,

@@ -36,7 +36,7 @@ configs = {
   1: {
     'playerColor':   'Blue',
     'fileSharePort': 8181,
-    'socketURL':     'ec2-54-202-2-253.us-west-2.compute.amazonaws.com:8080',
+    'socketURL':     'ec2-3-94-179-217.compute-1.amazonaws.com:8080',
     'raftNodeURL':   '54.244.147.5:8080',
   },
 }
@@ -97,6 +97,7 @@ def performPunch(hand, otherHand):
     hand:      'Punch',
     otherHand: 'Neutral'
   })
+  print('Sending: %s punched with %s hand' % (playerColor, hand))
   conn.send({
     'Type':  'ClientPunch',
     'Color': playerColor,
@@ -111,6 +112,7 @@ def performBlock(hand, otherHand):
     hand:      'Block',
     otherHand: 'Neutral'
   })
+  print('Sending: %s blocking with %s hand' % (playerColor, hand))
   conn.send({
     'Type':  'ClientBlock',
     'Color': playerColor,
@@ -208,6 +210,7 @@ def main():
   # and starts the main event loop to handle the socket.
   print('Use Ctrl+C to close server (Does not work unless webpage is open)')
   print('For testing open http://localhost:%d'%(fileSharePort))
+  print('Player Color: %s' % (playerColor))
 
   fs = fileServer.fileServer(fileSharePort, playerColor, socketURL)
   conn = connections.connection(raftConnected, receivedRaftMessage, raftNodeURL)
