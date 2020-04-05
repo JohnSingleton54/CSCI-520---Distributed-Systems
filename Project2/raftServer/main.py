@@ -122,7 +122,7 @@ class mainObject:
         'Hand':  hand,
       }
       if self.leaderNodeId != -1:
-        print('Sending to Server: %s punched with %s hand' % (color, hand))
+        print('Sending to Leader: %s punched with %s hand' % (color, hand))
         self.sendToNode(self.leaderNodeId, msg)
       else:
         with self.dataLock:
@@ -163,7 +163,7 @@ class mainObject:
         'Hand':  hand,
       }
       if self.leaderNodeId != -1:
-        print('Sending to Server: %s blocking with %s hand' % (color, hand))
+        print('Sending to Leader: %s blocking with %s hand' % (color, hand))
         self.sendToNode(self.leaderNodeId, msg)
       else:
         with self.dataLock:
@@ -494,6 +494,8 @@ class mainObject:
     # Set this node as a follower, update leader and term values.
     pending = []
     with self.dataLock:
+      showNewLeader = (self.leaderNodeId != newLeader) or (newTerm > self.currentTerm)
+
       self.leaderHeartbeat.stop()
       self.electionHeartbeat.stop()
       pending = self.pendingEvents
@@ -504,7 +506,9 @@ class mainObject:
       self.votedFor      = -1
       self.currentTerm   = newTerm
       self.nodeStatus    = statusFollower
-      print('%d: %d is now the leader' % (self.currentTerm, self.leaderNodeId))
+
+      if showNewLeader:
+        print('%d: %d is now the leader' % (self.currentTerm, self.leaderNodeId))
 
     # Send any messages which were pended during leader election.
     for event in pending:
@@ -602,9 +606,17 @@ class mainObject:
   def saveLog(self):
     # Save the log to the file. For debugging the log are JSON'ed
     # as is including the committed and uncommitted entries.
+    committed = []
     with self.dataLock:
-      data = json.dumps(self.log)
-      
+      for entry in self.log:
+        if entry['Committed']:
+          committed.append({
+            'Term':  entry['Term'],
+            'Color': entry['Color'],
+            'State': entry['State']
+          })
+
+    data = json.dumps(committed)  
     f = open(self.__getLogFileName(), 'w')
     f.write(data)
     f.close()
@@ -618,10 +630,16 @@ class mainObject:
       f.close()
 
       if data:
+        termNum = -1
         log = json.loads(data)
+        for entry in log:
+          termNum = max(termNum, entry['Term'])
+          entry['Committed'] = True
+
         # (Optional) strip out uncommitted values.
         with self.dataLock:
           self.log = log
+          self.currentTerm = termNum
     except Exception as e:
       print('Failed to load from log file: %s' % (e))
 
