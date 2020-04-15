@@ -12,18 +12,18 @@ class transaction:
     # A description of the transfer of some amount from one address to another.
 
     def __init__(self, fromAddress: str, toAddress: str, amount: float):
+        # No signature according to project requirements
         self.__timestamp = time.time()
         self.__fromAddress = fromAddress
         self.__toAddress = toAddress
         self.__amount = amount
-        # No signature according to project requirements
 
     def toTuple(self) -> {}:
         return {
             "timestamp": self.__timestamp,
             "fromAddress": self.__fromAddress,
             "toAddress": self.__toAddress,
-            "amount": self.__amount,
+            "amount": self.__amount
         }
 
     def timestamp(self) -> time.time:
