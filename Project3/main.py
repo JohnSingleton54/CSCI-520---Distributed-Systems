@@ -48,7 +48,15 @@ class mainLoop:
         # TODO: Implement
         pass
 
-    def __showChain(self):
+    def __showFullChain(self):
+        # TODO: Implement
+        pass
+
+    def __showLastBlock(self):
+        # TODO: Implement
+        pass
+
+    def __showBalances(self):
         # TODO: Implement
         pass
 
@@ -57,8 +65,10 @@ class mainLoop:
             print('What would you like to do?')
             print('  1. Add Account')
             print('  2. Make Transaction')
-            print('  3. Show Chain')
-            print('  4. Exit')
+            print('  3. Show Full Chain')
+            print('  4. Show Last Block')
+            print('  5. Show Balances')
+            print('  6. Exit')
 
             try:
                 choice = int(input('Enter your choice: '))
@@ -71,8 +81,12 @@ class mainLoop:
             elif choice == 2:
                 self.__makeTransaction()
             elif choice == 3:
-                self.__showChain()
+                self.__showFullChain()
             elif choice == 4:
+                self.__showLastBlock()
+            elif choice == 5:
+                self.__showBalances()
+            elif choice == 6:
                 break
             else:
                 print('Invalid choice "%s". Try again.' % (choice))
