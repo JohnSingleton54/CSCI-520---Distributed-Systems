@@ -20,10 +20,10 @@ class socketConst:
     receiveChunkSize = 256
 
     # The delimiter to use to indicate the end of a message.
-    messageDelimiter = '#'
+    messageDelimiter = "#"
 
     # The escape character used to indicate the delimiter is part of the message.
-    messageEscape = '/'
+    messageEscape = "/"
 
     # The double escape is used to replace escape characters in the messages.
     messageDoubleEscape = messageEscape + messageEscape
@@ -34,11 +34,11 @@ class socketConst:
     # The regular expression used to pull out the node Id from a node Id
     # message. The node Id message is used to tell in-sockets which node Id
     # the in-socket is connected to.
-    nodeIdRegex = 'GJN>>>(\d+)<<<GJN'
+    nodeIdRegex = "GJN>>>(\d+)<<<GJN"
 
     # The message to pack a node Id into as the first message to an in-socket
     # so that the in-socket knows which node it is connected to.
-    nodeIdMessage = 'GJN>>>%d<<<GJN'
+    nodeIdMessage = "GJN>>>%d<<<GJN"
 
     # Error number for "[WinError 10038] An operation was attempted on something that is not a socket"
     errorSocketNotConnected = 10038
@@ -100,10 +100,10 @@ class messageDefragger:
 
     def encode(self, msg: str) -> bytes:
         # Escapes and frames the message so it can be decoded later.
-        msg = msg.replace(socketConst.messageEscape,
-                          socketConst.messageDoubleEscape)
-        msg = msg.replace(socketConst.messageDelimiter,
-                          socketConst.messageEscapedDelimiter)
+        msg = msg.replace(socketConst.messageEscape, socketConst.messageDoubleEscape)
+        msg = msg.replace(
+            socketConst.messageDelimiter, socketConst.messageEscapedDelimiter
+        )
         msg += socketConst.messageDelimiter
         return msg.encode()
 
@@ -139,10 +139,10 @@ class inSocket:
                     # Out-socket closed so close this socket.
                     break
                 else:
-                    print('inSocket exception:', e)
+                    print("inSocket exception:", e)
                     break
             except Exception as e:
-                print('inSocket exception:', e)
+                print("inSocket exception:", e)
                 break
         self.__onClosed(self)
 
@@ -203,18 +203,17 @@ class inSocketHost:
 
     def __run(self):
         # Asynchronous method to listen for incoming connections.
-        parts = self.__url.split(':')
+        parts = self.__url.split(":")
         host = parts[0] if self.__useHost else ""
         port = int(parts[1])
 
         while self.__keepAlive:
             # Try to setup the socket host.
             try:
-                self.__serverSock = socket.socket(
-                    socket.AF_INET, socket.SOCK_STREAM)
+                self.__serverSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 self.__serverSock.bind((host, port))
             except OSError as e:
-                print('Failed to bind host:', e)
+                print("Failed to bind host:", e)
                 time.sleep(socketConst.hostRebindDelay)
                 continue
 
@@ -229,12 +228,16 @@ class inSocketHost:
                         # `accept` can't be called, socket closed, go back to binding
                         break
                     else:
-                        print('inSocketHost exception:', e)
+                        print("inSocketHost exception:", e)
 
     def __addConnection(self, conn, addr):
         # Adds a new in-socket for the new connection.
-        sock = inSocket(conn, self.__onInSocketConnected,
-                        self.__onInSocketMessages, self.__onInSocketClosed)
+        sock = inSocket(
+            conn,
+            self.__onInSocketConnected,
+            self.__onInSocketMessages,
+            self.__onInSocketClosed,
+        )
         with self.__dataLock:
             self.__pending.append(sock)
 
@@ -309,7 +312,9 @@ class inSocketHost:
 class outSocket:
     # This is an outgoing socket which continues to try to connect and stay connected to a host until closed.
 
-    def __init__(self, nodeId: int, targetId: int, url: str, onConnected, onMessages, onClosed):
+    def __init__(
+        self, nodeId: int, targetId: int, url: str, onConnected, onMessages, onClosed
+    ):
         # Creates a new outgoing socket for this `nodeId` to connect with the
         # host `targetId` via the given `url` to the `targetId`.
         self.__nodeId = nodeId
@@ -323,7 +328,7 @@ class outSocket:
         self.__pending = None
         self.__sock = None
 
-        parts = url.split(':')
+        parts = url.split(":")
         host = parts[0]
         port = int(parts[1])
         thread = threading.Thread(target=self.__run, args=(host, port))
@@ -365,7 +370,7 @@ class outSocket:
                     # Trying to listen on a closed socket, try to reconnect.
                     pass
                 else:
-                    print('outSocket expection:', e)
+                    print("outSocket expection:", e)
 
                 # Failed to connect or lost connection, wait a little bit then try again.
                 self.__closeConnection()
@@ -462,14 +467,25 @@ class socketManager:
         if self.__inSocketHost:
             self.__inSocketHost.close()
         self.__inSocketHost = inSocketHost(
-            url, useHost, self.__onInnerConnected, self.__onInnerMessages, self.__onInnerClosed)
+            url,
+            useHost,
+            self.__onInnerConnected,
+            self.__onInnerMessages,
+            self.__onInnerClosed,
+        )
 
     def connectTo(self, targetId: int, url: str):
         # Connects this manager to another node which has a socket hosted.
         # If the other node hasn't started the host yet, this will continue to attempt to connect
         # until it has been connected or the manager is closed.
-        outSock = outSocket(self.__nodeId, targetId, url,
-                            self.__onInnerConnected, self.__onInnerMessages, self.__onInnerClosed)
+        outSock = outSocket(
+            self.__nodeId,
+            targetId,
+            url,
+            self.__onInnerConnected,
+            self.__onInnerMessages,
+            self.__onInnerClosed,
+        )
         self.__outSockets.append(outSock)
 
     def __onInnerConnected(self, nodeId: int):

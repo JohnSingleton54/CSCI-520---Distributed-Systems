@@ -5,8 +5,8 @@
 # Project 3 (Blockchain Programming Project)
 # due May 7, 2020 by 11:59 PM
 
-import Project3.block
-import Project3.transaction
+import block
+import transaction
 
 
 class blockChain:
@@ -16,8 +16,8 @@ class blockChain:
         # TODO: Implement
         self.__difficulty = difficulty
         self.__miningReward = miningReward
-        self.__chain = [Project3.block.block()]
-        self.__pending = [] # pending transactions
+        self.__chain = [block.block()]
+        self.__pending = []  # pending transactions
 
     def __str__(self) -> str:
         return str(self.toTuple())
@@ -31,12 +31,15 @@ class blockChain:
             pending.append(tran.toTuple())
         return {
             # No need to output difficulty or mining reward
-            'blocks': blocks,
-           	'pending': pending
+            "blocks": blocks,
+            "pending": pending,
         }
 
+    def lastBlock(self) -> block:
+        return self.__chain[-1]
+
     def addTransaction(self, fromAccount: str, toAccount: str, amount: float):
-        trans = Project3.transaction.transaction(fromAccount, toAccount, amount)
+        trans = transaction.transaction(fromAccount, toAccount, amount)
         self.__pending.append(trans)
         # TODO: Implement and check isValid
         pass

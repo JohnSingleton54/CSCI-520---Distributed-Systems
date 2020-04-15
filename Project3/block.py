@@ -6,20 +6,21 @@
 # due May 7, 2020 by 11:59 PM
 
 import time
-import Project3.transaction
+
+import transaction
 
 
 class block:
     # Stores a single block in the chain.
     # It contains a set of transactions since the prior chain.
 
-    def __init__(self, previousHash: 0 = None, transactions: [Project3.transaction] = []):
+    def __init__(self, previousHash: 0 = None, transactions: [transaction] = []):
         self.__timestamp = time.time()
         self.__transactions = transactions
         self.__previousHash = previousHash
         self.__hash = None
         self.__nonce = 0
-        self.__minerAddress = ''
+        self.__minerAddress = ""
 
     def __str__(self) -> str:
         return str(self.toTuple())
@@ -29,20 +30,20 @@ class block:
         for tran in self.__transactions:
             trans.append(tran.toTuple())
         return {
-        	'timestamp':    self.__timestamp,
-        	'transactions': trans,
-        	'previousHash': self.__previousHash,
-        	'hash':         self.__hash,
-        	'nonce':        self.__nonce,
-        	'minerAddress': self.__minerAddress
+            "timestamp": self.__timestamp,
+            "transactions": trans,
+            "previousHash": self.__previousHash,
+            "hash": self.__hash,
+            "nonce": self.__nonce,
+            "minerAddress": self.__minerAddress,
         }
 
     def timestamp(self) -> time.time:
         return self.__timestamp
-    
-    def transactions(self) -> [Project3.transaction]:
+
+    def transactions(self) -> [transaction]:
         return self.__transactions
-    
+
     def previousHash(self):
         return self.__previousHash
 

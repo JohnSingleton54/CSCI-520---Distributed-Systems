@@ -17,7 +17,15 @@ class transaction:
         self.__toAddress = toAddress
         self.__amount = amount
         # No signature according to project requirements
-        
+
+    def toTuple(self) -> {}:
+        return {
+            "timestamp": self.__timestamp,
+            "fromAddress": self.__fromAddress,
+            "toAddress": self.__toAddress,
+            "amount": self.__amount,
+        }
+
     def timestamp(self) -> time.time:
         return self.__timestamp
 
