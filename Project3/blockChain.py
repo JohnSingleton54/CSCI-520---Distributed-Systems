@@ -12,10 +12,25 @@ import Project3.transaction
 class blockChain:
     # The block chain and current configurations.
 
-    def __init__(self):
+    def __init__(self, difficulty: int, miningReward: float):
         # TODO: Implement
-        # difficulty:          int
+        self.__difficulty = difficulty
+        self.__miningReward = miningReward
         # chain:               []Block
         # pendingTransactions: []Transaction
-        # miningReward:        float64
+
+    def addTransaction(self, fromAccount: int, toAccount: int, amount: float):
+        # TODO: Implement
+        pass
+
+    def getAccounts(self) -> [int]:
+        # TODO: Implement
+        pass
+
+    def getBalance(self, account: int) -> float:
+        # TODO: Implement
+        pass
+
+    def getAllBalances(self) -> {int: float}:
+        # TODO: Implement
         pass

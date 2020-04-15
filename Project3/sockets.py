@@ -77,7 +77,7 @@ class messageDefragger:
         self.__escaped = False
         self.__data = bytearray()
 
-    def decode(self, chunk: bytes) -> []:
+    def decode(self, chunk: bytes) -> [str]:
         # Adds more content into the growing message(s).
         # If one or more message has been found they will be returned.
         # Only complete messages will be returned, partial messages will wait until complete.
@@ -153,7 +153,7 @@ class inSocket:
         if messages:
             self.__onMessages(self, messages)
 
-    def __checkNodeId(self, messages: []) -> []:
+    def __checkNodeId(self, messages: [str]) -> [str]:
         # Checks if the node Id is set and looks for the first message containing the nodeId.
         if self.__nodeId < 0:
             while len(messages) > 0:
@@ -250,7 +250,7 @@ class inSocketHost:
             self.__sockets[nodeId] = sock
         self.__onConnected(nodeId)
 
-    def __onInSocketMessages(self, sock, messages: []):
+    def __onInSocketMessages(self, sock, messages: [str]):
         # Handles a socket receiving a message.
         self.__onMessages(sock.nodeId(), messages)
 
@@ -447,7 +447,7 @@ class socketManager:
         self.__onClosed = onClosed
         self.__inSocketHost = None
 
-    def startFullyConnected(self, socketURLs: [], useHost: bool = True):
+    def startFullyConnected(self, socketURLs: [str], useHost: bool = True):
         # Starts a fully connected group of nodes. The given `socketURLs` contains
         # the URLs for the node Id where the node Id is the index of the URL in the list.
         # This will start a socket host for this manager's node Id, the host will be contacted by all
@@ -477,7 +477,7 @@ class socketManager:
         if self.__onConnected:
             self.__onConnected(nodeId)
 
-    def __onInnerMessages(self, nodeId: int, messages: []):
+    def __onInnerMessages(self, nodeId: int, messages: [str]):
         # Handles a socket receiving zero or more message.
         if self.__onMessage:
             for message in messages:
