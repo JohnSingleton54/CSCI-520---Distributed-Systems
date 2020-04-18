@@ -5,28 +5,33 @@
 # Project 3 (Blockchain Programming Project)
 # due May 7, 2020 by 11:59 PM
 
-import time
-
 import transaction
+import misc
 
 
 class block:
     # Stores a single block in the chain.
     # It contains a set of transactions since the prior chain.
 
-    def __init__(self, previousHash=None, transactions: [transaction] = []):
+    def __init__(self, previousHash = None, transactions: [transaction] = []):
         # Creates a new block with the given previous block's hash
         # and the transactions for this block.
-        self.__timestamp = time.time()
+        self.__timestamp    = misc.newTime()
         self.__transactions = transactions
         self.__previousHash = previousHash
-        self.__hash = None
-        self.__nonce = 0
+        self.__hash         = None
+        self.__nonce        = 0
         self.__minerAddress = ""
 
     def __str__(self) -> str:
         # Gets a string for this block.
-        return str(self.toTuple())
+        parts = []
+        parts.append("block: time: %s, prev: %s, hash: %s, nonce: %d, miner: %s" % (
+            misc.timeToStr(self.__timestamp), str(self.__previousHash),
+            str(self.__hash), self.__nonce, self.__minerAddress))
+        for trans in self.__transactions:
+            parts.append("  "+str(trans).replace("\n", "\n  "))
+        return "\n".join(parts)
 
     def toTuple(self) -> {}:
         # Creates a dictionary for this block.
@@ -34,15 +39,15 @@ class block:
         for tran in self.__transactions:
             trans.append(tran.toTuple())
         return {
-            "timestamp": self.__timestamp,
+            "timestamp":    self.__timestamp,
             "transactions": trans,
             "previousHash": self.__previousHash,
-            "hash": self.__hash,
-            "nonce": self.__nonce,
+            "hash":         self.__hash,
+            "nonce":        self.__nonce,
             "minerAddress": self.__minerAddress,
         }
 
-    def timestamp(self) -> time.time:
+    def timestamp(self) -> float:
         # The time this block was created at.
         return self.__timestamp
 
@@ -68,14 +73,6 @@ class block:
         del tuple["hash"]
         return hash(tuple)
 
-    def mineBlock(self, minerAddress: str, difficulty: int) -> bool:
-        # This randomly picks a nonce and rehashes this block. It checks if the difficulty
-        # challenge has been reached. Returns true if this attempt was successful, false otherwise.
-        #
-        # TODO: Implement
-        #
-        return False
-
     def isValid(self, difficulty: int, miningReward: float) -> bool:
         # Determines if this block is valid.
         rewardTransaction = True
@@ -85,4 +82,15 @@ class block:
             rewardTransaction = False
         if self.calculateHash() != self.__hash:
             return False
+        if not str(self.__hash).startswith('0'*difficulty):
+            return False
         return True
+
+    def mineBlock(self, minerAddress: str, difficulty: int) -> bool:
+        # This randomly picks a nonce and rehashes this block. It checks if the difficulty
+        # challenge has been reached. Returns true if this attempt was successful, false otherwise.
+        self.__nonce = misc.newNonce()
+        #
+        # TODO: Implement
+        #
+        return False

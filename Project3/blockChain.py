@@ -13,16 +13,23 @@ class blockChain:
     # The block chain and current configurations.
 
     def __init__(self, difficulty: int, miningReward: float):
-        # TODO: Implement
-        self.__difficulty = difficulty
+        # Creates a new block chain.
+        self.__difficulty   = difficulty
         self.__miningReward = miningReward
-        self.__chain = [block.block()]
-        self.__pending = []  # pending transactions
-        self.__keepMining = True
+        self.__chain        = [block.block()]
+        self.__pending      = []  # pending transactions
+        self.__keepMining   = True
 
     def __str__(self) -> str:
         # Gets a string for this transaction.
-        return str(self.toTuple())
+        parts = []
+        parts.append("blocks:")
+        for block in self.__chain:
+            parts.append("  "+str(block).replace("\n", "\n  "))
+        parts.append("pending:")
+        for tran in self.__pending:
+            parts.append("  "+str(tran).replace("\n", "\n  "))
+        return "\n".join(parts)
 
     def toTuple(self) -> {}:
         # Creates a dictionary for this block chain.
@@ -34,7 +41,7 @@ class blockChain:
             pending.append(tran.toTuple())
         return {
             # No need to output difficulty or mining reward
-            "blocks": blocks,
+            "blocks":  blocks,
             "pending": pending,
         }
 
@@ -57,7 +64,7 @@ class blockChain:
         for block in self.__chain:
             for trans in block.transactions():
                 accounts[trans.fromAddress()] = True
-                accounts[trans.toAddress()] = True
+                accounts[trans.toAddress()]   = True
         return accounts.keys()
 
     def getBalance(self, account: str) -> float:
@@ -77,8 +84,34 @@ class blockChain:
         for block in self.__chain:
             for trans in block.transactions():
                 accounts[trans.fromAddress()] -= trans.amount
-                accounts[trans.toAddress()] += trans.amount
+                accounts[trans.toAddress()]   += trans.amount
         return accounts
+
+    def isValid(self) -> bool:
+        # Indicates if this block chain is valid.
+        return self.__isChainValid(self.__chain)
+
+    def __isChainValid(self, chain: [block.block]) -> bool:
+        # Indicates if this given chain is valid.
+        prev = chain[0]  # Default initial block
+        for block in chain[1:]:
+            if not block.isValid(self.__difficulty, self.__miningReward):
+                return False
+            if block.previousHash() != prev.hash():
+                return False
+            prev = block
+        return True
+
+    def setBlocks(self, index: int, blocks: [block.block]) -> bool:
+        # Adds and replaces blocks in the chain with the given blocks.
+        # The blocks are only replaced if valid otherwise no change and false is returned.
+        newChain = []
+        newChain.extend(self.__chain[:index])
+        newChain.extend(blocks)
+        if self.__isChainValid(newChain):
+            self.__chain = newChain
+            return True
+        return False
 
     def stopMining(self):
         # Stops the mining loop.
@@ -95,15 +128,3 @@ class blockChain:
         #
 
         return None
-
-    def isValid(self) -> bool:
-        # Indicates if this block chain is valid.
-        prev = self.__chain[0] # Default initial block
-        for i in range(1, len(self.__chain)-1):
-            block = self.__chain[i]
-            if not block.isValid():
-                return False
-            if block.previousHash() != prev.hash():
-                return False
-            prev = block
-        return True

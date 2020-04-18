@@ -7,7 +7,6 @@
 
 import threading
 import sys
-import time
 
 import sockets
 import blockChain
