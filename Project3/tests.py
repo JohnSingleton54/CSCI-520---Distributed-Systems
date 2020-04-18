@@ -5,8 +5,6 @@
 # Project 3 (Blockchain Programming Project)
 # due May 7, 2020 by 11:59 PM
 
-# To run the unit-tests: `python -m unittest -v`
-
 import unittest
 
 import blockChain
