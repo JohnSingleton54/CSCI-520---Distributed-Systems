@@ -20,6 +20,15 @@ def constantTime() -> float:
 misc.newTime = constantTime
 
 
+nonRandomValue = -1
+def nonRandomNonce() -> int:
+    global nonRandomValue
+    nonRandomValue += 1
+    return nonRandomValue
+
+misc.newNonce = nonRandomNonce
+
+
 class TestBlockChain(unittest.TestCase):
 
     def test_allPending(self):
@@ -39,21 +48,23 @@ class TestBlockChain(unittest.TestCase):
         
     def test_mineBlock(self):
         self.maxDiff = None
-
         bc = blockChain.blockChain(3, 100.0)
-        # TODO: Once we can mine the block then we can test it
-        # block0 = block.block(bc.lastBlock().hash(), [
-        #   transaction.transaction("bank", "bob", 100.0),
-        #   transaction.transaction("bank", "jill", 100.0)])
-        # bc.setBlocks(1, [block0])
+        bc.addTransaction("bob", "jill", 4.0)
+        bc.addTransaction("jill", "bob", 10.0)
+        bc.minePendingTransactions("tim")
 
         self.assertEqual(str(bc),
-            "blocks:\n"+
-            "  block: time: 18 Apr 2020 09:12:01, prev: None, hash: None, nonce: 0, miner: \n" +
+            "blocks:\n" +
+            "  block: time: 18 Apr 2020 09:12:01, prev: None, hash: None, nonce: 0, miner: \n" + 
+            "  block: time: 18 Apr 2020 09:12:01, prev: None, hash: 000774ba923eb3a9875dc28536843c4722b0ae9e64b70efd93b35722694341eb, nonce: 1346, miner: tim\n" + 
+            "    tran: time: 18 Apr 2020 09:12:01, from: None, to: tim, amount: 100.000000\n" + 
+            "    tran: time: 18 Apr 2020 09:12:01, from: bob, to: jill, amount: 4.000000\n" + 
+            "    tran: time: 18 Apr 2020 09:12:01, from: jill, to: bob, amount: 10.000000\n" +
             "pending:")
         self.assertTrue(bc.isValid())
-        self.assertEqual(bc.getBalance("jill"), 0.0) # TODO: Once mined this will not be zero
-        self.assertEqual(bc.getBalance("bob"), 0.0)
+        self.assertEqual(bc.getBalance("jill"), -6.0)
+        self.assertEqual(bc.getBalance("bob"), 6.0)
+        self.assertEqual(bc.getBalance("tim"), 100.0)
 
 
 if __name__ == '__main__':

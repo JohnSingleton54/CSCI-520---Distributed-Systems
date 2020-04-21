@@ -73,9 +73,9 @@ class blockChain:
         for block in self.__chain:
             for trans in block.transactions():
                 if account == trans.fromAddress():
-                    amount -= trans.amount
+                    amount -= trans.amount()
                 if account == trans.toAddress():
-                    amount += trans.amount
+                    amount += trans.amount()
         return amount
 
     def getAllBalances(self) -> {str: float}:
@@ -83,8 +83,8 @@ class blockChain:
         accounts = {}
         for block in self.__chain:
             for trans in block.transactions():
-                accounts[trans.fromAddress()] -= trans.amount
-                accounts[trans.toAddress()]   += trans.amount
+                accounts[trans.fromAddress()] -= trans.amount()
+                accounts[trans.toAddress()]   += trans.amount()
         return accounts
 
     def isValid(self) -> bool:
@@ -120,11 +120,19 @@ class blockChain:
     def minePendingTransactions(self, miningAddress: str) -> block:
         # Constructs and mines a new block. If None is returned there are no
         # transactions to mine or the mining has been stopped before finishing.
-        # Unless stopped this method will not return.
+        # Unless stopped this method will not return.        
+        if not self.__pending:
+            return None
+
+        trans = []
+        trans.append(transaction.transaction(None, miningAddress, self.__miningReward))
+        trans.extend(self.__pending)
+        b = block.block(self.lastBlock().hash(), trans)
+
+        self.__pending = []
         self.__keepMining = True
-
-        #
-        # TODO: Implement
-        #
-
+        while self.__keepMining:
+            if b.mineBlock(miningAddress, self.__difficulty):
+                self.__chain.append(b)
+                return b
         return None

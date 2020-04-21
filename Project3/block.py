@@ -7,6 +7,8 @@
 
 import transaction
 import misc
+import hashlib
+import json
 
 
 class block:
@@ -69,9 +71,10 @@ class block:
 
     def calculateHash(self):
         # Calculates the hash for this whole block, excluding the hash value itself.
-        tuple = self.toTuple()
-        del tuple["hash"]
-        return hash(tuple)
+        data = self.toTuple()
+        del data["hash"]
+        dataBytes = bytearray(str(data), 'utf-8')
+        return hashlib.sha256(dataBytes).hexdigest()
 
     def isValid(self, difficulty: int, miningReward: float) -> bool:
         # Determines if this block is valid.
@@ -82,15 +85,12 @@ class block:
             rewardTransaction = False
         if self.calculateHash() != self.__hash:
             return False
-        if not str(self.__hash).startswith('0'*difficulty):
-            return False
-        return True
+        return str(self.__hash).startswith('0'*difficulty)
 
     def mineBlock(self, minerAddress: str, difficulty: int) -> bool:
         # This randomly picks a nonce and rehashes this block. It checks if the difficulty
         # challenge has been reached. Returns true if this attempt was successful, false otherwise.
-        self.__nonce = misc.newNonce()
-        #
-        # TODO: Implement
-        #
-        return False
+        self.__nonce += 1
+        self.__minerAddress = minerAddress
+        self.__hash = self.calculateHash()
+        return str(self.__hash).startswith('0'*difficulty)
