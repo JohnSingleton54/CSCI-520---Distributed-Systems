@@ -45,15 +45,37 @@ class blockChain:
             "pending": pending,
         }
 
+    def fromTuple(self, data: {}):
+        # This loads a block chain from the given tuple.
+        self.__chain = []
+        for subdata in data["blocks"]:
+            b = block.block()
+            b.fromTuple(subdata)
+            self.__chain.append(b)
+
+        self.__pending = []
+        for subdata in data["pending"]:
+            t = transaction.transaction()
+            t.fromTuple(subdata)
+            self.__pending.append(t)
+
     def lastBlock(self) -> block:
         # Returns the last block added to the chain.
         return self.__chain[-1]
 
-    def addTransaction(self, fromAccount: str, toAccount: str, amount: float) -> bool:
+    def newTransaction(self, fromAccount: str, toAccount: str, amount: float) -> transaction:
         # Creates a new transaction and adds it to the pending
         # transactions to wait to be added to a block during the next mine.
         trans = transaction.transaction(fromAccount, toAccount, amount)
+        if self.addTransaction(trans):
+            return trans
+        return None
+
+    def addTransaction(self, trans: transaction) -> bool:
+        # Adds a transition to the pending transactions to wait
+        # to be added to a block during the next mine.
         if trans.isValid():
+            # TODO: Optional, check if the fromAccount has the amount to give so they don't overdraw
             self.__pending.append(trans)
             return True
         return False

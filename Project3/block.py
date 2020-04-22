@@ -49,6 +49,19 @@ class block:
             "minerAddress": self.__minerAddress,
         }
 
+    def fromTuple(self, data: {}):
+        # This loads a block from the given tuple.
+        self.__timestamp    = data["timestamp"]
+        self.__previousHash = data["previousHash"]
+        self.__hash         = data["hash"]
+        self.__nonce        = data["nonce"]
+        self.__minerAddress = data["minerAddress"]
+        self.__transactions = []
+        for subdata in data["transactions"]:
+            t = transaction.transaction()
+            t.fromTuple(subdata)
+            self.__transactions.append(t)
+
     def timestamp(self) -> float:
         # The time this block was created at.
         return self.__timestamp

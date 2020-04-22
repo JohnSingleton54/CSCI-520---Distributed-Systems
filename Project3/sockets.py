@@ -229,6 +229,7 @@ class inSocketHost:
                         break
                     else:
                         print("inSocketHost exception:", e)
+                        break
 
     def __addConnection(self, conn, addr):
         # Adds a new in-socket for the new connection.

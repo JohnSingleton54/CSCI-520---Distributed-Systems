@@ -7,9 +7,11 @@
 
 import threading
 import sys
+import json
 
 import sockets
 import blockChain
+import transaction
 
 
 useServerHost = True
@@ -42,12 +44,25 @@ class mainLoop:
         print("Connection to", nodeId, "closed")
 
     def __onMessage(self, nodeId: int, message: str):
-        # TODO: Implement
-        print("Message from %d:" % (nodeId), message)
+        data = json.loads(message)
+        dataType = data["Type"]
+        if dataType == "AddTransaction":
+            self.__blockChain.addTransaction(data["Transaction"])
+        else:
+            print("Unknown message from %d:" % (nodeId), message)
 
     def __makeTransaction(self):
-        # TODO: Implement
-        pass
+        fromAddress = str(input("From: "))
+        toAddress = str(input("To: "))
+        amount = float(input("Amount: "))
+        trans = self.__blockChain.newTransaction(fromAccount, toAccount, amount)
+        if trans:
+            self.__socks.sendToAll(json.dumps({
+                "Type": "AddTransaction",
+                "Transaction": trans,
+            }))
+        else:
+            print("Invalid transaction")
 
     def __showFullChain(self):
         print(self.__blockChain)

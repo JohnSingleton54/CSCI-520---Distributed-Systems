@@ -11,7 +11,7 @@ import misc
 class transaction:
     # A description of the transfer of some amount from one address to another.
 
-    def __init__(self, fromAddress: str, toAddress: str, amount: float):
+    def __init__(self, fromAddress: str = "", toAddress: str = "", amount: float = 0.0):
         # Creates a new transaction.
         # No signature according to project requirements.
         self.__timestamp   = misc.newTime()
@@ -32,6 +32,13 @@ class transaction:
             "toAddress":   self.__toAddress,
             "amount":      self.__amount
         }
+
+    def fromTuple(self, data: {}):
+        # This loads a transaction from the given tuple.
+        self.__timestamp   = data["timestamp"]
+        self.__fromAddress = data["fromAddress"]
+        self.__toAddress   = data["toAddress"]
+        self.__amount      = data["amount"]
 
     def timestamp(self) -> float:
         # The timestamp for when this transaction was created.
