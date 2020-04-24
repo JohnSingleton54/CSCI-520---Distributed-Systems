@@ -52,8 +52,8 @@ class mainLoop:
             print("Unknown message from %d:" % (nodeId), message)
 
     def __makeTransaction(self):
-        fromAddress = str(input("From: "))
-        toAddress = str(input("To: "))
+        fromAccount = str(input("From: "))
+        toAccount = str(input("To: "))
         amount = float(input("Amount: "))
         trans = self.__blockChain.newTransaction(fromAccount, toAccount, amount)
         if trans:

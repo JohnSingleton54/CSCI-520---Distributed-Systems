@@ -95,8 +95,8 @@ class blockChain:
         with self.__lock:
             for block in self.__chain:
                 for trans in block.transactions():
-                    accounts[trans.fromAddress()] = True
-                    accounts[trans.toAddress()]   = True
+                    accounts[trans.fromAccount()] = True
+                    accounts[trans.toAccount()]   = True
         return accounts.keys()
 
     def getBalance(self, account: str) -> float:
@@ -105,9 +105,9 @@ class blockChain:
         with self.__lock:
             for block in self.__chain:
                 for trans in block.transactions():
-                    if account == trans.fromAddress():
+                    if account == trans.fromAccount():
                         amount -= trans.amount()
-                    if account == trans.toAddress():
+                    if account == trans.toAccount():
                         amount += trans.amount()
         return amount
 
@@ -117,8 +117,8 @@ class blockChain:
         with self.__lock:
             for block in self.__chain:
                 for trans in block.transactions():
-                    accounts[trans.fromAddress()] -= trans.amount()
-                    accounts[trans.toAddress()]   += trans.amount()
+                    accounts[trans.fromAccount()] -= trans.amount()
+                    accounts[trans.toAccount()]   += trans.amount()
         return accounts
 
     def isValid(self) -> bool:
@@ -157,11 +157,11 @@ class blockChain:
         # Indicates if a block is currently being mined by this chain.
         return self.__mining
 
-    def startMinePendingTransactions(self, miningAddress: str, onBlockMined = None):
+    def startMinePendingTransactions(self, miningAccount: str, onBlockMined = None):
         # Starts mining a new block asynchronously.
-        threading.Thread(target=self.minePendingTransactions).start((miningAddress, onBlockMined))
+        threading.Thread(target=self.minePendingTransactions).start((miningAccount, onBlockMined))
 
-    def minePendingTransactions(self, miningAddress: str, onBlockMined = None):
+    def minePendingTransactions(self, miningAccount: str, onBlockMined = None):
         # Constructs and mines a new block. If a block is mined and added
         # prior to the mining being stopped or another block being added,
         # onBlockedMined will be called with the new block.
@@ -173,14 +173,14 @@ class blockChain:
             self.__mining = True
 
             trans = []
-            trans.append(transaction.transaction(None, miningAddress, self.__miningReward))
+            trans.append(transaction.transaction(None, miningAccount, self.__miningReward)) # Coinbase
             trans.extend(self.__pending)
-            b = block.block(self.__chain[-1].hash(), trans)
+            b = block.block(len(self.__chain), self.__chain[-1].hash(), trans)
             self.__pending = []
 
         self.__keepMining = True
         while self.__keepMining:
-            if b.mineBlock(miningAddress, self.__difficulty):
+            if b.mineBlock(miningAccount, self.__difficulty):
                 # Found a nonce which works! Check that the block hasn't grown
                 # and we just happened to miss it, then append our new block and return it.
                 with self.__lock:

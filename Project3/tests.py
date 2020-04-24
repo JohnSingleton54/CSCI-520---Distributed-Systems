@@ -40,7 +40,7 @@ class TestBlockChain(unittest.TestCase):
 
         self.assertEqual(str(bc),
             "blocks:\n"+
-            "  block: time: 18 Apr 2020 09:12:01, prev: None, hash: None, nonce: 0, miner: \n" +
+            "  block: 0, time: 18 Apr 2020 09:12:01, prev: None, hash: None, nonce: 0, miner: \n" +
             "pending:\n"+
             "  tran: time: 18 Apr 2020 09:12:01, from: bob, to: jill, amount: 4.000000\n" +
             "  tran: time: 18 Apr 2020 09:12:01, from: jill, to: bob, amount: 10.000000")
@@ -57,8 +57,8 @@ class TestBlockChain(unittest.TestCase):
 
         self.assertEqual(str(bc),
             "blocks:\n" +
-            "  block: time: 18 Apr 2020 09:12:01, prev: None, hash: None, nonce: 0, miner: \n" + 
-            "  block: time: 18 Apr 2020 09:12:01, prev: None, hash: 000774ba923eb3a9875dc28536843c4722b0ae9e64b70efd93b35722694341eb, nonce: 1346, miner: tim\n" + 
+            "  block: 0, time: 18 Apr 2020 09:12:01, prev: None, hash: None, nonce: 0, miner: \n" + 
+            "  block: 1, time: 18 Apr 2020 09:12:01, prev: None, hash: 0006871621c06c74c69dd7373956ea9e6b8fcc2741643d8c73a5f422c7fd3d0c, nonce: 3006, miner: tim\n" +
             "    tran: time: 18 Apr 2020 09:12:01, from: None, to: tim, amount: 100.000000\n" + 
             "    tran: time: 18 Apr 2020 09:12:01, from: bob, to: jill, amount: 4.000000\n" + 
             "    tran: time: 18 Apr 2020 09:12:01, from: jill, to: bob, amount: 10.000000\n" +
@@ -82,7 +82,7 @@ class TestBlockChain(unittest.TestCase):
         bc = blockChain.blockChain(3, 100.0)
         self.checkToFromTuples(bc,
             "blocks:\n"+
-            "  block: time: 18 Apr 2020 09:12:01, prev: None, hash: None, nonce: 0, miner: \n"+
+            "  block: 0, time: 18 Apr 2020 09:12:01, prev: None, hash: None, nonce: 0, miner: \n"+
             "pending:")
 
         bc.newTransaction("bob", "jill", 60.0)
@@ -90,8 +90,8 @@ class TestBlockChain(unittest.TestCase):
         bc.minePendingTransactions("bob")
         self.checkToFromTuples(bc,
             "blocks:\n"+
-            "  block: time: 18 Apr 2020 09:12:01, prev: None, hash: None, nonce: 0, miner: \n"+
-            "  block: time: 18 Apr 2020 09:12:01, prev: None, hash: 000c0bec7b9defe5251903667e5cf9a7a2290261da360752cdd365d41e4266d6, nonce: 2912, miner: bob\n"+
+            "  block: 0, time: 18 Apr 2020 09:12:01, prev: None, hash: None, nonce: 0, miner: \n"+
+            "  block: 1, time: 18 Apr 2020 09:12:01, prev: None, hash: 000bc2351da378c5af3e1587408863545184e96da5d94e669224b81a45e3f102, nonce: 6879, miner: bob\n" +
             "    tran: time: 18 Apr 2020 09:12:01, from: None, to: bob, amount: 100.000000\n"+
             "    tran: time: 18 Apr 2020 09:12:01, from: bob, to: jill, amount: 60.000000\n"+
             "    tran: time: 18 Apr 2020 09:12:01, from: jill, to: bob, amount: 10.000000\n"+
@@ -101,8 +101,8 @@ class TestBlockChain(unittest.TestCase):
         bc.newTransaction("jill", "bob", 20.0)
         self.checkToFromTuples(bc,
             "blocks:\n"+
-            "  block: time: 18 Apr 2020 09:12:01, prev: None, hash: None, nonce: 0, miner: \n"+
-            "  block: time: 18 Apr 2020 09:12:01, prev: None, hash: 000c0bec7b9defe5251903667e5cf9a7a2290261da360752cdd365d41e4266d6, nonce: 2912, miner: bob\n"+
+            "  block: 0, time: 18 Apr 2020 09:12:01, prev: None, hash: None, nonce: 0, miner: \n"+
+            "  block: 1, time: 18 Apr 2020 09:12:01, prev: None, hash: 000bc2351da378c5af3e1587408863545184e96da5d94e669224b81a45e3f102, nonce: 6879, miner: bob\n" +
             "    tran: time: 18 Apr 2020 09:12:01, from: None, to: bob, amount: 100.000000\n"+
             "    tran: time: 18 Apr 2020 09:12:01, from: bob, to: jill, amount: 60.000000\n"+
             "    tran: time: 18 Apr 2020 09:12:01, from: jill, to: bob, amount: 10.000000\n"+

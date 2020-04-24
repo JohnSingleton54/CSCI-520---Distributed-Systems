@@ -11,53 +11,53 @@ import misc
 class transaction:
     # A description of the transfer of some amount from one address to another.
 
-    def __init__(self, fromAddress: str = "", toAddress: str = "", amount: float = 0.0):
+    def __init__(self, fromAccount: str = "", toAccount: str = "", amount: float = 0.0):
         # Creates a new transaction.
         # No signature according to project requirements.
         self.__timestamp   = misc.newTime()
-        self.__fromAddress = fromAddress
-        self.__toAddress   = toAddress
+        self.__fromAccount = fromAccount
+        self.__toAccount   = toAccount
         self.__amount      = amount
 
     def __str__(self) -> str:
         # Gets a string for this transaction.
         return "tran: time: %s, from: %s, to: %s, amount: %f" % (
-            misc.timeToStr(self.__timestamp), self.__fromAddress, self.__toAddress, self.__amount)
+            misc.timeToStr(self.__timestamp), self.__fromAccount, self.__toAccount, self.__amount)
 
     def toTuple(self) -> {}:
         # Creates a dictionary for this transaction.
         return {
             "timestamp":   self.__timestamp,
-            "fromAddress": self.__fromAddress,
-            "toAddress":   self.__toAddress,
+            "fromAccount": self.__fromAccount,
+            "toAccount":   self.__toAccount,
             "amount":      self.__amount
         }
 
     def fromTuple(self, data: {}):
         # This loads a transaction from the given tuple.
         self.__timestamp   = data["timestamp"]
-        self.__fromAddress = data["fromAddress"]
-        self.__toAddress   = data["toAddress"]
+        self.__fromAccount = data["fromAccount"]
+        self.__toAccount   = data["toAccount"]
         self.__amount      = data["amount"]
 
     def timestamp(self) -> float:
         # The timestamp for when this transaction was created.
         return self.__timestamp
 
-    def fromAddress(self) -> str:
+    def fromAccount(self) -> str:
         # The address to take the amount from.
-        return self.__fromAddress
+        return self.__fromAccount
 
-    def toAddress(self) -> str:
+    def toAccount(self) -> str:
         # The address to give the amount to.
-        return self.__toAddress
+        return self.__toAccount
 
     def amount(self) -> float:
         # The amount being transferred between the addresses.
         return self.__amount
 
-    def isValid(self, rewardTransaction: bool = False, miningReward: float = 0.0, minerAddress: str = None) -> bool:
+    def isValid(self, rewardTransaction: bool = False, miningReward: float = 0.0, minerAccount: str = None) -> bool:
         # Indicates if this transaction is valid.
         if rewardTransaction:
-            return self.__amount == miningReward and not self.__fromAddress and self.__toAddress == minerAddress
-        return self.__amount > 0 and self.__fromAddress and self.__toAddress
+            return self.__amount == miningReward and not self.__fromAccount and self.__toAccount == minerAccount
+        return self.__amount > 0 and self.__fromAccount and self.__toAccount
