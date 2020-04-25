@@ -56,8 +56,16 @@ class transaction:
         # The amount being transferred between the addresses.
         return self.__amount
 
-    def isValid(self, rewardTransaction: bool = False, miningReward: float = 0.0, minerAccount: str = None) -> bool:
+    def isValid(self, runningBalances: {account: balance}) -> bool:
         # Indicates if this transaction is valid.
-        if rewardTransaction:
-            return self.__amount == miningReward and not self.__fromAccount and self.__toAccount == minerAccount
-        return self.__amount > 0 and self.__fromAccount and self.__toAccount
+        if self.__amount <= 0:
+            return False
+        if not self.__fromAccount or not self.__toAccount:
+            # Must have a from account and to account.
+            return False
+        if (not self.__fromAccount in runningBalances) or (runningBalances[self.__fromAccount] < self.__amount):
+            # May not take more money from an account than they have.
+            return False
+        runningBalances[self.__fromAccount] -= self.__amount
+        runningBalances[self.__toAccount]   += self.__amount
+        return True

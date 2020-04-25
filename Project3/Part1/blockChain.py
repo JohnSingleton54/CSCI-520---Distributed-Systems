@@ -75,19 +75,15 @@ class blockChain:
         # Creates a new transaction and adds it to the pending
         # transactions to wait to be added to a block during the next mine.
         trans = transaction.transaction(fromAccount, toAccount, amount)
-        if self.addTransaction(trans):
-            return trans
-        return None
+        self.addTransaction(trans)
+        return trans
 
-    def addTransaction(self, trans: transaction) -> bool:
+    def addTransaction(self, trans: transaction):
         # Adds a transition to the pending transactions to wait
         # to be added to a block during the next mine.
-        if trans.isValid():
-            # TODO: Optional, check if the fromAccount has the amount to give so they don't overdraw
-            with self.__lock:
-                self.__pending.append(trans)
-            return True
-        return False
+        with self.__lock:
+            # TODO: should we sort these?
+            self.__pending.append(trans)
 
     def getAccounts(self) -> [str]:
         # Gets a list of all the accounts in the chain.
@@ -129,8 +125,9 @@ class blockChain:
     def __isChainValid(self, chain: [block.block]) -> bool:
         # Indicates if this given chain is valid.
         prev = chain[0]  # Default initial block
+        runningBalances = {}
         for block in chain[1:]:
-            if not block.isValid(self.__difficulty, self.__miningReward):
+            if not block.isValid(self.__difficulty, self.__miningReward, runningBalances):
                 return False
             if block.previousHash() != prev.hash():
                 return False
@@ -166,17 +163,22 @@ class blockChain:
         # prior to the mining being stopped or another block being added,
         # onBlockedMined will be called with the new block.
         with self.__lock:
-            if not self.__pending:
-                return
             if self.__mining:
                 return
             self.__mining = True
 
+        balances = self.getAllBalances()
+        with self.__lock:
             trans = []
-            trans.append(transaction.transaction(None, miningAccount, self.__miningReward)) # Coinbase
-            trans.extend(self.__pending)
-            b = block.block(len(self.__chain), self.__chain[-1].hash(), trans)
+            trans.append(transaction.transaction(None, miningAccount, self.__miningReward))  # Coinbase
+            for tran in self.__pending:
+                if tran.isValid(False, self.__miningReward, miningAccount, balances):
+                    trans.extend(tran)
             self.__pending = []
+
+            blockNum = len(self.__chain)
+            previousHash = self.__chain[-1].hash()
+            b = block.block(blockNum, previousHash, trans)
 
         self.__keepMining = True
         while self.__keepMining:

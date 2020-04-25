@@ -97,11 +97,11 @@ class block:
         dataBytes = bytearray(str(data), 'utf-8')
         return hashlib.sha256(dataBytes).hexdigest()
 
-    def isValid(self, difficulty: int, miningReward: float) -> bool:
+    def isValid(self, difficulty: int, miningReward: float, runningBalances: {str: float}) -> bool:
         # Determines if this block is valid.
         rewardTransaction = True
         for trans in self.__transactions:
-            if not trans.isValid(rewardTransaction, miningReward, self.__minerAccount):
+            if not trans.isValid(rewardTransaction, miningReward, self.__minerAccount, runningBalances):
                 return False
             rewardTransaction = False
         if self.calculateHash() != self.__hash:
