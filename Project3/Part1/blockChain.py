@@ -170,19 +170,18 @@ class blockChain:
         balances = self.getAllBalances()
         with self.__lock:
             trans = []
-            trans.append(transaction.transaction(None, miningAccount, self.__miningReward))  # Coinbase
             for tran in self.__pending:
-                if tran.isValid(False, self.__miningReward, miningAccount, balances):
+                if tran.isValid(balances):
                     trans.extend(tran)
             self.__pending = []
 
             blockNum = len(self.__chain)
             previousHash = self.__chain[-1].hash()
-            b = block.block(blockNum, previousHash, trans)
+            b = block.block(blockNum, previousHash, miningAccount, self.__miningReward, trans)
 
         self.__keepMining = True
         while self.__keepMining:
-            if b.mineBlock(miningAccount, self.__difficulty):
+            if b.mineBlock(self.__difficulty):
                 # Found a nonce which works! Check that the block hasn't grown
                 # and we just happened to miss it, then append our new block and return it.
                 with self.__lock:

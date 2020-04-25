@@ -5,17 +5,19 @@
 # Project 3 (Blockchain Programming Project)
 # due May 7, 2020 by 11:59 PM
 
-import transaction
-import misc
 import hashlib
 import json
+
+import transaction
+import misc
 
 
 class block:
     # Stores a single block in the chain.
     # It contains a set of transactions since the prior chain.
 
-    def __init__(self, blockNum: int = 0, previousHash = None, transactions: [transaction] = []):
+    def __init__(self, blockNum: int = 0, previousHash = None, minerAccount: str = "",
+        minerReward: float = 0.0, transactions: [transaction] = []):
         # Creates a new block with the given previous block's hash
         # and the transactions for this block.
         self.__blockNum     = blockNum
@@ -24,14 +26,15 @@ class block:
         self.__previousHash = previousHash
         self.__hash         = None
         self.__nonce        = 0
-        self.__minerAccount = ""
+        self.__minerAccount = minerAccount
+        self.__minerReward  = minerReward
 
     def __str__(self) -> str:
         # Gets a string for this block.
         parts = []
-        parts.append("block: %d, time: %s, prev: %s, hash: %s, nonce: %d, miner: %s" % (
+        parts.append("block: %d, time: %s, prev: %s, hash: %s, nonce: %d, miner: %s, reward: %f" % (
             self.__blockNum, misc.timeToStr(self.__timestamp), str(self.__previousHash),
-            str(self.__hash), self.__nonce, self.__minerAccount))
+            str(self.__hash), self.__nonce, self.__minerAccount, self.__minerReward))
         for trans in self.__transactions:
             parts.append("  "+str(trans).replace("\n", "\n  "))
         return "\n".join(parts)
@@ -49,6 +52,7 @@ class block:
             "hash":         self.__hash,
             "nonce":        self.__nonce,
             "minerAccount": self.__minerAccount,
+            "minerReward":  self.__minerReward,
         }
 
     def fromTuple(self, data: {}):
@@ -59,6 +63,7 @@ class block:
         self.__hash         = data["hash"]
         self.__nonce        = data["nonce"]
         self.__minerAccount = data["minerAccount"]
+        self.__minerReward  = data["minerReward"]
         self.__transactions = []
         for subdata in data["transactions"]:
             t = transaction.transaction()
@@ -99,19 +104,19 @@ class block:
 
     def isValid(self, difficulty: int, miningReward: float, runningBalances: {str: float}) -> bool:
         # Determines if this block is valid.
-        rewardTransaction = True
         for trans in self.__transactions:
-            if not trans.isValid(rewardTransaction, miningReward, self.__minerAccount, runningBalances):
+            if not trans.isValid(runningBalances):
                 return False
             rewardTransaction = False
+        if (not self.__minerAccount) or (miningReward != self.__minerReward):
+            return False
         if self.calculateHash() != self.__hash:
             return False
         return str(self.__hash).startswith('0'*difficulty)
 
-    def mineBlock(self, minerAccount: str, difficulty: int) -> bool:
+    def mineBlock(self, difficulty: int) -> bool:
         # This randomly picks a nonce and rehashes this block. It checks if the difficulty
         # challenge has been reached. Returns true if this attempt was successful, false otherwise.
-        self.__nonce += 1
-        self.__minerAccount = minerAccount
+        self.__nonce = misc.newNonce()
         self.__hash = self.calculateHash()
         return str(self.__hash).startswith('0'*difficulty)

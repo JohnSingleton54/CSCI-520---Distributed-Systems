@@ -56,7 +56,7 @@ class transaction:
         # The amount being transferred between the addresses.
         return self.__amount
 
-    def isValid(self, runningBalances: {account: balance}) -> bool:
+    def isValid(self, runningBalances: {str: float}) -> bool:
         # Indicates if this transaction is valid.
         if self.__amount <= 0:
             return False
