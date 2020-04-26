@@ -12,7 +12,7 @@ import transaction
 import misc
 
 
-initialHash = "0000000000000000000000000000000000000000000000000000000000000000"
+initialHash = "0"*64
 
 
 class block:

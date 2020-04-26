@@ -40,6 +40,32 @@ class transaction:
         self.toAccount   = data["toAccount"]
         self.amount      = data["amount"]
 
+    def compare(self, other) -> int:
+        # Determines how these two transaction compare.
+        # less than zero for this transaction being less than the other.
+        # greater than zero for this transaction greater than the other.
+        # equal to zero if the two transactions are equal.
+        if self.timestamp < other.timestamp:
+            return -1
+        if self.timestamp > other.timestamp:
+            return 1
+        if self.fromAccount < other.fromAccount:
+            return -1
+        if self.fromAccount > other.fromAccount:
+            return 1
+        if self.toAccount < other.toAccount:
+            return -1
+        if self.toAccount > other.toAccount:
+            return 1
+        # Use epsilon comparator for amount since a float may not JSON perfectly.
+        if abs(self.amount - other.amount) > 0.000001:
+            if self.amount < other.amount:
+                return -1
+            if self.amount > other.amount:
+                return 1
+        # They are the same
+        return 0
+
     def isValid(self, runningBalances: {str: float}, verbose: bool = False) -> bool:
         # Indicates if this transaction is valid.
         if self.amount <= 0:
@@ -65,9 +91,3 @@ class transaction:
         runningBalances[self.fromAccount] = runningBalances.get(self.fromAccount, 0.0) - self.amount
         runningBalances[self.toAccount]   = runningBalances.get(self.toAccount,   0.0) + self.amount
         return True
-
-
-def toSortKey(tran: transaction):
-    # This method is used in sorting the transactions by the
-    # timestamp assuming the timestamp is roughly synchronized.
-    return tran.timestamp

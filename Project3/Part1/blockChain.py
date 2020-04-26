@@ -5,8 +5,6 @@
 # Project 3 (Blockchain Programming Project)
 # due May 7, 2020 by 11:59 PM
 
-import threading
-
 import block
 import transaction
 import misc
@@ -21,7 +19,6 @@ class blockChain:
         self.minerReward = minerReward
         self.chain       = []
         self.pending     = []  # pending transactions
-        self.keepMining  = True
 
     def __str__(self) -> str:
         # Gets a string for this transaction.
@@ -67,6 +64,25 @@ class blockChain:
         if self.chain:
             return self.chain[-1].hash
         return block.initialHash
+
+    def listHashes(self) -> []:
+        # Returns all the hashes in the current chain.
+        hashes = []
+        for b in self.chain:
+            hashes.append(b.hash)
+        return hashes
+
+    def getHashDiffIndex(self, otherHashes: []) -> -1:
+        # Gets the index at which the hashes differ with the
+        # assumption that other hashes is a smaller chain.
+        length = len(otherHashes)
+        if len(self.chain) <= length:
+            # The other hash is longer or equal so there is no point in finding the diffs.
+            return -1
+        for i in range(length):
+            if self.chain[i].hash != otherHashes[i]:
+                return i
+        return length
 
     def newTransaction(self, fromAccount: str, toAccount: str, amount: float) -> transaction:
         # Creates a new transaction and adds it to the pending
@@ -133,48 +149,77 @@ class blockChain:
             prevHash = b.hash
         return True
 
-    def setBlocks(self, index: int, blocks: [block.block]) -> bool:
+    def __insertUniquePending(self, trans: []):
+        for t in b.transactions:
+            found = False
+            for p in self.pending:
+                if p == t:
+                    found = True
+                    break
+            if found:
+                self.pending.append(t)
+    
+    def __removeDuplicate
+
+    def setBlocks(self, blocks: [block.block]) -> bool:
         # Adds and replaces blocks in the chain with the given blocks.
         # The blocks are only replaced if valid otherwise no change and false is returned.
+        if not blocks:
+            return False
+        
+        # Determine if the new blocks will make this chain longer, if not ignore it.
+        index = blocks[0].blockNum
+        if index + len(blocks) <= len(self.chain):
+            return False
+
         newChain = []
         newChain.extend(self.chain[:index])
         newChain.extend(blocks)
-        if self.isChainValid(newChain):
-            self.chain = newChain
-            return True
-        return False
+        if not self.isChainValid(newChain):
+            return False
 
-    def stopMining(self):
-        # Stops the mining loop.
-        self.keepMining = False
+        # Check for matching or lost transactions and update pending.
+        for b in self.chain[index:]:
+            for t in b.transactions:
+                if self.pending.index(t)
+            pendingSet.extend(b.transactions)
+        for b in blocks:
+            for t in 
+            pendingSet.intersection_update(b.transactions)
+        self.chain = newChain
+        self.pending = list(pendingSet)
+        print(">>", self.pending)
+        return True
 
-    def minePendingTransactions(self, miningAccount: str, onBlockMined = None):
-        # Constructs and mines a new block. If a block is mined and added
-        # prior to the mining being stopped or another block being added,
-        # onBlockedMined will be called with the new block.
+    def buildNextBlock(self, miningAccount: str) -> block.block:
+        # Constructs a new block. Will use but not clear out pending transactions.
         balances = self.getAllBalances()
         trans = []
         for tran in self.pending:
             if tran.isValid(balances):
                 trans.append(tran)
-        self.pending = []
         blockNum = len(self.chain)
-        b = block.block(blockNum, self.lastHash(), miningAccount, self.minerReward, trans)
+        return block.block(blockNum, self.lastHash(), miningAccount, self.minerReward, trans)
 
-        self.keepMining = True
-        while self.keepMining:
-            # This picks a nonce and rehashes this block. It checks if the difficulty
-            # challenge has been reached. Returns true if this attempt was successful, false otherwise.
-            b.nonce = misc.newNonce()
-            b.hash = b.calculateHash()
-            if str(b.hash).startswith('0'*self.difficulty):
-                # Found a nonce which works! Check that the block hasn't grown
-                # and we just happened to miss it, then append our new block and return it.
-                self.keepMining = False
-                # TODO: What should be do if another block is here? Should we find
-                # any transactions it was missing and put them back into the pending?
-                if self.lastHash() == b.previousHash:
-                    self.chain.append(b)
-                    if onBlockMined:
-                        onBlockMined(b)
-                break
+    def mineBlock(self, b: block.block):
+        # This picks a nonce and rehashes this block. It checks if the difficulty
+        # challenge has been reached. Returns true if this attempt was successful, false otherwise.
+        b.nonce = misc.newNonce()
+        b.hash = b.calculateHash()
+        if not str(b.hash).startswith('0'*self.difficulty):
+            return False
+
+        # Found a nonce which works! Check that the block hasn't grown
+        # while mining, then append our new block and return it.
+        if self.lastHash() == b.previousHash:
+            self.setBlocks([b])
+            return True
+        return False
+
+    def minePendingTransactions(self, miningAccount: str):
+        # Constructs and mines a new block. Designed for testing the block
+        # chain synchronously. This will block execution until a new block is done.
+        b = self.buildNextBlock(miningAccount)
+        while not self.mineBlock(b):
+            pass
+
