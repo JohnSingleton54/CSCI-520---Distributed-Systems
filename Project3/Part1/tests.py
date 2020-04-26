@@ -15,41 +15,31 @@ import transaction
 import misc
 
 
-def constantTime() -> float:
-    return 1587222721.0  # 18 Apr 2020 09:12:01
-
-# Override the misc.newTime to return a constant time.
-misc.newTime = constantTime
-
-
-nonRandomValue = -1
-def nonRandomNonce() -> int:
-    global nonRandomValue
-    nonRandomValue += 1
-    return nonRandomValue
-
-misc.newNonce = nonRandomNonce
-
-
 class TestBlockChain(unittest.TestCase):
 
     def test_allPending(self):
+        self.maxDiff = None
+        misc.useTestTime()
+        misc.useTestNonce()
+
         bc = blockChain.blockChain(3, 100.0)
         bc.newTransaction("bob", "jill", 4.0)
         bc.newTransaction("jill", "bob", 10.0)
 
         self.assertEqual(str(bc),
-            "blocks:\n"+
-            "  block: 0, time: 18 Apr 2020 09:12:01, prev: None, hash: None, nonce: 0, miner: \n" +
-            "pending:\n"+
+            "blocks:\n" +
+            "pending:\n" +
             "  tran: time: 18 Apr 2020 09:12:01, from: bob, to: jill, amount: 4.000000\n" +
-            "  tran: time: 18 Apr 2020 09:12:01, from: jill, to: bob, amount: 10.000000")
+            "  tran: time: 18 Apr 2020 09:12:02, from: jill, to: bob, amount: 10.000000")
         self.assertTrue(bc.isValid())
         self.assertEqual(bc.getBalance("jill"), 0.0)
         self.assertEqual(bc.getBalance("bob"), 0.0)
         
     def test_mineBlock(self):
         self.maxDiff = None
+        misc.useTestTime()
+        misc.useTestNonce()
+
         bc = blockChain.blockChain(3, 100.0)
         bc.minePendingTransactions("bob")
         bc.newTransaction("bob", "jill", 10.0)
@@ -58,58 +48,78 @@ class TestBlockChain(unittest.TestCase):
 
         self.assertEqual(str(bc),
             "blocks:\n" +
-            "  block: 0, time: 18 Apr 2020 09:12:01, prev: None, hash: None, nonce: 0, miner: \n" + 
-            "  block: 1, time: 18 Apr 2020 09:12:01, prev: None, hash: 0006871621c06c74c69dd7373956ea9e6b8fcc2741643d8c73a5f422c7fd3d0c, nonce: 3006, miner: tim\n" +
-            "    tran: time: 18 Apr 2020 09:12:01, from: None, to: tim, amount: 100.000000\n" + 
-            "    tran: time: 18 Apr 2020 09:12:01, from: bob, to: jill, amount: 4.000000\n" + 
-            "    tran: time: 18 Apr 2020 09:12:01, from: jill, to: bob, amount: 10.000000\n" +
+            "  block: 0, time: 18 Apr 2020 09:12:01, nonce: 5237, miner: bob, reward: 100.000000\n" +
+            "    prev: 0000000000000000000000000000000000000000000000000000000000000000\n" +
+            "    hash: 000f9a23d81617f55f488ded747a5dde654b22a59fd0f0164c475366e08bdc09\n" +
+            "  block: 1, time: 18 Apr 2020 09:12:04, nonce: 7589, miner: tim, reward: 100.000000\n" +
+            "    prev: 000f9a23d81617f55f488ded747a5dde654b22a59fd0f0164c475366e08bdc09\n" +
+            "    hash: 000028d02d72fa5e78cee2e16da4b4c407728c2550ffac7866a5acb293e60a31\n" +
+            "    tran: time: 18 Apr 2020 09:12:02, from: bob, to: jill, amount: 10.000000\n" +
+            "    tran: time: 18 Apr 2020 09:12:03, from: jill, to: bob, amount: 4.000000\n" +
             "pending:")
-        self.assertTrue(bc.isValid())
-        self.assertEqual(bc.getBalance("jill"), -6.0)
-        self.assertEqual(bc.getBalance("bob"), 6.0)
+            
+        self.assertTrue(bc.isValid(True))
+        self.assertEqual(bc.getBalance("jill"), 6.0)
+        self.assertEqual(bc.getBalance("bob"), 94.0)
         self.assertEqual(bc.getBalance("tim"), 100.0)
         self.assertEqual(bc.getBalance("sal"), 0.0)
 
-    # def checkToFromTuples(self, bc: blockChain.blockChain, expStr: str):
-    #     self.maxDiff = None
-    #     dataStr = json.dumps(bc.toTuple())
-    #     self.assertTrue(isinstance(dataStr, str))
+    def checkToFromTuples(self, bc: blockChain.blockChain, expStr: str):
+        dataStr = json.dumps(bc.toTuple())
+        self.assertTrue(isinstance(dataStr, str))
 
-    #     bc2 = blockChain.blockChain(3, 100.0)
-    #     bc2.fromTuple(json.loads(dataStr))
-    #     self.assertEqual(str(bc), expStr)
+        bc2 = blockChain.blockChain(3, 100.0)
+        bc2.fromTuple(json.loads(dataStr))
+        self.assertEqual(str(bc), expStr)
 
-    # def test_toFromTuple(self):
-    #     bc = blockChain.blockChain(3, 100.0)
-    #     self.checkToFromTuples(bc,
-    #         "blocks:\n"+
-    #         "  block: 0, time: 18 Apr 2020 09:12:01, prev: None, hash: None, nonce: 0, miner: \n"+
-    #         "pending:")
+    def test_toFromTuple(self):
+        self.maxDiff = None
+        misc.useTestTime()
+        misc.useTestNonce()
 
-    #     bc.newTransaction("bob", "jill", 60.0)
-    #     bc.newTransaction("jill", "bob", 10.0)
-    #     bc.minePendingTransactions("bob")
-    #     self.checkToFromTuples(bc,
-    #         "blocks:\n"+
-    #         "  block: 0, time: 18 Apr 2020 09:12:01, prev: None, hash: None, nonce: 0, miner: \n"+
-    #         "  block: 1, time: 18 Apr 2020 09:12:01, prev: None, hash: 000bc2351da378c5af3e1587408863545184e96da5d94e669224b81a45e3f102, nonce: 6879, miner: bob\n" +
-    #         "    tran: time: 18 Apr 2020 09:12:01, from: None, to: bob, amount: 100.000000\n"+
-    #         "    tran: time: 18 Apr 2020 09:12:01, from: bob, to: jill, amount: 60.000000\n"+
-    #         "    tran: time: 18 Apr 2020 09:12:01, from: jill, to: bob, amount: 10.000000\n"+
-    #         "pending:")
+        bc = blockChain.blockChain(3, 100.0)
+        self.checkToFromTuples(bc,
+            "blocks:\n"+
+            "pending:")
 
-    #     bc.newTransaction("bob", "jill", 30.0)
-    #     bc.newTransaction("jill", "bob", 20.0)
-    #     self.checkToFromTuples(bc,
-    #         "blocks:\n"+
-    #         "  block: 0, time: 18 Apr 2020 09:12:01, prev: None, hash: None, nonce: 0, miner: \n"+
-    #         "  block: 1, time: 18 Apr 2020 09:12:01, prev: None, hash: 000bc2351da378c5af3e1587408863545184e96da5d94e669224b81a45e3f102, nonce: 6879, miner: bob\n" +
-    #         "    tran: time: 18 Apr 2020 09:12:01, from: None, to: bob, amount: 100.000000\n"+
-    #         "    tran: time: 18 Apr 2020 09:12:01, from: bob, to: jill, amount: 60.000000\n"+
-    #         "    tran: time: 18 Apr 2020 09:12:01, from: jill, to: bob, amount: 10.000000\n"+
-    #         "pending:\n"+
-    #         "  tran: time: 18 Apr 2020 09:12:01, from: bob, to: jill, amount: 30.000000\n"+
-    #         "  tran: time: 18 Apr 2020 09:12:01, from: jill, to: bob, amount: 20.000000")
+        bc.minePendingTransactions("bob")
+        self.checkToFromTuples(bc,
+            "blocks:\n" +
+            "  block: 0, time: 18 Apr 2020 09:12:01, nonce: 5237, miner: bob, reward: 100.000000\n" +
+            "    prev: 0000000000000000000000000000000000000000000000000000000000000000\n" +
+            "    hash: 000f9a23d81617f55f488ded747a5dde654b22a59fd0f0164c475366e08bdc09\n" +
+            "pending:")
+
+        bc.newTransaction("bob", "jill", 60.0)
+        bc.newTransaction("jill", "bob", 10.0)
+        bc.minePendingTransactions("bob")
+        self.checkToFromTuples(bc,
+            "blocks:\n" +
+            "  block: 0, time: 18 Apr 2020 09:12:01, nonce: 5237, miner: bob, reward: 100.000000\n" +
+            "    prev: 0000000000000000000000000000000000000000000000000000000000000000\n" +
+            "    hash: 000f9a23d81617f55f488ded747a5dde654b22a59fd0f0164c475366e08bdc09\n" +
+            "  block: 1, time: 18 Apr 2020 09:12:05, nonce: 7016, miner: bob, reward: 100.000000\n" +
+            "    prev: 000f9a23d81617f55f488ded747a5dde654b22a59fd0f0164c475366e08bdc09\n" +
+            "    hash: 00058d694bf443b94d7a1322f18e5e8c777bcd41040caeedfd4afa53edf09768\n" +
+            "    tran: time: 18 Apr 2020 09:12:03, from: bob, to: jill, amount: 60.000000\n" +
+            "    tran: time: 18 Apr 2020 09:12:04, from: jill, to: bob, amount: 10.000000\n" +
+            "pending:")
+
+        bc.newTransaction("bob", "jill", 30.0)
+        bc.newTransaction("jill", "bob", 20.0)
+        self.checkToFromTuples(bc,
+            "blocks:\n" +
+            "  block: 0, time: 18 Apr 2020 09:12:01, nonce: 5237, miner: bob, reward: 100.000000\n" +
+            "    prev: 0000000000000000000000000000000000000000000000000000000000000000\n" +
+            "    hash: 000f9a23d81617f55f488ded747a5dde654b22a59fd0f0164c475366e08bdc09\n" +
+            "  block: 1, time: 18 Apr 2020 09:12:05, nonce: 7016, miner: bob, reward: 100.000000\n" +
+            "    prev: 000f9a23d81617f55f488ded747a5dde654b22a59fd0f0164c475366e08bdc09\n" +
+            "    hash: 00058d694bf443b94d7a1322f18e5e8c777bcd41040caeedfd4afa53edf09768\n" +
+            "    tran: time: 18 Apr 2020 09:12:03, from: bob, to: jill, amount: 60.000000\n" +
+            "    tran: time: 18 Apr 2020 09:12:04, from: jill, to: bob, amount: 10.000000\n" +
+            "pending:\n" +
+            "  tran: time: 18 Apr 2020 09:12:10, from: bob, to: jill, amount: 30.000000\n" +
+            "  tran: time: 18 Apr 2020 09:12:11, from: jill, to: bob, amount: 20.000000")
 
 if __name__ == '__main__':
     unittest.main()
