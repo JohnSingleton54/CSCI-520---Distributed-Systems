@@ -12,7 +12,7 @@ import block
 
 
 class asyncBlockChain:
-    # This is a wrapper around a block chain to provide thread safe access
+    # This is a wrapper around a blockchain to provide thread safe access
     # to the chain and asynchronous mining.
 
     def __init__(self, difficulty: int, minerReward: float, miningAccount: str, onBlockedMined):

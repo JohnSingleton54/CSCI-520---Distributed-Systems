@@ -5,6 +5,8 @@
 # Project 3 (Blockchain Programming Project)
 # due May 7, 2020 by 11:59 PM
 
+# JMS - 'python3 main.py 0'
+
 import threading
 import sys
 import json
@@ -40,6 +42,7 @@ print("My node Id is %d" % (myNodeId))
 minerAccount = miners[myNodeId]
 print("My miner account is %s" % (minerAccount))
 
+# JMS - What are the ranges of possible values for difficulty and miningReward?
 difficulty = 5
 miningReward = 1.0
 
@@ -70,9 +73,15 @@ class mainLoop:
 
     def __getFileName(self):
         # Gets the name of the chain file for this node ID.
+        # JMS - Q: Why does the following print statement execute every few seconds?
+        # JMS - A: This method is called once by method __loadFromFile and then periodically by
+        # JMS -    method __saveToFile.
+        #str0 = 'chain%d.json' % myNodeId
+        #print("JMS0", str0)
         return 'chain%d.json' % myNodeId
 
     def __saveToFile(self):
+        #print("JMS1", "in method __saveToFile")
         data = json.dumps(self.bc.toTuple())  
         f = open(self.__getFileName(), 'w')
         f.write(data)
@@ -85,8 +94,12 @@ class mainLoop:
             f.close()
             if data:
                 self.bc.fromTuple(json.loads(data))
-        except Exception as e:
-            print('Failed to load from log file: %s' % (e))
+        #except Exception as e:
+        #    print('Failed to load from log file: %s' % (e))
+        # JMS - Do we want to print a msg or do we just want to pass?
+        except FileNotFoundError:
+            print('Failed to load from log file: %s' % (self.__getFileName()))
+
 
     def __requestMoreInfo(self):
         hashes = self.bc.listHashes()
