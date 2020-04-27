@@ -444,7 +444,7 @@ class socketManager:
         # The `onConnected` and `onClosed` is called when a connection has been made,
         # however an outgoing connection will automatically attempt to reconnect. The point
         # of those two callbacks is to indicate when a message can be sent or not.
-        # The callback methods are called asynchronously and multiple maybe called
+        # The callback methods are called asynchronously and multiple may be called
         # at the same time. If you need to synchronize then you must add a lock.
         self.__nodeId = nodeId
         self.__outSockets = []
