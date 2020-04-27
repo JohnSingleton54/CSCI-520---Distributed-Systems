@@ -111,12 +111,12 @@ class MainLoop:
             f.close()
             if data:
                 self.bc.fromTuple(json.loads(data))
-        #except Exception as e:
-        #    print('Failed to load from log file: %s' % (e))
-        # JMS - Do we want to print a msg or do we just want to pass?
-        # GJN - We could make the FileNotFound just pass, then print any other error.
         except FileNotFoundError:
-            print('Failed to load from log file: %s' % (self.__getFileName()))
+            # Ignore file not found since that fine, we just start from scratch
+            # and will request for more information from the other servers anyway.
+            pass
+        except Exception as e:
+            print('Failed to load from log file: %s' % (e))
 
 
     def __requestMoreInfo(self):
@@ -156,7 +156,7 @@ class MainLoop:
     def __onRemoteReplayWithInfo(self, dataList: {}):
         blocks = []
         for data in dataList:
-            b = block.block()
+            b = block.Block()
             b.fromTuple(data)
             blocks.append(b)
         result = self.bc.setBlocks(blocks)
