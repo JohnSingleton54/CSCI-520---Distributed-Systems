@@ -41,7 +41,8 @@ class asyncBlockChain:
 
     def lastBlock(self):
         # Returns the last block in the chain.
-        return self.bc.lastBlock()
+        with self.lock:
+            return self.bc.lastBlock()
 
     def listHashes(self) -> []:
         # Returns all the hashes in the current chain.
@@ -114,4 +115,5 @@ class asyncBlockChain:
                 with self.lock:
                     added = self.bc.mineBlock(b)
                 if added:
+                    self.needToRestart = True
                     self.onBlockedMined(b)

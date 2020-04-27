@@ -37,10 +37,10 @@ if len(sys.argv) != 2:
 
 myNodeId = int(sys.argv[1])
 print("My node Id is %d" % (myNodeId))
-minerName = miners[myNodeId]
-print("My miner account is %s" % (minerName))
+minerAccount = miners[myNodeId]
+print("My miner account is %s" % (minerAccount))
 
-difficulty = 4
+difficulty = 5
 miningReward = 1.0
 
 
@@ -51,7 +51,7 @@ class mainLoop:
         )
         self.sock.startFullyConnected(socketURLs, useServerHost)
         self.bc = asyncBlockChain.asyncBlockChain(
-            difficulty, miningReward, miningReward, self.__onBlockedMined)
+            difficulty, miningReward, minerAccount, self.__onBlockedMined)
         self.bc.startMining()
 
     def __onConnected(self, nodeId: int):
@@ -61,9 +61,9 @@ class mainLoop:
         print("Connection to", nodeId, "closed")
 
     def __printInfo(self):
-        global minerName, myNodeId
+        global minerAccount, myNodeId
         print("My node Id is %d" % (myNodeId))
-        print("My miner account is %s" % (minerName))
+        print("My miner account is %s" % (minerAccount))
 
     def __onRemoteAddTransaction(self, data: {}):
         t = transaction.transaction()
@@ -130,7 +130,7 @@ class mainLoop:
         if trans:
             self.sock.sendToAll(json.dumps({
                 "Type": "AddTransaction",
-                "Transaction": trans
+                "Transaction": trans.toTuple()
             }))
         else:
             print("Invalid transaction")
