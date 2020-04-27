@@ -17,6 +17,13 @@ import misc
 
 class TestBlockChain(unittest.TestCase):
 
+    def minePendingTransactions(self, chain, miningAccount: str):
+        # Constructs and mines a new block. Designed for testing the block
+        # chain synchronously. This will block execution until a new block is done.
+        b = chain.buildNextBlock(miningAccount)
+        while not chain.mineBlock(b):
+            pass
+
     def test_allPending(self):
         self.maxDiff = None
         misc.useTestTime()
@@ -41,10 +48,10 @@ class TestBlockChain(unittest.TestCase):
         misc.useTestNonce()
 
         bc = blockChain.blockChain(3, 100.0)
-        bc.minePendingTransactions("bob")
+        self.minePendingTransactions(bc, "bob")
         bc.newTransaction("bob", "jill", 10.0)
         bc.newTransaction("jill", "bob", 4.0)
-        bc.minePendingTransactions("tim")
+        self.minePendingTransactions(bc, "tim")
 
         self.assertEqual(str(bc),
             "blocks:\n" +
@@ -82,7 +89,7 @@ class TestBlockChain(unittest.TestCase):
             "blocks:\n"+
             "pending:")
 
-        bc.minePendingTransactions("bob")
+        self.minePendingTransactions(bc, "bob")
         self.checkToFromTuples(bc,
             "blocks:\n" +
             "  block: 0, time: 18 Apr 2020 09:12:01, nonce: 5237, miner: bob, reward: 100.000000\n" +
@@ -92,7 +99,7 @@ class TestBlockChain(unittest.TestCase):
 
         bc.newTransaction("bob", "jill", 60.0)
         bc.newTransaction("jill", "bob", 10.0)
-        bc.minePendingTransactions("bob")
+        self.minePendingTransactions(bc, "bob")
         self.checkToFromTuples(bc,
             "blocks:\n" +
             "  block: 0, time: 18 Apr 2020 09:12:01, nonce: 5237, miner: bob, reward: 100.000000\n" +
@@ -127,7 +134,7 @@ class TestBlockChain(unittest.TestCase):
         misc.useTestNonce()
 
         bc1 = blockChain.blockChain(3, 100.0)
-        bc1.minePendingTransactions("bob")
+        self.minePendingTransactions(bc1, "bob")
         t1 = bc1.newTransaction("bob", "jill", 42.0)
         bc1.newTransaction("jill", "bob", 13.0)
         
@@ -137,9 +144,9 @@ class TestBlockChain(unittest.TestCase):
         bc2.addTransaction(t1)
         bc2.addTransaction(t1) # Duplicate should be ignored
 
-        bc1.minePendingTransactions("bob")
-        bc2.minePendingTransactions("jill")
-        bc1.minePendingTransactions("bob")  # make bob's chain longer
+        self.minePendingTransactions(bc1, "bob")
+        self.minePendingTransactions(bc2, "jill")
+        self.minePendingTransactions(bc1, "bob")  # make bob's chain longer
         
         self.assertEqual(str(bc1),
             "blocks:\n" +
