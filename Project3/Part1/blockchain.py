@@ -245,11 +245,3 @@ class Blockchain:
             self.setBlocks([b])
             return True
         return False
-
-    def minePendingTransactions(self, miningAccount: str):
-        # Constructs and mines a new block. Designed for testing the block
-        # chain synchronously. This will block execution until a new block is done.
-        b = self.buildNextBlock(miningAccount)
-        while not self.mineBlock(b):
-            pass
-

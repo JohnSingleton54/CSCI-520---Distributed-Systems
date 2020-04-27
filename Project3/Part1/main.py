@@ -45,6 +45,17 @@ print("My miner account is %s" % (minerAccount))
 # What are the ranges of possible values for difficulty and miningReward?
 # difficulty is the target number of leading zeros of the hash in hexadecimal format (256 / 4 = 64 characters)
 # Therefore difficulty is an integer in [0, 64].
+
+# JMS - What are the ranges of possible values for difficulty and miningReward?
+# GJN - On my machine 4 is about once a second, smaller will be faster.
+#       5 is about once every 10 seconds or so. The difficulty must be between 1 and 63
+#       but we can do some math to determine what a good range is. With 1 we must
+#       have 1 zero at the front of a hex number, therefore 1:16, or on average 8 tries to
+#       find a nonce which satisfies that difficulty. 2 zeros is then 1:256, 3 zeros is
+#       1:4096, N is 1:16^N. So if it takes 10 ms (for example) to try a single nonce
+#       then with a difficulty of 4 (1:32768) it will take on average 5.46 minutes
+#       (obviously we are faster than 10 ms per single nonce).
+#       The miningReward is arbitrary since that's just how much our own crypto currency grows.
 difficulty = 5
 miningReward = 1.0
 
@@ -103,6 +114,7 @@ class MainLoop:
         #except Exception as e:
         #    print('Failed to load from log file: %s' % (e))
         # JMS - Do we want to print a msg or do we just want to pass?
+        # GJN - We could make the FileNotFound just pass, then print any other error.
         except FileNotFoundError:
             print('Failed to load from log file: %s' % (self.__getFileName()))
 
