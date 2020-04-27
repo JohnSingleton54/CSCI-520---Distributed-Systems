@@ -7,16 +7,16 @@
 
 import threading
 
-import blockChain
+import blockchain
 import block
 
 
-class asyncBlockChain:
+class AsyncBlockchain:
     # This is a wrapper around a blockchain to provide thread safe access
     # to the chain and asynchronous mining.
 
     def __init__(self, difficulty: int, minerReward: float, miningAccount: str, onBlockedMined):
-        self.bc = blockChain.blockChain(difficulty, minerReward)
+        self.bc = blockchain.Blockchain(difficulty, minerReward)
         self.onBlockedMined = onBlockedMined
         self.miningAccount = miningAccount
         self.lock = threading.Lock()
@@ -82,7 +82,7 @@ class asyncBlockChain:
         with self.lock:
             return self.bc.isValid(verbose)
 
-    def setBlocks(self, blocks: [block.block]) -> int:
+    def setBlocks(self, blocks: [block.Block]) -> int:
         # Adds and replaces blocks in the chain with the given blocks.
         # The blocks are only replaced if valid otherwise no change and false is returned.
         with self.lock:
@@ -99,7 +99,7 @@ class asyncBlockChain:
         self.needToRestart = True
 
     def stopMining(self):
-        # Stop and rejoin th mining thread.
+        # Stop and rejoin the mining thread.
         self.keepMining = False
 
     def __asyncMinePendingTransactions(self):

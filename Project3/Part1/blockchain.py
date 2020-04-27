@@ -15,7 +15,7 @@ needMoreBlockInfo = 1
 blocksAdded = 2
 
 
-class blockChain:
+class Blockchain:
     # The block chain and current configurations.
 
     def __init__(self, difficulty: int, minerReward: float):
@@ -54,7 +54,7 @@ class blockChain:
         # This loads a block chain from the given tuple.
         self.chain = []
         for subdata in data["blocks"]:
-            b = block.block()
+            b = block.Block()
             b.fromTuple(subdata)
             self.chain.append(b)
 
@@ -165,7 +165,7 @@ class blockChain:
         # Indicates if this block chain is valid.
         return self.isChainValid(self.chain, verbose)
 
-    def isChainValid(self, chain: [block.block], verbose: bool = False) -> bool:
+    def isChainValid(self, chain: [block.Block], verbose: bool = False) -> bool:
         # Indicates if this given chain is valid.
         prevHash = block.initialHash
         runningBalances = {}
@@ -190,7 +190,7 @@ class blockChain:
             prevHash = b.hash
         return True
 
-    def setBlocks(self, blocks: [block.block]) -> int:
+    def setBlocks(self, blocks: [block.Block]) -> int:
         # Adds and replaces blocks in the chain with the given blocks.
         # The blocks are only replaced if valid otherwise no change and false is returned.
         if not blocks:
@@ -221,7 +221,7 @@ class blockChain:
         self.chain = newChain
         return blocksAdded
 
-    def buildNextBlock(self, miningAccount: str) -> block.block:
+    def buildNextBlock(self, miningAccount: str) -> block.Block:
         # Constructs a new block. Will use but not clear out pending transactions.
         balances = self.getAllBalances()
         trans = []
@@ -229,9 +229,9 @@ class blockChain:
             if tran.isValid(balances):
                 trans.append(tran)
         blockNum = len(self.chain)
-        return block.block(blockNum, self.lastHash(), miningAccount, self.minerReward, trans)
+        return block.Block(blockNum, self.lastHash(), miningAccount, self.minerReward, trans)
 
-    def mineBlock(self, b: block.block):
+    def mineBlock(self, b: block.Block):
         # This picks a nonce and rehashes this block. It checks if the difficulty
         # challenge has been reached. Returns true if this attempt was successful, false otherwise.
         b.nonce = misc.newNonce()

@@ -15,7 +15,7 @@ import misc
 initialHash = "0"*64
 
 
-class block:
+class Block:
     # Stores a single block in the chain.
     # It contains a set of transactions since the prior chain.
 

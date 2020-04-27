@@ -12,8 +12,8 @@ import sys
 import json
 
 import sockets
-import asyncBlockChain
-import blockChain
+import asyncBlockchain
+import blockchain
 import block
 import transaction
 
@@ -42,18 +42,24 @@ print("My node Id is %d" % (myNodeId))
 minerAccount = miners[myNodeId]
 print("My miner account is %s" % (minerAccount))
 
-# JMS - What are the ranges of possible values for difficulty and miningReward?
+# What are the ranges of possible values for difficulty and miningReward?
+# difficulty is the target number of leading zeros of the hash in hexadecimal format (256 / 4 = 64 characters)
+# Therefore difficulty is an integer in [0, 64].
 difficulty = 5
 miningReward = 1.0
 
+#import hashlib
+#test = bytearray(str(54), 'utf-8')
+#print("JMS2", hashlib.sha256(test).hexdigest())
 
-class mainLoop:
+
+class MainLoop:
     def __init__(self):
         self.sock = sockets.socketManager(
             myNodeId, self.__onConnected, self.__onMessage, self.__onClosed
         )
         self.sock.startFullyConnected(socketURLs, useServerHost)
-        self.bc = asyncBlockChain.asyncBlockChain(
+        self.bc = asyncBlockchain.AsyncBlockchain(
             difficulty, miningReward, minerAccount, self.__onBlockedMined)
         self.__loadFromFile()
         self.bc.startMining()
@@ -115,15 +121,15 @@ class mainLoop:
         self.bc.addTransaction(t)
 
     def __onRemoteAddBlock(self, data: {}):
-        b = block.block()
+        b = block.Block()
         b.fromTuple(data)
         result = self.bc.setBlocks([b])
-        if result == blockChain.blocksAdded:
+        if result == blockchain.blocksAdded:
             # A block was added so stop mining the
             # current block and start the next one.
             self.bc.restartMining()
             self.__saveToFile()
-        elif result == blockChain.needMoreBlockInfo:
+        elif result == blockchain.needMoreBlockInfo:
             # The block we tried to add was for a possibly longer chain.
             self.__requestMoreInfo()
         # else ignoreAddBlock and do nothing.
@@ -142,7 +148,7 @@ class mainLoop:
             b.fromTuple(data)
             blocks.append(b)
         result = self.bc.setBlocks(blocks)
-        if result == blockChain.blocksAdded:
+        if result == blockchain.blocksAdded:
             # The missing block(s) were added so stop mining the
             # current block and start the next one.
             self.bc.restartMining()
@@ -230,4 +236,4 @@ class mainLoop:
 
 
 if __name__ == "__main__":
-    mainLoop().run()
+    MainLoop().run()
