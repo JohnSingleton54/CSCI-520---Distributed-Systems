@@ -121,5 +121,85 @@ class TestBlockChain(unittest.TestCase):
             "  tran: time: 18 Apr 2020 09:12:10, from: bob, to: jill, amount: 30.000000\n" +
             "  tran: time: 18 Apr 2020 09:12:11, from: jill, to: bob, amount: 20.000000")
 
+    def test_restorePending(self):
+        self.maxDiff = None
+        misc.useTestTime()
+        misc.useTestNonce()
+
+        bc1 = blockChain.blockChain(3, 100.0)
+        bc1.minePendingTransactions("bob")
+        t1 = bc1.newTransaction("bob", "jill", 42.0)
+        bc1.newTransaction("jill", "bob", 13.0)
+        
+        bc2 = blockChain.blockChain(3, 100.0)
+        bc2.chain = bc1.chain.copy()
+        bc2.newTransaction("bob", "kim", 5.0)
+        bc2.addTransaction(t1)
+        bc2.addTransaction(t1) # Duplicate should be ignored
+
+        bc1.minePendingTransactions("bob")
+        bc2.minePendingTransactions("jill")
+        bc1.minePendingTransactions("bob")  # make bob's chain longer
+        
+        self.assertEqual(str(bc1),
+            "blocks:\n" +
+            "  block: 0, time: 18 Apr 2020 09:12:01, nonce: 5237, miner: bob, reward: 100.000000\n" +
+            "    prev: 0000000000000000000000000000000000000000000000000000000000000000\n" +
+            "    hash: 000f9a23d81617f55f488ded747a5dde654b22a59fd0f0164c475366e08bdc09\n" +
+            "  block: 1, time: 18 Apr 2020 09:12:05, nonce: 8553, miner: bob, reward: 100.000000\n" +
+            "    prev: 000f9a23d81617f55f488ded747a5dde654b22a59fd0f0164c475366e08bdc09\n" +
+            "    hash: 0001499713128fa45c28f805c545236194716e0d5e5479d969b4d84b5ae30fac\n" +
+            "    tran: time: 18 Apr 2020 09:12:02, from: bob, to: jill, amount: 42.000000\n" +
+            "    tran: time: 18 Apr 2020 09:12:03, from: jill, to: bob, amount: 13.000000\n" +
+            "  block: 2, time: 18 Apr 2020 09:12:07, nonce: 14484, miner: bob, reward: 100.000000\n" +
+            "    prev: 0001499713128fa45c28f805c545236194716e0d5e5479d969b4d84b5ae30fac\n" +
+            "    hash: 00023d3590967cb36819f89b37a405f2b9b8b9c282589abeeadc48d43713ab35\n" +
+            "pending:")
+
+        self.assertEqual(str(bc2),
+            "blocks:\n" +
+            "  block: 0, time: 18 Apr 2020 09:12:01, nonce: 5237, miner: bob, reward: 100.000000\n" +
+            "    prev: 0000000000000000000000000000000000000000000000000000000000000000\n" +
+            "    hash: 000f9a23d81617f55f488ded747a5dde654b22a59fd0f0164c475366e08bdc09\n" +
+            "  block: 1, time: 18 Apr 2020 09:12:06, nonce: 12166, miner: jill, reward: 100.000000\n" +
+            "    prev: 000f9a23d81617f55f488ded747a5dde654b22a59fd0f0164c475366e08bdc09\n" +
+            "    hash: 000737103ef35a9518ddbef2d7479de0206cd3deaaa6d484f9a347d73cf2cdee\n" +
+            "    tran: time: 18 Apr 2020 09:12:02, from: bob, to: jill, amount: 42.000000\n" +
+            "    tran: time: 18 Apr 2020 09:12:04, from: bob, to: kim, amount: 5.000000\n" +
+            "pending:")
+
+        hashes = bc2.listHashes()
+        self.assertEqual(str(hashes),
+            "['000f9a23d81617f55f488ded747a5dde654b22a59fd0f0164c475366e08bdc09',"+ 
+            " '000737103ef35a9518ddbef2d7479de0206cd3deaaa6d484f9a347d73cf2cdee']")
+        index = bc1.getHashDiffIndex(hashes)
+        self.assertEqual(index, 1)
+        
+        hashes = bc1.listHashes()
+        self.assertEqual(str(hashes),
+            "['000f9a23d81617f55f488ded747a5dde654b22a59fd0f0164c475366e08bdc09',"+ 
+            " '0001499713128fa45c28f805c545236194716e0d5e5479d969b4d84b5ae30fac',"+ 
+            " '00023d3590967cb36819f89b37a405f2b9b8b9c282589abeeadc48d43713ab35']")
+        index = bc2.getHashDiffIndex(hashes)
+        self.assertEqual(index, -1)
+
+        bc2.setBlocks(bc1.chain[1:3])
+        
+        self.assertEqual(str(bc2),
+            "blocks:\n" +
+            "  block: 0, time: 18 Apr 2020 09:12:01, nonce: 5237, miner: bob, reward: 100.000000\n" +
+            "    prev: 0000000000000000000000000000000000000000000000000000000000000000\n" +
+            "    hash: 000f9a23d81617f55f488ded747a5dde654b22a59fd0f0164c475366e08bdc09\n" +
+            "  block: 1, time: 18 Apr 2020 09:12:05, nonce: 8553, miner: bob, reward: 100.000000\n" +
+            "    prev: 000f9a23d81617f55f488ded747a5dde654b22a59fd0f0164c475366e08bdc09\n" +
+            "    hash: 0001499713128fa45c28f805c545236194716e0d5e5479d969b4d84b5ae30fac\n" +
+            "    tran: time: 18 Apr 2020 09:12:02, from: bob, to: jill, amount: 42.000000\n" +
+            "    tran: time: 18 Apr 2020 09:12:03, from: jill, to: bob, amount: 13.000000\n" +
+            "  block: 2, time: 18 Apr 2020 09:12:07, nonce: 14484, miner: bob, reward: 100.000000\n" +
+            "    prev: 0001499713128fa45c28f805c545236194716e0d5e5479d969b4d84b5ae30fac\n" +
+            "    hash: 00023d3590967cb36819f89b37a405f2b9b8b9c282589abeeadc48d43713ab35\n" +
+            "pending:\n" +
+            "  tran: time: 18 Apr 2020 09:12:04, from: bob, to: kim, amount: 5.000000") # got put back in pending
+
 if __name__ == '__main__':
     unittest.main()

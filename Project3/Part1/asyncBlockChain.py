@@ -11,21 +11,18 @@ import blockChain
 import block
 
 
-stateNotRunning = 1
-stateRunning = 2
-stateStopping = 3
-
-
 class asyncBlockChain:
     # This is a wrapper around a block chain to provide thread safe access
     # to the chain and asynchronous mining.
 
-    def __init__(self, difficulty: int, minerReward: float, onBlockedMined):
+    def __init__(self, difficulty: int, minerReward: float, miningAccount: str, onBlockedMined):
         self.bc = blockChain.blockChain(difficulty, minerReward)
         self.onBlockedMined = onBlockedMined
-        self.lock = threading.lock()
+        self.miningAccount = miningAccount
+        self.lock = threading.Lock()
         self.thread = None
-        self.miningState = stateNotRunning
+        self.keepMining = True
+        self.needToRestart = True
 
     def __str__(self) -> str:
         # Gets a string for this transaction.
@@ -41,7 +38,11 @@ class asyncBlockChain:
         # This loads a block chain from the given tuple.
         with self.lock:
             self.bc.fromTuple(data)
-        
+
+    def lastBlock(self):
+        # Returns the last block in the chain.
+        return self.bc.lastBlock()
+
     def listHashes(self) -> []:
         # Returns all the hashes in the current chain.
         with self.lock:
@@ -51,21 +52,15 @@ class asyncBlockChain:
         # Returns the tuples of the blocks for the differences between the chains.
         # Will return empty if the other hash is less than or equal to this chain.
         with self.lock:
-            index = self.bc.getHashDiffIndex(otherHashes)
-            if index < 0:
-                return []
-            diff = []
-            for i in range(index: len(self.bc.chain)):
-                diff.append(self.bc.chain[i].toTuple())
-            return diff
+            return self.bc.getDifferenceTuple(otherHashes)
 
-    def newTransaction(self, fromAccount: str, toAccount: str, amount: float) -> transaction:
+    def newTransaction(self, fromAccount: str, toAccount: str, amount: float):
         # Creates a new transaction and adds it to the pending
         # transactions to wait to be added to a block during the next mine.
         with self.lock:
             return self.bc.newTransaction(fromAccount, toAccount, amount)
 
-    def addTransaction(self, trans: transaction):
+    def addTransaction(self, trans):
         # Adds a transition to the pending transactions to wait
         # to be added to a block during the next mine.
         with self.lock:
@@ -86,40 +81,37 @@ class asyncBlockChain:
         with self.lock:
             return self.bc.isValid(verbose)
 
-    def setBlocks(self, blocks: [block.block]) -> bool:
+    def setBlocks(self, blocks: [block.block]) -> int:
         # Adds and replaces blocks in the chain with the given blocks.
         # The blocks are only replaced if valid otherwise no change and false is returned.
         with self.lock:
-            if not self.bc.setBlocks(blocks):
-                return False
-        self.stopMining()
-        return True
+            return self.bc.setBlocks(blocks)
 
-    def startMining(self, miningAccount: str) -> bool:
-        with self.lock:
-            if self.miningState != stateNotRunning:
-                return False
-            self.miningState = stateRunning
-        self.thread = threading.Thread(target=self.__asyncMinePendingTransactions, args=(miningAccount))
+    def startMining(self) -> bool:
+        # Start an asynchronous mining thread.
+        self.keepMining = True
+        self.thread = threading.Thread(target=self.__asyncMinePendingTransactions)
         self.thread.start()
-        return True
+
+    def restartMining(self):
+        # Stops the current block being mined and starts new block.
+        self.needToRestart = True
 
     def stopMining(self):
-        with self.lock:
-            if self.miningState != stateRunning:
-                return
-            self.miningState = stateStopping
-        self.thread.join()
+        # Stop and rejoin th mining thread.
+        self.keepMining = False
 
-    def __asyncMinePendingTransactions(self, miningAccount: str):
+    def __asyncMinePendingTransactions(self):
         # Constructs and mines a new block. If a block is mined and added
         # prior to the mining being stopped or another block being added,
         # onBlockedMined will be called with the new block.
-        with self.lock:
-            b = self.bc.buildNextBlock(miningAccount)
-        while self.miningState == stateRunning:
+        while self.keepMining:
             with self.lock:
-                added = self.bc.mineBlock(b):
-            if added:
-                self.onBlockedMined(b)
-        self.miningState = stateNotRunning
+                b = self.bc.buildNextBlock(self.miningAccount)
+            self.needToRestart = False
+            while self.keepMining and not self.needToRestart:
+                added = False
+                with self.lock:
+                    added = self.bc.mineBlock(b)
+                if added:
+                    self.onBlockedMined(b)

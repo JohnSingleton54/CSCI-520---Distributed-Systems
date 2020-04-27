@@ -10,6 +10,11 @@ import transaction
 import misc
 
 
+ignoreAddBlock = 0
+needMoreBlockInfo = 1
+blocksAdded = 2
+
+
 class blockChain:
     # The block chain and current configurations.
 
@@ -59,6 +64,12 @@ class blockChain:
             t.fromTuple(subdata)
             self.pending.append(t)
 
+    def lastBlock(self):
+        # Returns the last block in the chain.
+        if self.chain:
+            return self.chain[-1]
+        return None
+
     def lastHash(self):
         # Returns the last hash in the chain.
         if self.chain:
@@ -72,7 +83,7 @@ class blockChain:
             hashes.append(b.hash)
         return hashes
 
-    def getHashDiffIndex(self, otherHashes: []) -> -1:
+    def getHashDiffIndex(self, otherHashes: []) -> int:
         # Gets the index at which the hashes differ with the
         # assumption that other hashes is a smaller chain.
         length = len(otherHashes)
@@ -84,6 +95,16 @@ class blockChain:
                 return i
         return length
 
+    def getDifferenceTuple(self, otherHashes: []) -> []:
+        # Returns the tuples of the blocks for the differences between the chains.
+        # Will return empty if the other hash is less than or equal to this chain.
+        index = self.getHashDiffIndex(otherHashes)
+        diff = []
+        if index >= 0:
+            for b in self.chain[index:]:
+                diff.append(b.toTuple())
+        return diff
+
     def newTransaction(self, fromAccount: str, toAccount: str, amount: float) -> transaction:
         # Creates a new transaction and adds it to the pending
         # transactions to wait to be added to a block during the next mine.
@@ -91,11 +112,31 @@ class blockChain:
         self.addTransaction(trans)
         return trans
 
-    def addTransaction(self, trans: transaction):
-        # Adds a transition to the pending transactions to wait
-        # to be added to a block during the next mine.
-        self.pending.append(trans)
-        self.pending.sort(key=transaction.toSortKey)
+    def addTransaction(self, tran: transaction) -> bool:
+        # Adds a transition to the pending transactions to wait to be added
+        # to a block during the next mine. The transaction will be sorted in.
+        # This will return True if added, False if already exists.
+        for i in range(len(self.pending)):
+            cmp = self.pending[i].compare(tran)
+            if cmp == 0:
+                return False
+            if cmp > 0:
+                self.pending.insert(i, tran)
+                return True
+        self.pending.append(tran)
+        return True
+
+    def removeTransaction(self, tran: transaction) -> bool:
+        # Removes a transition from the pending transactions.
+        # This will return True if removed, False if already doesn't exist.
+        for i in range(len(self.pending)):
+            cmp = self.pending[i].compare(tran)
+            if cmp == 0:
+                del self.pending[i]
+                return True
+            if cmp > 0:
+                return False
+        return False
         
     def getBalance(self, account: str) -> float:
         # Gets the balance for the given account.
@@ -149,47 +190,36 @@ class blockChain:
             prevHash = b.hash
         return True
 
-    def __insertUniquePending(self, trans: []):
-        for t in b.transactions:
-            found = False
-            for p in self.pending:
-                if p == t:
-                    found = True
-                    break
-            if found:
-                self.pending.append(t)
-    
-    def __removeDuplicate
-
-    def setBlocks(self, blocks: [block.block]) -> bool:
+    def setBlocks(self, blocks: [block.block]) -> int:
         # Adds and replaces blocks in the chain with the given blocks.
         # The blocks are only replaced if valid otherwise no change and false is returned.
         if not blocks:
-            return False
+            return ignoreAddBlock
         
         # Determine if the new blocks will make this chain longer, if not ignore it.
         index = blocks[0].blockNum
         if index + len(blocks) <= len(self.chain):
-            return False
+            return ignoreAddBlock
+
+        if index > len(self.chain):
+            # Block is past the last known block.
+            return needMoreBlockInfo
 
         newChain = []
         newChain.extend(self.chain[:index])
         newChain.extend(blocks)
         if not self.isChainValid(newChain):
-            return False
+            return needMoreBlockInfo
 
         # Check for matching or lost transactions and update pending.
         for b in self.chain[index:]:
             for t in b.transactions:
-                if self.pending.index(t)
-            pendingSet.extend(b.transactions)
+                self.addTransaction(t)
         for b in blocks:
-            for t in 
-            pendingSet.intersection_update(b.transactions)
+            for t in b.transactions:
+                self.removeTransaction(t)
         self.chain = newChain
-        self.pending = list(pendingSet)
-        print(">>", self.pending)
-        return True
+        return blocksAdded
 
     def buildNextBlock(self, miningAccount: str) -> block.block:
         # Constructs a new block. Will use but not clear out pending transactions.
