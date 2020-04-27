@@ -15,10 +15,10 @@ class AsyncBlockchain:
     # This is a wrapper around a blockchain to provide thread safe access
     # to the chain and asynchronous mining.
 
-    def __init__(self, difficulty: int, minerReward: float, miningAccount: str, onBlockedMined):
-        self.bc = blockchain.Blockchain(difficulty, minerReward)
+    def __init__(self, difficulty: int, miningReward: float, minerAccount: str, onBlockedMined):
+        self.bc = blockchain.Blockchain(difficulty, miningReward)
         self.onBlockedMined = onBlockedMined
-        self.miningAccount = miningAccount
+        self.minerAccount = minerAccount
         self.lock = threading.Lock()
         self.thread = None
         self.keepMining = True
@@ -30,12 +30,12 @@ class AsyncBlockchain:
             return str(self.bc)
 
     def toTuple(self) -> {}:
-        # Creates a dictionary for this block chain.
+        # Creates a dictionary for this blockchain.
         with self.lock:
             return self.bc.toTuple()
 
     def fromTuple(self, data: {}):
-        # This loads a block chain from the given tuple.
+        # This loads a blockchain from the given tuple.
         with self.lock:
             self.bc.fromTuple(data)
 
@@ -78,7 +78,7 @@ class AsyncBlockchain:
             return self.bc.getAllBalances()
 
     def isValid(self, verbose: bool = False) -> bool:
-        # Indicates if this block chain is valid.
+        # Indicates if this blockchain is valid.
         with self.lock:
             return self.bc.isValid(verbose)
 
@@ -108,7 +108,7 @@ class AsyncBlockchain:
         # onBlockedMined will be called with the new block.
         while self.keepMining:
             with self.lock:
-                b = self.bc.buildNextBlock(self.miningAccount)
+                b = self.bc.buildNextBlock(self.minerAccount)
             self.needToRestart = False
             while self.keepMining and not self.needToRestart:
                 added = False

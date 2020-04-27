@@ -16,14 +16,14 @@ blocksAdded = 2
 
 
 class Blockchain:
-    # The block chain and current configurations.
+    # The blockchain and current configurations.
 
-    def __init__(self, difficulty: int, minerReward: float):
-        # Creates a new block chain.
-        self.difficulty  = difficulty
-        self.minerReward = minerReward
-        self.chain       = []
-        self.pending     = []  # pending transactions
+    def __init__(self, difficulty: int, miningReward: float):
+        # Creates a new blockchain.
+        self.difficulty   = difficulty
+        self.miningReward = miningReward
+        self.chain        = []
+        self.pending      = []  # pending transactions
 
     def __str__(self) -> str:
         # Gets a string for this transaction.
@@ -37,7 +37,7 @@ class Blockchain:
         return "\n".join(parts)
 
     def toTuple(self) -> {}:
-        # Creates a dictionary for this block chain.
+        # Creates a dictionary for this blockchain.
         blocks = []
         for block in self.chain:
             blocks.append(block.toTuple())
@@ -51,7 +51,7 @@ class Blockchain:
         }
 
     def fromTuple(self, data: {}):
-        # This loads a block chain from the given tuple.
+        # This loads a block hain from the given tuple.
         self.chain = []
         for subdata in data["blocks"]:
             b = block.Block()
@@ -60,7 +60,7 @@ class Blockchain:
 
         self.pending = []
         for subdata in data["pending"]:
-            t = transaction.transaction()
+            t = transaction.Transaction()
             t.fromTuple(subdata)
             self.pending.append(t)
 
@@ -105,15 +105,15 @@ class Blockchain:
                 diff.append(b.toTuple())
         return diff
 
-    def newTransaction(self, fromAccount: str, toAccount: str, amount: float) -> transaction:
+    def newTransaction(self, fromAccount: str, toAccount: str, amount: float) -> transaction.Transaction:
         # Creates a new transaction and adds it to the pending
         # transactions to wait to be added to a block during the next mine.
-        trans = transaction.transaction(fromAccount, toAccount, amount)
+        trans = transaction.Transaction(fromAccount, toAccount, amount)
         self.addTransaction(trans)
         return trans
 
-    def addTransaction(self, tran: transaction) -> bool:
-        # Adds a transition to the pending transactions to wait to be added
+    def addTransaction(self, tran: transaction.Transaction) -> bool:
+        # Adds a transaction to the pending transactions to wait to be added
         # to a block during the next mine. The transaction will be sorted in.
         # This will return True if added, False if already exists.
         for i in range(len(self.pending)):
@@ -126,7 +126,7 @@ class Blockchain:
         self.pending.append(tran)
         return True
 
-    def removeTransaction(self, tran: transaction) -> bool:
+    def removeTransaction(self, tran: transaction.Transaction) -> bool:
         # Removes a transition from the pending transactions.
         # This will return True if removed, False if already doesn't exist.
         for i in range(len(self.pending)):
@@ -143,7 +143,7 @@ class Blockchain:
         balance = 0.0
         for b in self.chain:
             if account == b.minerAccount:
-                balance += b.minerReward
+                balance += b.miningReward
             for tran in b.transactions:
                 if account == tran.fromAccount:
                     balance -= tran.amount
@@ -155,14 +155,14 @@ class Blockchain:
         # Gets a dictionary of account to balance.
         accounts = {}
         for b in self.chain:
-            accounts[b.minerAccount] = accounts.get(b.minerAccount, 0.0) + b.minerReward
+            accounts[b.minerAccount] = accounts.get(b.minerAccount, 0.0) + b.miningReward
             for tran in b.transactions:
                 accounts[tran.fromAccount] = accounts.get(tran.fromAccount, 0.0) - tran.amount
                 accounts[tran.toAccount]   = accounts.get(tran.toAccount,   0.0) + tran.amount
         return accounts
 
     def isValid(self, verbose: bool = False) -> bool:
-        # Indicates if this block chain is valid.
+        # Indicates if this blockchain is valid.
         return self.isChainValid(self.chain, verbose)
 
     def isChainValid(self, chain: [block.Block], verbose: bool = False) -> bool:
@@ -177,7 +177,7 @@ class Blockchain:
                     print("Block %d has the block number %d" % (i, b.blockNum))
                 return False
 
-            if not b.isValid(self.difficulty, self.minerReward, runningBalances, verbose):
+            if not b.isValid(self.difficulty, self.miningReward, runningBalances, verbose):
                 if verbose:
                     print("Block %d is not valid" % (i))
                 return False
@@ -221,7 +221,7 @@ class Blockchain:
         self.chain = newChain
         return blocksAdded
 
-    def buildNextBlock(self, miningAccount: str) -> block.Block:
+    def buildNextBlock(self, minerAccount: str) -> block.Block:
         # Constructs a new block. Will use but not clear out pending transactions.
         balances = self.getAllBalances()
         trans = []
@@ -229,7 +229,7 @@ class Blockchain:
             if tran.isValid(balances):
                 trans.append(tran)
         blockNum = len(self.chain)
-        return block.Block(blockNum, self.lastHash(), miningAccount, self.minerReward, trans)
+        return block.Block(blockNum, self.lastHash(), minerAccount, self.miningReward, trans)
 
     def mineBlock(self, b: block.Block):
         # This picks a nonce and rehashes this block. It checks if the difficulty

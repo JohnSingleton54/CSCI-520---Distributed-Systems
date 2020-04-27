@@ -8,7 +8,7 @@
 import misc
 
 
-class transaction:
+class Transaction:
     # A description of the transfer of some amount from one address to another.
 
     def __init__(self, fromAccount: str = "", toAccount: str = "", amount: float = 0.0):
@@ -41,9 +41,9 @@ class transaction:
         self.amount      = data["amount"]
 
     def compare(self, other) -> int:
-        # Determines how these two transaction compare.
+        # Determines how these two transactions compare.
         # less than zero for this transaction being less than the other.
-        # greater than zero for this transaction greater than the other.
+        # greater than zero for this transaction being greater than the other.
         # equal to zero if the two transactions are equal.
         if self.timestamp < other.timestamp:
             return -1
