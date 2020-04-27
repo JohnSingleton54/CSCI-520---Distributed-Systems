@@ -52,7 +52,9 @@ class mainLoop:
         self.sock.startFullyConnected(socketURLs, useServerHost)
         self.bc = asyncBlockChain.asyncBlockChain(
             difficulty, miningReward, minerAccount, self.__onBlockedMined)
+        self.__loadFromFile()
         self.bc.startMining()
+        self.__requestMoreInfo()
 
     def __onConnected(self, nodeId: int):
         print("Connected to", nodeId)
@@ -61,9 +63,38 @@ class mainLoop:
         print("Connection to", nodeId, "closed")
 
     def __printInfo(self):
-        global minerAccount, myNodeId
         print("My node Id is %d" % (myNodeId))
         print("My miner account is %s" % (minerAccount))
+        print("Difficulty is %d" % (difficulty))
+        print("Mining reward is %s" % (miningReward))
+
+    def __getFileName(self):
+        # Gets the name of the chain file for this node ID.
+        return 'chain%d.json' % myNodeId
+
+    def __saveToFile(self):
+        data = json.dumps(self.bc.toTuple())  
+        f = open(self.__getFileName(), 'w')
+        f.write(data)
+        f.close()
+
+    def __loadFromFile(self):
+        try:
+            f = open(self.__getFileName(), 'r')
+            data = f.read()
+            f.close()
+            if data:
+                self.bc.fromTuple(json.loads(data))
+        except Exception as e:
+            print('Failed to load from log file: %s' % (e))
+
+    def __requestMoreInfo(self):
+        hashes = self.bc.listHashes()
+        self.sock.sendToAll(json.dumps({
+            "Type": "NeedMoreInfo",
+            "NodeId": myNodeId,
+            "Hashes": hashes
+        }))
 
     def __onRemoteAddTransaction(self, data: {}):
         t = transaction.transaction()
@@ -78,18 +109,15 @@ class mainLoop:
             # A block was added so stop mining the
             # current block and start the next one.
             self.bc.restartMining()
+            self.__saveToFile()
         elif result == blockChain.needMoreBlockInfo:
             # The block we tried to add was for a possibly longer chain.
-            hashes = self.bc.listHashes()
-            self.sock.sendToAll(json.dumps({
-                "Type": "NeedMoreInfo",
-                "Hashes": hashes
-            }))
+            self.__requestMoreInfo()
         # else ignoreAddBlock and do nothing.
 
-    def __onRemoteNeedMoreInfo(self, hashes: []):
+    def __onRemoteNeedMoreInfo(self, hashes: [], nodeId: int):
         diff = self.bc.getDifferenceTuple(hashes)
-        self.sock.sendToAll(json.dumps({
+        self.sock.sendTo(nodeId, json.dumps({
             "Type": "ReplyWithInfo",
             "Diff": diff
         }))
@@ -105,6 +133,7 @@ class mainLoop:
             # The missing block(s) were added so stop mining the
             # current block and start the next one.
             self.bc.restartMining()
+            self.__saveToFile()
         # else needMoreBlockInfo or ignoreAddBlock which
         # probably means the data is invalid so do nothing.
 
@@ -116,7 +145,7 @@ class mainLoop:
         elif dataType == "AddBlock":
             self.__onRemoteAddBlock(data["Block"])
         elif dataType == "NeedMoreInfo":
-            self.__onRemoteNeedMoreInfo(data["Hashes"])
+            self.__onRemoteNeedMoreInfo(data["Hashes"], data["NodeId"])
         elif dataType == "ReplyWithInfo":
             self.__onRemoteReplayWithInfo(data["Diff"])
         else:
@@ -140,6 +169,7 @@ class mainLoop:
             "Type": "AddBlock",
             "Block": block.toTuple()
         }))
+        self.__saveToFile()
 
     def __showFullChain(self):
         print(self.bc)

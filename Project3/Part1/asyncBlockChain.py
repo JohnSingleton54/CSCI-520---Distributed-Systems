@@ -47,7 +47,7 @@ class asyncBlockChain:
     def listHashes(self) -> []:
         # Returns all the hashes in the current chain.
         with self.lock:
-            return self.listHashes()
+            return self.bc.listHashes()
 
     def getDifferenceTuple(self, otherHashes: []) -> []:
         # Returns the tuples of the blocks for the differences between the chains.
