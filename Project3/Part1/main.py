@@ -7,6 +7,9 @@
 
 # JMS - 'python3 main.py 0'
 
+# References:
+# 1. https://blog.goodaudience.com/how-a-miner-adds-transactions-to-the-blockchain-in-seven-steps-856053271476
+
 import threading
 import sys
 import json
