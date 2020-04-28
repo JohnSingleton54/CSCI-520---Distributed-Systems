@@ -190,6 +190,12 @@ class Blockchain:
             prevHash = b.hash
         return True
 
+    # This method (setBlocks) is called by:
+    # - the method BlockChain.mineBlock when a single block has been mined and looks to be first at
+    #   the time that the method setBlocks is called
+    # - the method MainLoop.__onRemoteAddBlock when a single block has been mined by another node
+    #   and looks to be first at the time that the method setBlocks is called
+    # - the method MainLoop.__onRemoteReplayWithInfo when one or more blocks...
     def setBlocks(self, blocks: [block.Block], verbose: bool = False) -> int:
         # Adds and replaces blocks in the chain with the given blocks.
         # The blocks are only replaced if valid otherwise no change and false is returned.
@@ -198,7 +204,7 @@ class Blockchain:
                 print("Ignore empty block set")
             return ignoreAddBlock
         
-        # Determine if the new blocks will make this chain longer, if not ignore it.
+        # Determine if the new blocks will make this chain longer. If not, ignore it.
         index = blocks[0].blockNum
         if index + len(blocks) <= len(self.chain):
             if verbose:
@@ -235,6 +241,8 @@ class Blockchain:
         balances = self.getAllBalances()
         trans = []
         for tran in self.pending:
+            # In Python, dictionaries are mutable objects. balances is a dictionary and the method
+            # isValid does update balances appropriately each time it is called.
             if tran.isValid(balances):
                 trans.append(tran)
         blockNum = len(self.chain)
@@ -248,7 +256,7 @@ class Blockchain:
         if not str(b.hash).startswith('0'*self.difficulty):
             return False
 
-        # Found a nonce which works! Check that the block hasn't grown
+        # Found a nonce which works! Check that the chain hasn't grown
         # while mining, then append our new block and return it.
         if self.lastHash() == b.previousHash:
             self.setBlocks([b])
