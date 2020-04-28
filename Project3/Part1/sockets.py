@@ -1,8 +1,12 @@
 #!/usr/bin/env python
 
+# Grant Nelson and John M. Singleton
+# CSCI 520 - Distributed Systems
+# Project 3 (Blockchain Programming Project)
+# due May 7, 2020 by 11:59 PM
+
 # Simple multiple socket manager with
 # message framing and node Id determination.
-# by Grant Nelson
 
 import threading
 import socket
@@ -10,11 +14,11 @@ import time
 import re
 
 
-class socketConst:
+class SocketConst:
     # Maximum size a chunk can grow without hitting a message delimiter.
     # If a chunk reaches this size the current growing message is dumped, meaning
     # if a delimiter is reached shortly after, it could create a bad message.
-    maximumChunkSize = 4000
+    maximumChunkSize = 100000
 
     # The byte size of the chunks to read from the socket at one time.
     receiveChunkSize = 256
@@ -34,23 +38,22 @@ class socketConst:
     # The regular expression used to pull out the node Id from a node Id
     # message. The node Id message is used to tell in-sockets which node Id
     # the in-socket is connected to.
-    nodeIdRegex = "GJN>>>(\d+)<<<GJN"
+    nodeIdRegex = "MSU>>>(\d+)<<<MSU"
 
     # The message to pack a node Id into as the first message to an in-socket
     # so that the in-socket knows which node it is connected to.
-    nodeIdMessage = "GJN>>>%d<<<GJN"
+    nodeIdMessage = "MSU>>>%d<<<MSU"
 
-    # Error number for "[WinError 10038] An operation was attempted on something that is not a socket"
-    errorSocketNotConnected = 10038
-
-    # Error number for "[WinError 10053] An established connection was aborted by the software in your host machine"
-    errorConnectionClosedHost = 10053
-
-    # Error number for "[WinError 10054] An existing connection was forcibly closed by the remote host"
-    errorConnectionClosedRemote = 10054
-
-    # Error number for "[WinError 10061] No connection could be made because the target machine actively refused it"
-    errorNoConnectionMade = 10061
+    errorsToIgnore = [
+        10038, # [WinError 10038] An operation was attempted on something that is not a socket
+        10053, # [WinError 10053] An established connection was aborted by the software in your host machine
+        10054, # [WinError 10054] An existing connection was forcibly closed by the remote host
+        10061, # [WinError 10061] No connection could be made because the target machine actively refused it
+        9,     # [Errno 9] Bad file descriptor (same as Win 10038)
+        53,    # [Errno 53] Software caused connection abort (same as Win 10053)
+        54,    # [Errno 54] Connection reset by peer (same as Win 10054)
+        61,    # [Errno 61] Connection refused (same as Win 10061)
+    ]
 
     # Backlog for socket host when listening for incoming connections.
     socketServerBacklog = 1
@@ -67,7 +70,7 @@ class socketConst:
     reconnectDelay = 1.0
 
 
-class messageDefragger:
+class MessageDefragger:
     # This is a tool for piecing together parts of messages
     # which have been escaped and streamed across the socket.
     # Also provides the why to escape and frame the message.
@@ -86,29 +89,27 @@ class messageDefragger:
             if self.__escaped:
                 self.__data.append(c)
                 self.__escaped = False
-            elif c == ord(socketConst.messageEscape):
+            elif c == ord(SocketConst.messageEscape):
                 self.__escaped = True
-            elif c == ord(socketConst.messageDelimiter):
+            elif c == ord(SocketConst.messageDelimiter):
                 messages.append(self.__data.decode())
                 self.__data.clear()
             else:
                 self.__data.append(c)
-        if len(self.__data) > socketConst.maximumChunkSize:
+        if len(self.__data) > SocketConst.maximumChunkSize:
             self.__data.clear()
             self.__escaped = False
         return messages
 
     def encode(self, msg: str) -> bytes:
         # Escapes and frames the message so it can be decoded later.
-        msg = msg.replace(socketConst.messageEscape, socketConst.messageDoubleEscape)
-        msg = msg.replace(
-            socketConst.messageDelimiter, socketConst.messageEscapedDelimiter
-        )
-        msg += socketConst.messageDelimiter
+        msg = msg.replace(SocketConst.messageEscape, SocketConst.messageDoubleEscape)
+        msg = msg.replace(SocketConst.messageDelimiter, SocketConst.messageEscapedDelimiter)
+        msg += SocketConst.messageDelimiter
         return msg.encode()
 
 
-class inSocket:
+class InSocket:
     # This is a handler for a socket from an incoming connection to the local host.
 
     def __init__(self, conn, onConnected, onMessages, onClosed):
@@ -118,7 +119,7 @@ class inSocket:
         self.__onMessages = onMessages
         self.__onClosed = onClosed
         self.__keepAlive = True
-        self.__defrag = messageDefragger()
+        self.__defrag = MessageDefragger()
         self.__nodeId = -1
 
         thread = threading.Thread(target=self.__listen)
@@ -128,21 +129,17 @@ class inSocket:
         # Asynchronously listen for messages on this socket.
         while self.__keepAlive:
             try:
-                chunk = self.__conn.recv(socketConst.receiveChunkSize)
+                chunk = self.__conn.recv(SocketConst.receiveChunkSize)
                 if chunk:
                     self.__addMessageChunk(chunk)
             except socket.error as e:
-                if e.errno == socketConst.errorConnectionClosedHost:
-                    # Host closed so close the socket.
-                    break
-                elif e.errno == socketConst.errorConnectionClosedRemote:
-                    # Out-socket closed so close this socket.
+                if e.errno in SocketConst.errorsToIgnore:
                     break
                 else:
-                    print("inSocket exception:", e)
+                    print("InSocket exception:", e)
                     break
             except Exception as e:
-                print("inSocket exception:", e)
+                print("InSocket exception:", e)
                 break
         self.__onClosed(self)
 
@@ -159,7 +156,7 @@ class inSocket:
             while len(messages) > 0:
                 msg = messages[0]
                 messages = messages[1:]
-                match = re.search(socketConst.nodeIdRegex, msg)
+                match = re.search(SocketConst.nodeIdRegex, msg)
                 if match:
                     self.__nodeId = int(match.group(1))
                     self.__onConnected(self)
@@ -183,7 +180,7 @@ class inSocket:
         self.__conn.close()
 
 
-class inSocketHost:
+class InSocketHost:
     # This handles opening a host for all incoming sockets connections.
 
     def __init__(self, url: str, useHost: bool, onConnected, onMessages, onClosed):
@@ -214,26 +211,26 @@ class inSocketHost:
                 self.__serverSock.bind((host, port))
             except OSError as e:
                 print("Failed to bind host:", e)
-                time.sleep(socketConst.hostRebindDelay)
+                time.sleep(SocketConst.hostRebindDelay)
                 continue
 
             # Listen for connections and accept any incoming sockets.
-            self.__serverSock.listen(socketConst.socketServerBacklog)
+            self.__serverSock.listen(SocketConst.socketServerBacklog)
             while self.__keepAlive:
                 try:
                     conn, addr = self.__serverSock.accept()
                     self.__addConnection(conn, addr)
                 except socket.error as e:
-                    if e.errno == socketConst.errorSocketNotConnected:
-                        # `accept` can't be called, socket closed, go back to binding
+                    if e.errno in SocketConst.errorsToIgnore:
+                        # Likely `accept` can't be called, socket closed, go back to binding
                         break
                     else:
-                        print("inSocketHost exception:", e)
+                        print("InSocketHost exception:", e)
                         break
 
     def __addConnection(self, conn, addr):
         # Adds a new in-socket for the new connection.
-        sock = inSocket(
+        sock = InSocket(
             conn,
             self.__onInSocketConnected,
             self.__onInSocketMessages,
@@ -310,12 +307,10 @@ class inSocketHost:
         self.__serverSock.close()
 
 
-class outSocket:
+class OutSocket:
     # This is an outgoing socket which continues to try to connect and stay connected to a host until closed.
 
-    def __init__(
-        self, nodeId: int, targetId: int, url: str, onConnected, onMessages, onClosed
-    ):
+    def __init__(self, nodeId: int, targetId: int, url: str, onConnected, onMessages, onClosed):
         # Creates a new outgoing socket for this `nodeId` to connect with the
         # host `targetId` via the given `url` to the `targetId`.
         self.__nodeId = nodeId
@@ -325,7 +320,7 @@ class outSocket:
         self.__onClosed = onClosed
         self.__dataLock = threading.Lock()
         self.__keepAlive = True
-        self.__defrag = messageDefragger()
+        self.__defrag = MessageDefragger()
         self.__pending = None
         self.__sock = None
 
@@ -345,7 +340,7 @@ class outSocket:
                 with self.__dataLock:
                     self.__pending = sock
 
-                sock.settimeout(socketConst.connectTimeout)
+                sock.settimeout(SocketConst.connectTimeout)
                 sock.connect((host, port))
                 sock.settimeout(None)
 
@@ -356,34 +351,23 @@ class outSocket:
                 self.__closeConnection()
                 continue
             except socket.error as e:
-                if e.errno == socketConst.errorNoConnectionMade:
-                    # No connection could be made yet or host was setup yet.
-                    # Attempt to connect to host again.
-                    pass
-                elif e.errno == socketConst.errorConnectionClosedRemote:
-                    # An existing connection was forcibly closed by the remote host.
-                    # Start trying to reconnect.
-                    pass
-                elif e.errno == socketConst.errorConnectionClosedHost:
-                    # This connection closed so close the out-socket.
-                    pass
-                elif e.errno == socketConst.errorSocketNotConnected:
-                    # Trying to listen on a closed socket, try to reconnect.
+                if e.errno in SocketConst.errorsToIgnore:
+                    # Attempt to connect/reconnect to host again.
                     pass
                 else:
-                    print("outSocket expection:", e)
+                    print("OutSocket expection:", e)
 
                 # Failed to connect or lost connection, wait a little bit then try again.
                 self.__closeConnection()
                 if self.__keepAlive:
-                    time.sleep(socketConst.reconnectDelay)
+                    time.sleep(SocketConst.reconnectDelay)
                 continue
         self.__closeConnection()
 
     def __listen(self):
         # Listens to the socket to receive messages.
         while self.__keepAlive:
-            chunk = self.__sock.recv(socketConst.receiveChunkSize)
+            chunk = self.__sock.recv(SocketConst.receiveChunkSize)
             if chunk:
                 self.__addMessageChunk(chunk)
 
@@ -393,7 +377,7 @@ class outSocket:
         with self.__dataLock:
             self.__pending = None
             self.__sock = sock
-        self.sendTo(socketConst.nodeIdMessage % (self.__nodeId))
+        self.sendTo(SocketConst.nodeIdMessage % (self.__nodeId))
         self.__onConnected(self.__targetId)
 
     def __addMessageChunk(self, chunk: bytes):
@@ -434,7 +418,7 @@ class outSocket:
             self.__sock.close()
 
 
-class socketManager:
+class SocketManager:
     # A tool for setting up and maintaining several connections
     # for processes identified with an integer, the node Id.
 
@@ -447,7 +431,7 @@ class socketManager:
         # The callback methods are called asynchronously and multiple may be called
         # at the same time. If you need to synchronize then you must add a lock.
         self.__nodeId = nodeId
-        self.__outSockets = []
+        self.__outSockets = {}
         self.__onConnected = onConnected
         self.__onMessage = onMessage
         self.__onClosed = onClosed
@@ -467,7 +451,7 @@ class socketManager:
         # already has been started the older socket host will be closed.
         if self.__inSocketHost:
             self.__inSocketHost.close()
-        self.__inSocketHost = inSocketHost(
+        self.__inSocketHost = InSocketHost(
             url,
             useHost,
             self.__onInnerConnected,
@@ -479,7 +463,7 @@ class socketManager:
         # Connects this manager to another node which has a socket hosted.
         # If the other node hasn't started the host yet, this will continue to attempt to connect
         # until it has been connected or the manager is closed.
-        outSock = outSocket(
+        outSock = OutSocket(
             self.__nodeId,
             targetId,
             url,
@@ -487,7 +471,7 @@ class socketManager:
             self.__onInnerMessages,
             self.__onInnerClosed,
         )
-        self.__outSockets.append(outSock)
+        self.__outSockets[targetId] = outSock
 
     def __onInnerConnected(self, nodeId: int):
         # Handles a socket being connected.
@@ -511,7 +495,7 @@ class socketManager:
         anySent = False
         if self.__inSocketHost.sendToAll(message):
             anySent = True
-        for sock in self.__outSockets:
+        for sock in self.__outSockets.values():
             if sock.sendTo(message):
                 anySent = True
         return anySent
@@ -532,5 +516,5 @@ class socketManager:
         # Closes and cleanup all the sockets being used by this manager.
         if self.__inSocketHost:
             self.__inSocketHost.close()
-        for sock in self.__outSockets:
+        for sock in self.__outSockets.values():
             sock.close()

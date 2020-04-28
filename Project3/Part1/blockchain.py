@@ -190,25 +190,32 @@ class Blockchain:
             prevHash = b.hash
         return True
 
-    def setBlocks(self, blocks: [block.Block]) -> int:
+    def setBlocks(self, blocks: [block.Block], verbose: bool = False) -> int:
         # Adds and replaces blocks in the chain with the given blocks.
         # The blocks are only replaced if valid otherwise no change and false is returned.
         if not blocks:
+            if verbose:
+                print("Ignore empty block set")
             return ignoreAddBlock
         
         # Determine if the new blocks will make this chain longer, if not ignore it.
         index = blocks[0].blockNum
         if index + len(blocks) <= len(self.chain):
+            if verbose:
+                print("Ignore %d blocks starting at %d, we have %d which is longer" % (len(blocks), index, len(self.chain)))
             return ignoreAddBlock
 
         if index > len(self.chain):
-            # Block is past the last known block.
+            if verbose:
+                print("Block %d is past the last known block %d, so request more information" % (index, len(self.chain)))
             return needMoreBlockInfo
 
         newChain = []
         newChain.extend(self.chain[:index])
         newChain.extend(blocks)
-        if not self.isChainValid(newChain):
+        if not self.isChainValid(newChain, verbose):
+            if verbose:
+                print("Request more information because constructed chain was invalid")
             return needMoreBlockInfo
 
         # Check for matching or lost transactions and update pending.
@@ -219,6 +226,8 @@ class Blockchain:
             for t in b.transactions:
                 self.removeTransaction(t)
         self.chain = newChain
+        if verbose:
+            print("Blocks were added")
         return blocksAdded
 
     def buildNextBlock(self, miningAccount: str) -> block.Block:

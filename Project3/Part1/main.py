@@ -66,7 +66,7 @@ miningReward = 1.0
 
 class MainLoop:
     def __init__(self):
-        self.sock = sockets.socketManager(
+        self.sock = sockets.SocketManager(
             myNodeId, self.__onConnected, self.__onMessage, self.__onClosed
         )
         self.sock.startFullyConnected(socketURLs, useServerHost)
@@ -74,10 +74,11 @@ class MainLoop:
             difficulty, miningReward, minerAccount, self.__onBlockedMined)
         self.__loadFromFile()
         self.bc.startMining()
-        self.__requestMoreInfo()
 
     def __onConnected(self, nodeId: int):
         print("Connected to", nodeId)
+        # Check if the other connection is more up-to-date (has a longer chain)
+        self.__requestMoreInfo(nodeId)
 
     def __onClosed(self, nodeId: int):
         print("Connection to", nodeId, "closed")
@@ -118,14 +119,16 @@ class MainLoop:
         except Exception as e:
             print('Failed to load from log file: %s' % (e))
 
-
-    def __requestMoreInfo(self):
+    def __requestMoreInfo(self, nodeId: int = -1):
         hashes = self.bc.listHashes()
-        self.sock.sendToAll(json.dumps({
+        msg = json.dumps({
             "Type": "NeedMoreInfo",
-            "NodeId": myNodeId,
             "Hashes": hashes
-        }))
+        })
+        if nodeId < 0:
+            self.sock.sendToAll(msg)
+        else:
+            self.sock.sendTo(nodeId, msg)
 
     def __onRemoteAddTransaction(self, data: {}):
         t = transaction.transaction()
@@ -148,10 +151,11 @@ class MainLoop:
 
     def __onRemoteNeedMoreInfo(self, hashes: [], nodeId: int):
         diff = self.bc.getDifferenceTuple(hashes)
-        self.sock.sendTo(nodeId, json.dumps({
-            "Type": "ReplyWithInfo",
-            "Diff": diff
-        }))
+        if diff:
+            self.sock.sendTo(nodeId, json.dumps({
+                "Type": "ReplyWithInfo",
+                "Diff": diff
+            }))
 
     def __onRemoteReplayWithInfo(self, dataList: {}):
         blocks = []
@@ -169,14 +173,18 @@ class MainLoop:
         # probably means the data is invalid so do nothing.
 
     def __onMessage(self, nodeId: int, message: str):
-        data = json.loads(message)
+        try:
+            data = json.loads(message)
+        except Exception as e:
+            print("Error receiving message:", e)
+            return
         dataType = data["Type"]
         if dataType == "AddTransaction":
             self.__onRemoteAddTransaction(data["Transaction"])
         elif dataType == "AddBlock":
             self.__onRemoteAddBlock(data["Block"])
         elif dataType == "NeedMoreInfo":
-            self.__onRemoteNeedMoreInfo(data["Hashes"], data["NodeId"])
+            self.__onRemoteNeedMoreInfo(data["Hashes"], nodeId)
         elif dataType == "ReplyWithInfo":
             self.__onRemoteReplayWithInfo(data["Diff"])
         else:

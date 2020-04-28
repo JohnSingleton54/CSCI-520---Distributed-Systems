@@ -82,11 +82,11 @@ class AsyncBlockchain:
         with self.lock:
             return self.bc.isValid(verbose)
 
-    def setBlocks(self, blocks: [block.Block]) -> int:
+    def setBlocks(self, blocks: [block.Block], verbose: bool = False) -> int:
         # Adds and replaces blocks in the chain with the given blocks.
         # The blocks are only replaced if valid otherwise no change and false is returned.
         with self.lock:
-            return self.bc.setBlocks(blocks)
+            return self.bc.setBlocks(blocks, verbose)
 
     def startMining(self) -> bool:
         # Start an asynchronous mining thread.
@@ -101,6 +101,7 @@ class AsyncBlockchain:
     def stopMining(self):
         # Stop and rejoin the mining thread.
         self.keepMining = False
+        self.thread.join()
 
     def __asyncMinePendingTransactions(self):
         # Constructs and mines a new block. If a block is mined and added
