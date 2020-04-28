@@ -139,12 +139,12 @@ class MainLoop:
         b = block.Block()
         b.fromTuple(data)
         result = self.bc.setBlocks([b])
-        if result == Blockchain.blocksAdded:
+        if result == blockchain.blocksAdded:
             # A block was added so stop mining the
             # current block and start the next one.
             self.bc.restartMining()
             self.__saveToFile()
-        elif result == Blockchain.needMoreBlockInfo:
+        elif result == blockchain.needMoreBlockInfo:
             # The block we tried to add was for a possibly longer chain.
             self.__requestMoreInfo()
         # else ignoreAddBlock and do nothing.
@@ -164,7 +164,7 @@ class MainLoop:
             b.fromTuple(data)
             blocks.append(b)
         result = self.bc.setBlocks(blocks)
-        if result == Blockchain.blocksAdded:
+        if result == blockchain.blocksAdded:
             # The missing block(s) were added so stop mining the
             # current block and start the next one.
             self.bc.restartMining()
@@ -217,7 +217,10 @@ class MainLoop:
         print(self.bc.lastBlock())
 
     def __showBalances(self):
-        print(self.bc.getAllBalances())
+        balances = self.bc.getAllBalances()
+        print("Balances:")
+        for account in balances:
+            print("  %s = %f" % (account, balances[account]))
 
     def run(self):
         while True:

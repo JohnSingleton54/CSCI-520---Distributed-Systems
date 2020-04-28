@@ -19,7 +19,7 @@ class Blockchain:
     # The blockchain and current configurations.
 
     def __init__(self, difficulty: int, miningReward: float):
-        # Creates a new blockchain.
+        # Creates a new block chain.
         self.difficulty   = difficulty
         self.miningReward = miningReward
         self.chain        = []
@@ -37,7 +37,7 @@ class Blockchain:
         return "\n".join(parts)
 
     def toTuple(self) -> {}:
-        # Creates a dictionary for this blockchain.
+        # Creates a dictionary for this block chain.
         blocks = []
         for block in self.chain:
             blocks.append(block.toTuple())

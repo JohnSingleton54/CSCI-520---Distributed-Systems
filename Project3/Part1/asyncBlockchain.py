@@ -30,7 +30,7 @@ class AsyncBlockchain:
             return str(self.bc)
 
     def toTuple(self) -> {}:
-        # Creates a dictionary for this blockchain.
+        # Creates a dictionary for this block chain.
         with self.lock:
             return self.bc.toTuple()
 
