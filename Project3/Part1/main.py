@@ -131,7 +131,7 @@ class MainLoop:
             self.sock.sendTo(nodeId, msg)
 
     def __onRemoteAddTransaction(self, data: {}):
-        t = transaction.transaction()
+        t = transaction.Transaction()
         t.fromTuple(data)
         self.bc.addTransaction(t)
 
@@ -139,12 +139,12 @@ class MainLoop:
         b = block.Block()
         b.fromTuple(data)
         result = self.bc.setBlocks([b])
-        if result == blockchain.blocksAdded:
+        if result == Blockchain.blocksAdded:
             # A block was added so stop mining the
             # current block and start the next one.
             self.bc.restartMining()
             self.__saveToFile()
-        elif result == blockchain.needMoreBlockInfo:
+        elif result == Blockchain.needMoreBlockInfo:
             # The block we tried to add was for a possibly longer chain.
             self.__requestMoreInfo()
         # else ignoreAddBlock and do nothing.
@@ -164,13 +164,13 @@ class MainLoop:
             b.fromTuple(data)
             blocks.append(b)
         result = self.bc.setBlocks(blocks)
-        if result == blockchain.blocksAdded:
+        if result == Blockchain.blocksAdded:
             # The missing block(s) were added so stop mining the
             # current block and start the next one.
             self.bc.restartMining()
             self.__saveToFile()
         # else needMoreBlockInfo or ignoreAddBlock which
-        # probably means the data is invalid so do nothing.
+        # probably means the data is invalid so do nothing.bo
 
     def __onMessage(self, nodeId: int, message: str):
         try:
@@ -252,7 +252,9 @@ class MainLoop:
 
         print("Closing...")
         self.sock.close()
+        print("Here I am")
         self.bc.stopMining()
+        print("On the road again")
 
 
 if __name__ == "__main__":

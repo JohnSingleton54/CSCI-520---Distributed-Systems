@@ -20,23 +20,23 @@ class Block:
     # It contains a set of transactions since the prior chain.
 
     def __init__(self, blockNum: int = 0, previousHash = None, minerAccount: str = "",
-        minerReward: float = 0.0, transactions: [transaction] = []):
+        miningReward: float = 0.0, transactions: [transaction] = []):
         # Creates a new block with the given previous block's hash
         # and the transactions for this block.
-        self.blockNum     = blockNum
-        self.timestamp    = misc.newTime()
-        self.transactions = transactions
-        self.previousHash = previousHash
-        self.hash         = initialHash
-        self.nonce        = 0
-        self.minerAccount = minerAccount
-        self.minerReward  = minerReward
+        self.blockNum      = blockNum
+        self.timestamp     = misc.newTime()
+        self.transactions  = transactions
+        self.previousHash  = previousHash
+        self.hash          = initialHash
+        self.nonce         = 0
+        self.minerAccount  = minerAccount
+        self.miningReward  = miningReward
 
     def __str__(self) -> str:
         # Gets a string for this block.
         parts = []
         parts.append("block: %d, time: %s, nonce: %d, miner: %s, reward: %f" % (
-            self.blockNum, misc.timeToStr(self.timestamp), self.nonce, str(self.minerAccount), self.minerReward))
+            self.blockNum, misc.timeToStr(self.timestamp), self.nonce, str(self.minerAccount), self.miningReward))
         parts.append("  prev: %s" % (str(self.previousHash)))
         parts.append("  hash: %s" % (str(self.hash)))
         for trans in self.transactions:
@@ -56,21 +56,21 @@ class Block:
             "hash":         self.hash,
             "nonce":        self.nonce,
             "minerAccount": self.minerAccount,
-            "minerReward":  self.minerReward,
+            "miningReward": self.miningReward,
         }
 
     def fromTuple(self, data: {}):
         # This loads a block from the given tuple.
-        self.blockNum     = data["blockNum"]
-        self.timestamp    = data["timestamp"]
-        self.previousHash = data["previousHash"]
-        self.hash         = data["hash"]
-        self.nonce        = data["nonce"]
-        self.minerAccount = data["minerAccount"]
-        self.minerReward  = data["minerReward"]
-        self.transactions = []
+        self.blockNum      = data["blockNum"]
+        self.timestamp     = data["timestamp"]
+        self.previousHash  = data["previousHash"]
+        self.hash          = data["hash"]
+        self.nonce         = data["nonce"]
+        self.minerAccount  = data["minerAccount"]
+        self.miningReward  = data["miningReward"]
+        self.transactions  = []
         for subdata in data["transactions"]:
-            t = transaction.transaction()
+            t = transaction.Transaction()
             t.fromTuple(subdata)
             self.transactions.append(t)
 
@@ -94,7 +94,7 @@ class Block:
                 print("Block %d has no miner account set" % (self.blockNum))
             return False
 
-        if miningReward != self.minerReward:
+        if miningReward != self.miningReward:
             if verbose:
                 print("Block %d has wrong mining reward" % (self.blockNum))
             return False
@@ -109,6 +109,6 @@ class Block:
                 print("Block %d did not meet difficulty requirement" % (self.blockNum))
             return False
 
-        runningBalances[self.minerAccount] = runningBalances.get(self.minerAccount, 0.0) + self.minerReward
+        runningBalances[self.minerAccount] = runningBalances.get(self.minerAccount, 0.0) + self.miningReward
         return True
 
