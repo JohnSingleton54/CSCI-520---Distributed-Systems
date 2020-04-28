@@ -163,18 +163,17 @@ class Blockchain:
 
     def isValid(self, verbose: bool = False) -> bool:
         # Indicates if this blockchain is valid.
-        return self.isChainValid(self.chain, verbose)
+        return self.isChainValid(self.chain, 0, block.initialHash, verbose)
 
-    def isChainValid(self, chain: [block.Block], verbose: bool = False) -> bool:
+    def isChainValid(self, chain: [block.Block], blockNumOffset, prevHash, verbose: bool = False) -> bool:
         # Indicates if this given chain is valid.
-        prevHash = block.initialHash
         runningBalances = {}
         for i in range(len(chain)):
             b = chain[i]
 
-            if b.blockNum != i:
+            if b.blockNum != i + blockNumOffset:
                 if verbose:
-                    print("Block %d has the block number %d" % (i, b.blockNum))
+                    print("Block %d has the block number %d" % (i + blockNumOffset, b.blockNum))
                 return False
 
             if not b.isValid(self.difficulty, self.miningReward, runningBalances, verbose):
@@ -210,13 +209,19 @@ class Blockchain:
                 print("Block %d is past the last known block %d, so request more information" % (index, len(self.chain)))
             return needMoreBlockInfo
 
-        newChain = []
-        newChain.extend(self.chain[:index])
-        newChain.extend(blocks)
-        if not self.isChainValid(newChain, verbose):
+        # Validate the knew blocks
+        prevHash = block.initialHash
+        if index > 0:
+            prevHash = self.chain[index-1].hash
+        if not self.isChainValid(blocks, index, prevHash, verbose):
             if verbose:
                 print("Request more information because constructed chain was invalid")
             return needMoreBlockInfo
+
+        # Build new chain
+        newChain = []
+        newChain.extend(self.chain[:index])
+        newChain.extend(blocks)
 
         # Check for matching or lost transactions and update pending.
         for b in self.chain[index:]:
