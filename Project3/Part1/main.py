@@ -10,6 +10,8 @@
 # References:
 # 1. https://blog.goodaudience.com/how-a-miner-adds-transactions-to-the-blockchain-in-seven-steps-856053271476
 
+# 2. https://git-scm.com/book/en/v2/Git-Branching-Basic-Branching-and-Merging
+#    git - branching, merging
 
 # This comment should only appear in the branch txn_pools.
 
