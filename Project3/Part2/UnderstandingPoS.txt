@@ -2,4 +2,15 @@ References:
 1. https://www.geeksforgeeks.org/proof-of-stake-pos-in-blockchain/
 
 
+slashing - After a validator is selected, but before his stake is returned and his forging reward is
+granted, the nodes on the network have to okay the block. If they find the block to be fraudulent,
+then his forging reward is not granted and his stake is slashed (lost). (Where does his stake go?)
 
+There will be a fixed number of coins circulating in the network.
+
+An entity can gain coins either by receving them in a txn or by forging a new block (assuming that
+the block is okayed).
+
+An entity can lose coins either by sending them in a txn, by txn fee, or by being slashed.
+
+Q: Does an entity have to stake his entire amount of coins?
