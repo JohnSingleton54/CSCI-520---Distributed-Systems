@@ -1,0 +1,5 @@
+References:
+1. https://www.geeksforgeeks.org/proof-of-stake-pos-in-blockchain/
+
+
+
