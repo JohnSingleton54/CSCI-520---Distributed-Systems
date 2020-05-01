@@ -18,10 +18,12 @@ blocksAdded = 2
 class Blockchain:
     # The blockchain and current configurations.
 
-    def __init__(self):
+    def __init__(self, creator: str, probability: float):
         # Creates a new block chain.
-        self.chain   = []
-        self.pending = []  # pending transactions
+        self.creator     = creator
+        self.probability = probability
+        self.chain       = []
+        self.pending     = []  # pending transactions
 
     def __str__(self) -> str:
         # Gets a string for this transaction.
@@ -173,7 +175,13 @@ class Blockchain:
                     print("Block %d has the block number %d" % (i + blockNumOffset, b.blockNum))
                 return False
 
-            if not b.isValid(self.difficulty, self.validatorReward, runningBalances, verbose):
+            # Check if the creator was allowed to create the block.
+            if not self.__isAllowedToCreateBlock(prevHash, b.creator, b.blockNum):
+                if verbose:
+                    print("Block %d is not allowed to created by that creator yet" % (i))
+                return False
+
+            if not b.isValid(runningBalances, verbose):
                 if verbose:
                     print("Block %d is not valid" % (i))
                 return False
@@ -232,7 +240,21 @@ class Blockchain:
             print("Blocks were added")
         return blocksAdded
 
-    def buildNextBlock(self, creator: str) -> block.Block:
+    def shouldCreateNextBlock(self, blockNum: int) -> bool:
+        # Determines if this block chain should create the next block.
+        return self.__isAllowedToCreateBlock(self.lastHash(), self.creator, blockNum)
+
+    def __isAllowedToCreateBlock(self, prevHash, creator: str, blockNum: int) -> bool:
+        # Determines if the given creator was permitted to create the block.
+        data = {
+            "previousHash", prevHash,
+            "creator",      creator,
+            "blockNum",     blockNum,
+        }
+        hash = misc.hashData(data)
+        return misc.coinToss(hash, self.probability)
+
+    def createNextBlock(self) -> block.Block:
         # Constructs a new block. Will use but not clear out pending transactions.
         balances = self.getAllBalances()
         trans = []
@@ -242,4 +264,4 @@ class Blockchain:
             if tran.isValid(balances):
                 trans.append(tran)
         blockNum = len(self.chain)
-        return block.Block(blockNum, self.lastHash(), creator, trans)
+        return block.Block(blockNum, self.lastHash(), self.creator, trans)

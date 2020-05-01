@@ -5,9 +5,6 @@
 # Project 3 (Blockchain Programming Project)
 # due May 7, 2020 by 11:59 PM
 
-import hashlib
-import json
-
 import transaction
 import misc
 
@@ -28,6 +25,8 @@ class Block:
         self.previousHash = previousHash
         self.hash         = initialHash
         self.creator      = creator
+        # Calculate the hash for this block.
+        self.hash = self.calculateHash()
 
     def __str__(self) -> str:
         # Gets a string for this block.
@@ -71,8 +70,7 @@ class Block:
         # Calculates the hash for this whole block, excluding the hash value itself.
         data = self.toTuple()
         del data["hash"]
-        dataBytes = bytearray(str(data), 'utf-8')
-        return hashlib.sha256(dataBytes).hexdigest()
+        return misc.hashData(data)
 
     def isValid(self, runningBalances: {str: float}, verbose: bool = False) -> bool:
         # Determines if this block is valid.

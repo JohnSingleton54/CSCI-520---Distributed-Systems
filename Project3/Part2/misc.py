@@ -7,6 +7,8 @@
 
 import time
 import random
+import hashlib
+import json
 
 
 def timeToStr(timestamp: float) -> str:
@@ -31,9 +33,15 @@ def useTestTime():
     newTime = testTime
 
 
-# This seeds a random number with the given seed then checks if the
-# returned random number is less than the probability [0.0 .. 1.0].
-# True if successful (heads), false otherwise (tails).
+def hashData(data: {}):
+    # Gets the hash of the given dictionary.
+    dataBytes = bytearray(str(data), 'utf-8')
+    return hashlib.sha256(dataBytes).hexdigest()
+
+
 def coinToss(seed, probability: float) -> bool:
+    # This seeds a random number with the given seed then checks if the
+    # returned random number is less than the probability [0.0 .. 1.0].
+    # True if successful (heads), false otherwise (tails).
     r = random.Random(seed)
     return r.random() < probability

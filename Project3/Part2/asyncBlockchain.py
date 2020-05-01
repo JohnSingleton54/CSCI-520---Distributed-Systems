@@ -15,9 +15,8 @@ class AsyncBlockchain:
     # This is a wrapper around a blockchain to provide thread safe access
     # to the chain and asynchronous validating.
 
-    def __init__(self, validatorAccount: str):
-        self.bc = blockchain.Blockchain()
-        self.validatorAccount = validatorAccount
+    def __init__(self, creator: str, probability: float):
+        self.bc = blockchain.Blockchain(creator, probability)
         self.lock = threading.Lock()
         self.thread = None
         self.needToRestart = True
