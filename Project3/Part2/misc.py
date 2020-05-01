@@ -29,3 +29,11 @@ def useTestTime():
         return testTimeValue
     global newTime
     newTime = testTime
+
+
+# This seeds a random number with the given seed then checks if the
+# returned random number is less than the probability [0.0 .. 1.0].
+# True if successful (heads), false otherwise (tails).
+def coinToss(seed, probability: float) -> bool:
+    r = random.Random(seed)
+    return r.random() < probability

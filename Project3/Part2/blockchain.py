@@ -232,7 +232,7 @@ class Blockchain:
             print("Blocks were added")
         return blocksAdded
 
-    def buildNextBlock(self, validatorAccount: str) -> block.Block:
+    def buildNextBlock(self, creator: str) -> block.Block:
         # Constructs a new block. Will use but not clear out pending transactions.
         balances = self.getAllBalances()
         trans = []
@@ -242,6 +242,4 @@ class Blockchain:
             if tran.isValid(balances):
                 trans.append(tran)
         blockNum = len(self.chain)
-
-        validatorReward = 1.0 # TODO: Figure out what the validation reward is
-        return block.Block(blockNum, self.lastHash(), validatorAccount, validatorReward, trans)
+        return block.Block(blockNum, self.lastHash(), creator, trans)

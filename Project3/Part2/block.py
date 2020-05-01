@@ -19,8 +19,7 @@ class Block:
     # Stores a single block in the chain.
     # It contains a set of transactions since the prior chain.
 
-    def __init__(self, blockNum: int = 0, previousHash = None, validatorAccount: str = "",
-        validatorReward: float = 0.0, transactions: [transaction] = []):
+    def __init__(self, blockNum: int = 0, previousHash = None, creator: str = "", transactions: [transaction] = []):
         # Creates a new block with the given previous block's hash
         # and the transactions for this block.
         self.blockNum     = blockNum
@@ -28,15 +27,13 @@ class Block:
         self.transactions = transactions
         self.previousHash = previousHash
         self.hash         = initialHash
-        self.validatorAccount = validatorAccount
-        self.validatorReward  = validatorReward
+        self.creator      = creator
 
     def __str__(self) -> str:
         # Gets a string for this block.
         parts = []
-        parts.append("block: %d, time: %s, validator: %s, reward: %f" % (
-            self.blockNum, misc.timeToStr(self.timestamp),
-            str(self.validatorAccount), self.validatorReward))
+        parts.append("block: %d, time: %s, creator: %s" % (
+            self.blockNum, misc.timeToStr(self.timestamp), str(self.creator)))
         parts.append("  prev: %s" % (str(self.previousHash)))
         parts.append("  hash: %s" % (str(self.hash)))
         for trans in self.transactions:
@@ -54,8 +51,7 @@ class Block:
             "transactions": trans,
             "previousHash": self.previousHash,
             "hash":         self.hash,
-            "validatorAccount": self.validatorAccount,
-            "validatorReward":  self.validatorReward,
+            "creator":      self.creator,
         }
 
     def fromTuple(self, data: {}):
@@ -64,8 +60,7 @@ class Block:
         self.timestamp     = data["timestamp"]
         self.previousHash  = data["previousHash"]
         self.hash          = data["hash"]
-        self.validatorAccount = data["validatorAccount"]
-        self.validatorReward  = data["validatorReward"]
+        self.creator       = data["creator"]
         self.transactions  = []
         for subdata in data["transactions"]:
             t = transaction.Transaction()
@@ -87,9 +82,9 @@ class Block:
                     print("Block %d has transaction %d which is not valid" % (self.blockNum, i))
                 return False
 
-        if not self.validatorAccount:
+        if not self.creator:
             if verbose:
-                print("Block %d has no validator account set" % (self.blockNum))
+                print("Block %d has no creator set" % (self.blockNum))
             return False
 
         # validatorReward = # TODO: Determine how much money this validator should receive.
@@ -103,6 +98,6 @@ class Block:
                 print("Block %d has different hash than calculated" % (self.blockNum))
             return False
 
-        runningBalances[self.validatorAccount] = runningBalances.get(self.validatorAccount, 0.0) + self.validatorReward
+        #runningBalances[self.validatorAccount] = runningBalances.get(self.validatorAccount, 0.0) + self.validatorReward
         return True
 
