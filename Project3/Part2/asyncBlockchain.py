@@ -64,11 +64,6 @@ class AsyncBlockchain:
         with self.lock:
             self.bc.addTransaction(trans)
 
-    def getBalance(self, account: str) -> float:
-        # Gets the balance for the given account.
-        with self.lock:
-            return self.bc.getBalance(account)
-
     def getAllBalances(self) -> {str: float}:
         # Gets a dictionary of account to balance.
         with self.lock:
@@ -79,10 +74,10 @@ class AsyncBlockchain:
         with self.lock:
             return self.bc.isValid(verbose)
 
-    def addCandidateBlocks(self, block: block.Block, verbose: bool = False) -> int:
+    def addCandidateBlock(self, block: block.Block, verbose: bool = False) -> int:
         # Adds a candidate block to the be voted on with stake.
         with self.lock:
-            return self.bc.addCandidateBlocks(block, verbose)
+            return self.bc.addCandidateBlock(block, verbose)
 
     def setBlocks(self, blocks: [block.Block], verbose: bool = False) -> int:
         # Adds and replaces blocks in the chain with the given blocks.

@@ -123,7 +123,7 @@ class MainLoop:
         elif result == blockchain.needMoreBlockInfo:
             # The block we tried to add was for a possibly longer chain.
             self.__requestMoreInfo()
-        # else ignoreAddBlock and do nothing.
+        # else ignoreBlock and do nothing.
 
     def __onRemoteNeedMoreInfo(self, hashes: [], nodeId: int):
         diff = self.bc.getDifferenceTuple(hashes)
@@ -143,7 +143,7 @@ class MainLoop:
         if result == blockchain.blocksAdded:
             # TODO: Stop voting and start count down to next block
             self.__saveToFile()
-        # else needMoreBlockInfo or ignoreAddBlock which
+        # else needMoreBlockInfo or ignoreBlock which
         # probably means the data is invalid so do nothing.bo
 
     def __onMessage(self, nodeId: int, message: str):

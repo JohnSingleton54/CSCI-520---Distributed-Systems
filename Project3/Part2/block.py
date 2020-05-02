@@ -56,11 +56,11 @@ class Block:
         return {
             "blockNum":     self.blockNum,
             "timestamp":    self.timestamp,
-            "stakes":       stakes,
-            "transactions": trans,
             "previousHash": self.previousHash,
             "hash":         self.hash,
             "creator":      self.creator,
+            "stakes":       stakes,
+            "transactions": trans,
         }
 
     def fromTuple(self, data: {}):

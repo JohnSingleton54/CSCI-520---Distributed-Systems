@@ -10,7 +10,7 @@ import transaction
 import misc
 
 
-ignoreAddBlock = 0
+ignoreBlock = 0
 needMoreBlockInfo = 1
 blocksAdded = 2
 
@@ -23,7 +23,8 @@ class Blockchain:
         self.creator     = creator
         self.probability = probability
         self.chain       = []
-        self.pending     = []  # pending transactions
+        self.pending     = [] # pending transactions
+        self.candidates  = [] # candidate blocks needing to be voted on
 
     def __str__(self) -> str:
         # Gets a string for this transaction.
@@ -34,10 +35,14 @@ class Blockchain:
         parts.append("pending:")
         for tran in self.pending:
             parts.append("  "+str(tran).replace("\n", "\n  "))
+        parts.append("candidates:")
+        for block in self.candidates:
+            parts.append("  "+str(block).replace("\n", "\n  "))
         return "\n".join(parts)
 
     def toTuple(self) -> {}:
         # Creates a dictionary for this block chain.
+        # This will not persist candidate blocks.
         blocks = []
         for block in self.chain:
             blocks.append(block.toTuple())
@@ -51,6 +56,7 @@ class Blockchain:
 
     def fromTuple(self, data: {}):
         # This loads a block chain from the given tuple.
+        # This will not override the candidate blocks.
         self.chain = []
         for subdata in data["blocks"]:
             b = block.Block()
@@ -115,50 +121,19 @@ class Blockchain:
         # Adds a transaction to the pending transactions to wait to be added
         # to a new block. The transaction will be sorted in.
         # This will return True if added, False if already exists.
-        for i in range(len(self.pending)):
-            cmp = self.pending[i].compare(tran)
-            if cmp == 0:
-                return False
-            if cmp > 0:
-                self.pending.insert(i, tran)
-                return True
-        self.pending.append(tran)
-        return True
+        return misc.insertSort(self.pending, tran)
 
     def removeTransaction(self, tran: transaction.Transaction) -> bool:
         # Removes a transition from the pending transactions.
         # This will return True if removed, False if already doesn't exist.
-        for i in range(len(self.pending)):
-            cmp = self.pending[i].compare(tran)
-            if cmp == 0:
-                del self.pending[i]
-                return True
-            if cmp > 0:
-                return False
-        return False
-        
-    def getBalance(self, account: str) -> float:
-        # Gets the balance for the given account.
-        balance = 0.0
-        for b in self.chain:
-            if account == b.validatorAccount:
-                balance += b.validatorReward
-            for tran in b.transactions:
-                if account == tran.fromAccount:
-                    balance -= tran.amount
-                if account == tran.toAccount:
-                    balance += tran.amount
-        return balance
+        return misc.removeFromSorted(self.pending, tran)
 
     def getAllBalances(self) -> {str: float}:
         # Gets a dictionary of account to balance.
-        accounts = {}
+        runningBalances = {}
         for b in self.chain:
-            accounts[b.validatorAccount] = accounts.get(b.validatorAccount, 0.0) + b.validatorReward
-            for tran in b.transactions:
-                accounts[tran.fromAccount] = accounts.get(tran.fromAccount, 0.0) - tran.amount
-                accounts[tran.toAccount]   = accounts.get(tran.toAccount,   0.0) + tran.amount
-        return accounts
+            b.updateBalance(runningBalances)
+        return runningBalances
 
     def isValid(self, verbose: bool = False) -> bool:
         # Indicates if this blockchain is valid.
@@ -194,20 +169,52 @@ class Blockchain:
             prevHash = b.hash
         return True
 
+    def addCandidateBlock(self, block: block.Block, verbose: bool = False) -> int:
+         # Determine if the new is at or past the end of the chain. If not, ignore it.
+        index = block.blockNum
+        if index < len(self.chain):
+            if verbose:
+                print("Ignore candidate block at %d, we have %d which is longer" % (
+                    index, len(self.chain)))
+            return ignoreBlock
+
+        if index > len(self.chain):
+            if verbose:
+                print("Candidate block %d is past the last known block %d, so request more information" % (
+                    index, len(self.chain)))
+            return needMoreBlockInfo
+
+        # Validate the knew block
+        if not self.isChainValid([block], index, self.lastHash(), verbose):
+            if verbose:
+                print("Candidate block was invalid")
+            return ignoreBlock
+
+        # Check if the candidate already exists
+        for other in self.candidates:
+            if other.hash == block.hash:
+                return ignoreBlock
+
+        # Add block to candidates
+        self.candidates.append(block)
+        if verbose:
+            print("Candidate block was added")
+        return blocksAdded
+
     def setBlocks(self, blocks: [block.Block], verbose: bool = False) -> int:
         # Adds and replaces blocks in the chain with the given blocks.
         # The blocks are only replaced if valid otherwise no change and false is returned.
         if not blocks:
             if verbose:
                 print("Ignore empty block set")
-            return ignoreAddBlock
+            return ignoreBlock
         
         # Determine if the new blocks will make this chain longer. If not, ignore it.
         index = blocks[0].blockNum
         if index + len(blocks) <= len(self.chain):
             if verbose:
                 print("Ignore %d blocks starting at %d, we have %d which is longer" % (len(blocks), index, len(self.chain)))
-            return ignoreAddBlock
+            return ignoreBlock
 
         if index > len(self.chain):
             if verbose:
@@ -215,10 +222,7 @@ class Blockchain:
             return needMoreBlockInfo
 
         # Validate the knew blocks
-        prevHash = block.initialHash
-        if index > 0:
-            prevHash = self.chain[index-1].hash
-        if not self.isChainValid(blocks, index, prevHash, verbose):
+        if not self.isChainValid(blocks, index, self.lastHash(), verbose):
             if verbose:
                 print("Request more information because constructed chain was invalid")
             return needMoreBlockInfo

@@ -216,10 +216,7 @@ class Blockchain:
             return needMoreBlockInfo
 
         # Validate the knew blocks
-        prevHash = block.initialHash
-        if index > 0:
-            prevHash = self.chain[index-1].hash
-        if not self.isChainValid(blocks, index, prevHash, verbose):
+        if not self.isChainValid(blocks, index, self.lastHash(), verbose):
             if verbose:
                 print("Request more information because constructed chain was invalid")
             return needMoreBlockInfo
