@@ -65,6 +65,11 @@ class Transaction:
                 return 1
         # They are the same
         return 0
+        
+    def updateBalance(self, runningBalances: {str: float}):
+        # Update the balances with this given transaction
+        runningBalances[self.fromAccount] = runningBalances.get(self.fromAccount, 0.0) - self.amount
+        runningBalances[self.toAccount]   = runningBalances.get(self.toAccount,   0.0) + self.amount
 
     def isValid(self, runningBalances: {str: float}, verbose: bool = False) -> bool:
         # Indicates if this transaction is valid.
@@ -87,7 +92,6 @@ class Transaction:
             if verbose:
                 print("Insufficient funds: %s has less than %d" % (self.fromAccount, self.amount))
             return False
-
-        runningBalances[self.fromAccount] = runningBalances.get(self.fromAccount, 0.0) - self.amount
-        runningBalances[self.toAccount]   = runningBalances.get(self.toAccount,   0.0) + self.amount
+        
+        self.updateBalance(runningBalances)
         return True

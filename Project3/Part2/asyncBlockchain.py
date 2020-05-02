@@ -79,6 +79,11 @@ class AsyncBlockchain:
         with self.lock:
             return self.bc.isValid(verbose)
 
+    def addCandidateBlocks(self, block: block.Block, verbose: bool = False) -> int:
+        # Adds a candidate block to the be voted on with stake.
+        with self.lock:
+            return self.bc.addCandidateBlocks(block, verbose)
+
     def setBlocks(self, blocks: [block.Block], verbose: bool = False) -> int:
         # Adds and replaces blocks in the chain with the given blocks.
         # The blocks are only replaced if valid otherwise no change and false is returned.

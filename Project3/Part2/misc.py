@@ -45,3 +45,30 @@ def coinToss(seed, probability: float) -> bool:
     # True if successful (heads), false otherwise (tails).
     r = random.Random(seed)
     return r.random() < probability
+
+
+def insertSort(sortedList, value) -> bool:
+    # Adds a value to a sorted list, the values are required to have the compare method.
+    # This will return True if added, False if already exists.
+    for i in range(len(sortedList)):
+        cmp = sortedList[i].compare(value)
+        if cmp == 0:
+            return False
+        if cmp > 0:
+            sortedList.insert(i, value)
+            return True
+    sortedList.append(value)
+    return True
+
+
+def removeFromSorted(sortedList, value) -> bool:
+    # Removes a value from a sorted list, the values are required to have the compare method.
+    # This will return True if removed, False if already doesn't exist.
+    for i in range(len(sortedList)):
+        cmp = sortedList[i].compare(value)
+        if cmp == 0:
+            del sortedList[i]
+            return True
+        if cmp > 0:
+            return False
+    return False
