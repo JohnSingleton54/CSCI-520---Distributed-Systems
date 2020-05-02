@@ -48,12 +48,11 @@ print("My validator account is %s" % (validatorAccount))
 
 class MainLoop:
     def __init__(self):
-        self.sock = sockets.SocketManager(
-            myNodeId, self.__onConnected, self.__onMessage, self.__onClosed
-        )
+        self.sock = sockets.SocketManager(myNodeId, self.__onConnected, self.__onMessage, self.__onClosed)
         self.sock.startFullyConnected(socketURLs, useServerHost)
-        self.bc = asyncBlockchain.AsyncBlockchain(validatorAccount)
+        self.bc = asyncBlockchain.AsyncBlockchain(validatorAccount, self.__onCandidateCreated)
         self.__loadFromFile()
+        self.bc.startCreation()
 
     def __onConnected(self, nodeId: int):
         print("Connected to", nodeId)
@@ -144,7 +143,18 @@ class MainLoop:
             # TODO: Stop voting and start count down to next block
             self.__saveToFile()
         # else needMoreBlockInfo or ignoreBlock which
-        # probably means the data is invalid so do nothing.bo
+        # probably means the data is invalid so do nothing
+
+    def __onCandidateCreated(self, candidate):
+        self.sock.sendToAll(json.dumps({
+            "Type": "AddCandidate",
+            "Candidate": candidate.toTuple()
+        }))
+
+    def __onAddCandidate(self, data):
+        candidate = block.Block()
+        candidate.fromTuple(data)
+        self.bc.addCandidateBlock(candidate)
 
     def __onMessage(self, nodeId: int, message: str):
         try:
@@ -155,6 +165,8 @@ class MainLoop:
         dataType = data["Type"]
         if dataType == "AddTransaction":
             self.__onRemoteAddTransaction(data["Transaction"])
+        elif dataType == "AddCandidate":
+            self.__onAddCandidate(data["Candidate"])
         elif dataType == "AddBlock":
             self.__onRemoteAddBlock(data["Block"])
         elif dataType == "NeedMoreInfo":
@@ -222,6 +234,7 @@ class MainLoop:
 
         print("Closing...")
         self.sock.close()
+        self.bc.stopCreation()
 
 
 if __name__ == "__main__":

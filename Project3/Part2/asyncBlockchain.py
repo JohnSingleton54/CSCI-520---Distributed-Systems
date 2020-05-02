@@ -9,17 +9,23 @@ import threading
 
 import blockchain
 import block
+import misc
+
+
+probabilityOfCreation = 0.5 # 50%
+amountOfTimeBetweenBlocks = 20.0 # seconds
 
 
 class AsyncBlockchain:
     # This is a wrapper around a blockchain to provide thread safe access
     # to the chain and asynchronous validating.
 
-    def __init__(self, creator: str, probability: float):
-        self.bc = blockchain.Blockchain(creator, probability)
+    def __init__(self, creator: str, onCandidateCreated):
+        self.bc = blockchain.Blockchain(creator, probabilityOfCreation)
         self.lock = threading.Lock()
+        self.onCandidateCreated = onCandidateCreated
+        self.stopFlag = threading.Event()
         self.thread = None
-        self.needToRestart = True
 
     def __str__(self) -> str:
         # Gets a string for this transaction.
@@ -85,7 +91,23 @@ class AsyncBlockchain:
         with self.lock:
             return self.bc.setBlocks(blocks, verbose)
 
-    # TODO: Add the part which creates the blocks and shares them around
-    #       as candidates and the voting to choose the correct block
-    #       then use addBlock to instert block and check other chains
-    #       with the request more information like in part 1.
+    def startCreation(self) -> bool:
+        # Start an asynchronous mining thread.
+        self.thread = threading.Thread(target=self.__blockCreator)
+        self.thread.start()
+
+    def stopCreation(self):
+        # Stops the creation timer for shutting down.
+        self.stopFlag.set()
+
+    def __blockCreator(self):
+        # This tread will periodically create a candidate block.
+        # The `while not flag.wait` is based on https://stackoverflow.com/a/12435256
+        while not self.stopFlag.wait(amountOfTimeBetweenBlocks):
+            with self.lock:
+                timestamp = misc.newTime()
+                if not self.bc.shouldCreateNextBlock(timestamp):
+                    continue
+                candidate = self.bc.createNextBlock(timestamp)
+                self.bc.addCandidateBlock(candidate, True)
+            self.onCandidateCreated(candidate)
