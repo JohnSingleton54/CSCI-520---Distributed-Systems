@@ -99,7 +99,7 @@ class MainLoop:
     def __requestMoreInfo(self, nodeId: int = -1):
         hashes = self.bc.listHashes()
         msg = json.dumps({
-            "Type": "NeedMoreInfo",
+            "Type":   "NeedMoreInfo",
             "Hashes": hashes
         })
         if nodeId < 0:
@@ -146,15 +146,21 @@ class MainLoop:
         # probably means the data is invalid so do nothing
 
     def __onCandidateCreated(self, candidate):
+        print(">> ", candidate, "\n")
         self.sock.sendToAll(json.dumps({
-            "Type": "AddCandidate",
+            "Type":      "AddCandidate",
             "Candidate": candidate.toTuple()
         }))
 
     def __onAddCandidate(self, data):
         candidate = block.Block()
         candidate.fromTuple(data)
-        self.bc.addCandidateBlock(candidate)
+        result = self.bc.addCandidateBlock(candidate, True)
+        print("<< ", candidate, " => ", result, "\n")
+        if result == blockchain.needMoreBlockInfo:
+            # The block we tried to add was for a possibly longer chain.
+            self.__requestMoreInfo()
+        # else blocksAdded or ignoreBlock so do nothing
 
     def __onMessage(self, nodeId: int, message: str):
         try:
@@ -177,17 +183,20 @@ class MainLoop:
             print("Unknown message from %d:" % (nodeId), message)
 
     def __makeTransaction(self):
-        fromAccount = str(input("From: "))
-        toAccount = str(input("To: "))
-        amount = float(input("Amount: "))
-        trans = self.bc.newTransaction(fromAccount, toAccount, amount)
-        if trans:
-            self.sock.sendToAll(json.dumps({
-                "Type": "AddTransaction",
-                "Transaction": trans.toTuple()
-            }))
-        else:
-            print("Invalid transaction")
+        try:
+            fromAccount = str(input("From: "))
+            toAccount = str(input("To: "))
+            amount = float(input("Amount: "))
+            trans = self.bc.newTransaction(fromAccount, toAccount, amount)
+            if trans:
+                self.sock.sendToAll(json.dumps({
+                    "Type":        "AddTransaction",
+                    "Transaction": trans.toTuple()
+                }))
+            else:
+                print("Invalid transaction")
+        except Exception as e:
+            print("Invalid transaction: %s" % (e))
 
     def __showFullChain(self):
         print(self.bc)

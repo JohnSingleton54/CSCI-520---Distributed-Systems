@@ -10,9 +10,9 @@ import transaction
 import misc
 
 
-ignoreBlock = 0
-needMoreBlockInfo = 1
-blocksAdded = 2
+ignoreBlock       = "ignoreBlock"
+needMoreBlockInfo = "needMoreBlockInfo"
+blocksAdded       = "blocksAdded"
 
 
 class Blockchain:
@@ -169,7 +169,7 @@ class Blockchain:
             prevHash = b.hash
         return True
 
-    def addCandidateBlock(self, block: block.Block, verbose: bool = False) -> int:
+    def addCandidateBlock(self, block: block.Block, verbose: bool = False) -> str:
          # Determine if the new is at or past the end of the chain. If not, ignore it.
         index = block.blockNum
         if index < len(self.chain):
@@ -190,19 +190,23 @@ class Blockchain:
                 print("Candidate block was invalid")
             return ignoreBlock
 
-        # Check if the candidate already exists or if the creator already added one
-        # (keep newest but drops stake on oldest). Remove any old candidates by block number.  
+        # Check if the candidate already exists, is an too old, or if the creator already added one
+        # (keep newest but drops stake on oldest). Remove any old candidates by block number.
         for i in reversed(range(len(self.candidates))):
             other = self.candidates[i]
-            if other.hash == block.hash:
+            if (other.hash == block.hash) or (other.blockNum > block.blockNum):
                 return ignoreBlock
+            
             if other.creator == block.creator:
                 if other.timestamp < block.timestamp:
-                    self.candidates.remove(i)
+                    del self.candidates[i]
+                    continue
                 else:
                     return ignoreBlock
+            
             if other.blockNum < block.blockNum:
-                self.candidates.remove(i)
+                del self.candidates[i]
+                continue
 
         # Add block to candidates
         self.candidates.append(block)
@@ -210,7 +214,7 @@ class Blockchain:
             print("Candidate block was added")
         return blocksAdded
 
-    def setBlocks(self, blocks: [block.Block], verbose: bool = False) -> int:
+    def setBlocks(self, blocks: [block.Block], verbose: bool = False) -> str:
         # Adds and replaces blocks in the chain with the given blocks.
         # The blocks are only replaced if valid otherwise no change and false is returned.
         if not blocks:
@@ -262,12 +266,12 @@ class Blockchain:
         data = {
             "previousHash", prevHash,
             "creator",      creator,
-            "timestamp",     timestamp,
+            "timestamp",    timestamp,
         }
-        hash = misc.hashData(data)
-        return misc.coinToss(hash, self.probability)
+        hashData = misc.hashData(data)
+        return misc.coinToss(hashData, self.probability)
 
-    def createNextBlock(self, timestamp) -> block.Block:
+    def createNextBlock(self, timestamp: float) -> block.Block:
         # Constructs a new block. Will use but not clear out pending transactions.
         balances = self.getAllBalances()
         trans = []
