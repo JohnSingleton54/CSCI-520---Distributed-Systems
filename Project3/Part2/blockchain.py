@@ -151,7 +151,7 @@ class Blockchain:
                 return False
 
             # Check if the creator was allowed to create the block.
-            if not self.__isAllowedToCreateBlock(prevHash, b.creator, b.timestamp):
+            if not self.__isAllowedToCreateBlock(prevHash, b.creator, b.timestamp, verbose):
                 if verbose:
                     print("Block %d is not allowed to created by that creator yet" % (i))
                 return False
@@ -257,19 +257,18 @@ class Blockchain:
             print("Blocks were added")
         return blocksAdded
 
-    def shouldCreateNextBlock(self, timestamp) -> bool:
+    def shouldCreateNextBlock(self, timestamp, verbose: bool = False) -> bool:
         # Determines if this block chain should create the next block.
-        return self.__isAllowedToCreateBlock(self.lastHash(), self.creator, timestamp)
+        return self.__isAllowedToCreateBlock(self.lastHash(), self.creator, timestamp, verbose)
 
-    def __isAllowedToCreateBlock(self, prevHash, creator: str, timestamp: float) -> bool:
+    def __isAllowedToCreateBlock(self, prevHash, creator: str, timestamp: float, verbose: bool = False) -> bool:
         # Determines if the given creator was permitted to create the block.
-        data = {
-            "previousHash", prevHash,
-            "creator",      creator,
-            "timestamp",    timestamp,
-        }
-        hashData = misc.hashData(data)
-        return misc.coinToss(hashData, self.probability)
+        data = misc.hashData({
+            "previousHash": prevHash,
+            "creator":      creator,
+            "timestamp":    timestamp,
+        })
+        return misc.coinToss(data, self.probability, verbose)
 
     def createNextBlock(self, timestamp: float) -> block.Block:
         # Constructs a new block. Will use but not clear out pending transactions.

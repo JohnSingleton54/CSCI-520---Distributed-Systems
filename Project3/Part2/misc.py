@@ -39,12 +39,15 @@ def hashData(data: {}):
     return hashlib.sha256(dataBytes).hexdigest()
 
 
-def coinToss(seed, probability: float) -> bool:
+def coinToss(seed, probability: float, verbose: bool = False) -> bool:
     # This seeds a random number with the given seed then checks if the
     # returned random number is less than the probability [0.0 .. 1.0].
     # True if successful (heads), false otherwise (tails).
     r = random.Random(seed)
-    return r.random() < probability
+    value = r.random()
+    if verbose:
+        print("coinToss(", value, "<", probability, ")=", value < probability)
+    return value < probability
 
 
 def insertSort(sortedList, value) -> bool:
