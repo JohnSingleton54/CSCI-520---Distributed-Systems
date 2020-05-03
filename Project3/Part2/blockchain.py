@@ -13,18 +13,21 @@ import misc
 ignoreBlock       = "ignoreBlock"
 needMoreBlockInfo = "needMoreBlockInfo"
 blocksAdded       = "blocksAdded"
+validCandidate    = "validCandidate"
+
+initialBalance = 100.0 # The amount to initialize all the validators with
 
 
 class Blockchain:
     # The blockchain and current configurations.
 
-    def __init__(self, creator: str, probability: float):
+    def __init__(self, creator: str, validators: [str], probability: float):
         # Creates a new block chain.
         self.creator     = creator
+        self.validators  = validators
         self.probability = probability
         self.chain       = []
         self.pending     = [] # pending transactions
-        self.candidates  = [] # candidate blocks needing to be voted on
 
     def __str__(self) -> str:
         # Gets a string for this transaction.
@@ -35,9 +38,6 @@ class Blockchain:
         parts.append("pending:")
         for tran in self.pending:
             parts.append("  "+str(tran).replace("\n", "\n  "))
-        parts.append("candidates:")
-        for block in self.candidates:
-            parts.append("  "+str(block).replace("\n", "\n  "))
         return "\n".join(parts)
 
     def toTuple(self) -> {}:
@@ -128,18 +128,16 @@ class Blockchain:
         # This will return True if removed, False if already doesn't exist.
         return misc.removeFromSorted(self.pending, tran)
 
-    def __initialBalances(self) -> {str: float}:
+    def initialBalances(self) -> {str: float}:
         # This is the amount of money each person starts with
-        return {
-            "bob": 100.0,
-            "ted": 100.0,
-            "sal": 100.0,
-            "kim": 100.0,
-        }
+        runningBalances = {}
+        for validator in self.validators:
+            runningBalances[validator] = initialBalance
+        return runningBalances
 
     def getAllBalances(self) -> {str: float}:
         # Gets a dictionary of account to balance.
-        runningBalances = self.__initialBalances()
+        runningBalances = self.initialBalances()
         for b in self.chain:
             b.updateBalance(runningBalances)
         return runningBalances
@@ -150,7 +148,7 @@ class Blockchain:
 
     def isChainValid(self, chain: [block.Block], blockNumOffset, prevHash, verbose: bool = False) -> bool:
         # Indicates if this given chain is valid.
-        runningBalances = self.__initialBalances()
+        runningBalances = self.initialBalances()
         for i in range(len(chain)):
             b = chain[i]
 
@@ -160,9 +158,11 @@ class Blockchain:
                 return False
 
             # Check if the creator was allowed to create the block.
-            if not self.__isAllowedToCreateBlock(prevHash, b.creator, b.timestamp, verbose):
+            permittedCreator = self.whoShouldCreateBlock(prevHash)
+            if b.creator != permittedCreator:
                 if verbose:
-                    print("Block %d is not allowed to created by that creator yet" % (i))
+                    print("Block %d is not allowed to created by %s, the premitted creator was %s" % (
+                        i, b.creator, permittedCreator))
                 return False
 
             if not b.isValid(runningBalances, verbose):
@@ -178,7 +178,7 @@ class Blockchain:
             prevHash = b.hash
         return True
 
-    def addCandidateBlock(self, block: block.Block, verbose: bool = False) -> str:
+    def validateCandidateBlock(self, block: block.Block, verbose: bool = False) -> str:
          # Determine if the new is at or past the end of the chain. If not, ignore it.
         index = block.blockNum
         if index < len(self.chain):
@@ -199,29 +199,10 @@ class Blockchain:
                 print("Candidate block was invalid")
             return ignoreBlock
 
-        # Check if the candidate already exists, is an too old, or if the creator
-        # already added one. Remove any old candidates by block number.
-        for i in reversed(range(len(self.candidates))):
-            other = self.candidates[i]
-            if (other.hash == block.hash) or (other.blockNum > block.blockNum):
-                return ignoreBlock
-            
-            if other.creator == block.creator:
-                if other.timestamp < block.timestamp:
-                    del self.candidates[i]
-                    continue
-                else:
-                    return ignoreBlock
-            
-            if other.blockNum < block.blockNum:
-                del self.candidates[i]
-                continue
-
         # Add block to candidates
-        self.candidates.append(block)
         if verbose:
-            print("Candidate block was added")
-        return blocksAdded
+            print("Candidate block was valid")
+        return validCandidate
 
     def setBlocks(self, blocks: [block.Block], verbose: bool = False) -> str:
         # Adds and replaces blocks in the chain with the given blocks.
@@ -266,20 +247,29 @@ class Blockchain:
             print("Blocks were added")
         return blocksAdded
 
-    def shouldCreateNextBlock(self, timestamp, verbose: bool = False) -> bool:
-        # Determines if this block chain should create the next block.
-        return self.__isAllowedToCreateBlock(self.lastHash(), self.creator, timestamp, verbose)
+    def whoShouldCreateBlock(self, prevHash) -> str:
+        # Determines which of the validators should create the block.
+        # This picks the smallest hash from all the people who won the coin toss,
+        # if no one won the coin toss then the smallest hash of all the loosers is used.
+        creator = None
+        minHash = None
+        wonToss = False
+        for validator in self.validators:
+            hashVal = misc.hashData({
+                "previousHash": prevHash,
+                "validator":    validator,
+            })
+            if misc.coinToss(hashVal, self.probability):
+                if (not wonToss) or (hashVal < minHash):
+                    creator = validator
+                    minHash = hashVal
+                    wonToss = True
+            elif (not wonToss) and (hashVal < minHash):
+                creator = validator
+                minHash = hashVal
+        return creator
 
-    def __isAllowedToCreateBlock(self, prevHash, creator: str, timestamp: float, verbose: bool = False) -> bool:
-        # Determines if the given creator was permitted to create the block.
-        data = misc.hashData({
-            "previousHash": prevHash,
-            "creator":      creator,
-            "timestamp":    timestamp,
-        })
-        return misc.coinToss(data, self.probability, verbose)
-
-    def createNextBlock(self, timestamp: float) -> block.Block:
+    def createNextBlock(self) -> block.Block:
         # Constructs a new block. Will use but not clear out pending transactions.
         balances = self.getAllBalances()
         trans = []
@@ -289,4 +279,4 @@ class Blockchain:
             if tran.isValid(balances):
                 trans.append(tran)
         blockNum = len(self.chain)
-        return block.Block(timestamp, blockNum, self.lastHash(), self.creator, trans)
+        return block.Block(misc.newTime(), blockNum, self.lastHash(), self.creator, trans)

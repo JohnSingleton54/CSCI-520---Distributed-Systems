@@ -96,7 +96,8 @@ class Transaction:
 
         if runningBalances.get(self.fromAccount, 0.0) < self.amount + transactionFee:
             if verbose:
-                print("Insufficient funds: %s has less than %d" % (self.fromAccount, self.amount + transactionFee))
+                print("Insufficient funds: %s has less than %d (with transaction fee)" % (
+                    self.fromAccount, self.amount + transactionFee))
             return False
         
         self.updateBalance(runningBalances)

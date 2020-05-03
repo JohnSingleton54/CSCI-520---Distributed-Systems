@@ -72,10 +72,11 @@ class MainLoop:
 
     def __saveToFile(self):
         #print("JMS1", "in method __saveToFile")
-        data = json.dumps(self.bc.toTuple())  
-        f = open(self.__getFileName(), 'w')
-        f.write(data)
-        f.close()
+        # data = json.dumps(self.bc.toTuple())  
+        # f = open(self.__getFileName(), 'w')
+        # f.write(data)
+        # f.close()
+        pass # TODO: Undo. Comment back in
 
     def __loadFromFile(self):
         try:
