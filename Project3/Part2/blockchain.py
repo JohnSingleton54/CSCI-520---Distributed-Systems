@@ -213,8 +213,14 @@ class Blockchain:
             return False
         if not self.candidate.addSignature(sign):
             return False
+        
+        balances = self.getAllBalances()
+        totalStake = balances.get(self.creator, 0.0) # Put in the creator's stake
+        for sign in self.candidate.signatures:
+            totalStake += balances.get(sign, 0.0)
 
-        # TODO: Implement
+        totalTrans = self.candidate.totalTransactionCost()
+        return totalStake >= totalTrans
 
     def setBlocks(self, blocks: [block.Block], verbose: bool = False) -> str:
         # Adds and replaces blocks in the chain with the given blocks.

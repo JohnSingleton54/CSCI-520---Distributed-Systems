@@ -50,9 +50,10 @@ class MainLoop:
     def __init__(self):
         self.sock = sockets.SocketManager(myNodeId, self.__onConnected, self.__onMessage, self.__onClosed)
         self.sock.startFullyConnected(socketURLs, useServerHost)
-        self.bc = asyncBlockchain.AsyncBlockchain(validatorAccount, validators, self.__onCandidateCreated)
+        self.bc = asyncBlockchain.AsyncBlockchain(validatorAccount, validators,
+            self.__onCandidateCreated, self.__onBlockAdded)
         self.__loadFromFile()
-        self.bc.startCreation()
+        self.bc.start()
 
     def __onConnected(self, nodeId: int):
         print("Connected to", nodeId)
@@ -113,7 +114,6 @@ class MainLoop:
         b.fromTuple(data)
         result = self.bc.setBlocks([b])
         if result == blockchain.blocksAdded:
-            # TODO: Stop voting and start count down to next block
             self.__saveToFile()
         elif result == blockchain.needMoreBlockInfo:
             # The block we tried to add was for a possibly longer chain.
@@ -142,18 +142,34 @@ class MainLoop:
 
     def __onCandidateCreated(self, candidate):
         self.sock.sendToAll(json.dumps({
-            "Type":      "AddCandidate",
+            "Type":      "Candidate",
             "Candidate": candidate.toTuple()
         }))
 
-    def __onAddCandidate(self, data):
+    def __onCandidate(self, data, nodeId):
         candidate = block.Block()
         candidate.fromTuple(data)
-        result = self.bc.addCandidateBlock(candidate, True)
+        result = self.bc.validateCandidateBlock(candidate, True)
         if result == blockchain.needMoreBlockInfo:
             # The block we tried to add was for a possibly longer chain.
             self.__requestMoreInfo()
-        # else blocksAdded or ignoreBlock so do nothing
+        elif result == blockchain.validCandidate:
+            self.sock.sendTo(nodeId, json.dumps({
+                "Type":         "AddSignature",
+                "Validator":     validatorAccount,
+                "CandidateHash": candidate.hash
+            }))
+        # else ignoreBlock so do nothing
+    
+    def __onAddSignature(self, validator, candidateHash):
+        self.bc.addSignature(validator, candidateHash)
+
+    def __onBlockAdded(self, block):
+        self.sock.sendToAll(json.dumps({
+            "Type": "AddBlock",
+            "Block": block.toTuple()
+        }))
+        self.__saveToFile()
 
     def __onMessage(self, nodeId: int, message: str):
         try:
@@ -164,8 +180,10 @@ class MainLoop:
         dataType = data["Type"]
         if dataType == "AddTransaction":
             self.__onRemoteAddTransaction(data["Transaction"])
-        elif dataType == "AddCandidate":
-            self.__onAddCandidate(data["Candidate"])
+        elif dataType == "Candidate":
+            self.__onCandidate(data["Candidate"], nodeId)
+        elif dataType == "AddSignature":
+            self.__onAddSignature(data["Validator"], data["CandidateHash"])
         elif dataType == "AddBlock":
             self.__onRemoteAddBlock(data["Block"])
         elif dataType == "NeedMoreInfo":
@@ -236,7 +254,7 @@ class MainLoop:
 
         print("Closing...")
         self.sock.close()
-        self.bc.stopCreation()
+        self.bc.stop()
 
 
 if __name__ == "__main__":

@@ -95,6 +95,7 @@ class AsyncBlockchain:
             result = self.bc.setBlocks(blocks, verbose)
             if result == blockchain.blocksAdded:
                 self.__bumpIntervalTimer()
+                self.bc.candidate = None
             return result
 
     def whoShouldCreateBlock(self, prevHash) -> str:
@@ -112,7 +113,7 @@ class AsyncBlockchain:
         # Adds a signature to the candidate and checks if the block can be added.
         with self.lock:
             if not self.bc.addSignature(sign, candidateHash):
-                return False
+                return
             block = self.bc.candidate
             self.bc.setBlocks([block], True)
             self.bc.candidate = None
