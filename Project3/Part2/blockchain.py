@@ -25,10 +25,11 @@ class Blockchain:
 
     def __init__(self, creator: str, validators: [str]):
         # Creates a new block chain.
-        self.creator     = creator
-        self.validators  = validators
-        self.chain       = []
-        self.pending     = [] # pending transactions
+        self.creator    = creator
+        self.validators = validators
+        self.chain      = []
+        self.pending    = [] # pending transactions
+        self.candidate  = None
 
     def __str__(self) -> str:
         # Gets a string for this transaction.
@@ -43,7 +44,7 @@ class Blockchain:
 
     def toTuple(self) -> {}:
         # Creates a dictionary for this block chain.
-        # This will not persist candidate blocks.
+        # This will not persist candidate block.
         blocks = []
         for block in self.chain:
             blocks.append(block.toTuple())
@@ -57,7 +58,7 @@ class Blockchain:
 
     def fromTuple(self, data: {}):
         # This loads a block chain from the given tuple.
-        # This will not override the candidate blocks.
+        # This will not override the candidate block.
         self.chain = []
         for subdata in data["blocks"]:
             b = block.Block()
@@ -205,6 +206,16 @@ class Blockchain:
             print("Candidate block was valid")
         return validCandidate
 
+    def addSignature(self, sign: str, candidateHash) -> bool:
+        # Add a signature to the candidate block.
+        # Returns true if this signature was enough to add the block, false otherwise.
+        if (not self.candidate) or (self.candidate.hash != candidateHash):
+            return False
+        if not self.candidate.addSignature(sign):
+            return False
+
+        # TODO: Implement
+
     def setBlocks(self, blocks: [block.Block], verbose: bool = False) -> str:
         # Adds and replaces blocks in the chain with the given blocks.
         # The blocks are only replaced if valid otherwise no change and false is returned.
@@ -248,6 +259,10 @@ class Blockchain:
             print("Blocks were added")
         return blocksAdded
 
+    def shouldCreateNextBlock(self) -> bool:
+        # Determines if this creator should be creating the next block or not.
+        return self.whoShouldCreateBlock(self.lastHash()) == self.creator
+
     def whoShouldCreateBlock(self, prevHash) -> str:
         # Determines which of the validators should create the block.
         # This picks the smallest hash from all the people who won the coin toss,
@@ -278,6 +293,9 @@ class Blockchain:
             # In Python, dictionaries are mutable objects. balances is a dictionary and the method
             # isValid does update balances appropriately each time it is called.
             if tran.isValid(balances):
+                # If this was a "Real BlockChain" we would want to make sure that the number of
+                # transactions is limited such that the total transaction cost isn't more than
+                # the stake of all the possible signers.
                 trans.append(tran)
         blockNum = len(self.chain)
-        return block.Block(misc.newTime(), blockNum, self.lastHash(), self.creator, trans)
+        return block.Block(blockNum, self.lastHash(), self.creator, trans)

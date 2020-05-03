@@ -18,12 +18,12 @@ class Block:
     # Stores a single block in the chain.
     # It contains a set of transactions since the prior chain.
 
-    def __init__(self, timestamp: float = 0.0, blockNum: int = 0,
-        previousHash = None, creator: str = "", transactions: [transaction] = []):
+    def __init__(self, blockNum: int = 0, previousHash = None,
+        creator: str = "", transactions: [transaction] = []):
         # Creates a new block with the given previous block's hash
         # and the transactions for this block.
         self.blockNum     = blockNum
-        self.timestamp    = timestamp
+        self.timestamp    = misc.newTime()
         self.transactions = transactions
         self.previousHash = previousHash
         self.hash         = initialHash
