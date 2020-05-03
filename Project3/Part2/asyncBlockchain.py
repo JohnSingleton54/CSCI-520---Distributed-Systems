@@ -12,7 +12,7 @@ import block
 import misc
 
 
-probabilityOfCreation = 0.25 # 25%
+probabilityOfCreation     = 0.25 # 25%
 amountOfTimeBetweenBlocks = 5.0 #20.0 # seconds
 
 
@@ -81,7 +81,7 @@ class AsyncBlockchain:
             return self.bc.isValid(verbose)
 
     def addCandidateBlock(self, block: block.Block, verbose: bool = False) -> str:
-        # Adds a candidate block to the be voted on with stake.
+        # Adds a candidate block to the be signed.
         with self.lock:
             return self.bc.addCandidateBlock(block, verbose)
 

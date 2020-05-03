@@ -7,7 +7,6 @@
 
 import transaction
 import misc
-import stake
 
 
 initialHash = "0"*64
@@ -23,10 +22,10 @@ class Block:
         self.blockNum     = blockNum
         self.timestamp    = timestamp
         self.transactions = transactions
-        self.stakes       = []
         self.previousHash = previousHash
         self.hash         = initialHash
         self.creator      = creator
+        self.signatures   = []
         # Calculate the hash for this block.
         self.hash = self.calculateHash()
 
@@ -37,9 +36,7 @@ class Block:
             self.blockNum, misc.timeToStr(self.timestamp), str(self.creator)))
         parts.append("  prev: %s" % (str(self.previousHash)))
         parts.append("  hash: %s" % (str(self.hash)))
-        parts.append("  stakes:")
-        for stake in self.stakes:
-            parts.append("    "+str(stake).replace("\n", "\n  "))
+        #parts.append(self.signatures) # TODO: Add signatures to everything
         parts.append("  transactions:")
         for trans in self.transactions:
             parts.append("    "+str(trans).replace("\n", "\n  "))
@@ -47,9 +44,6 @@ class Block:
 
     def toTuple(self) -> {}:
         # Creates a dictionary for this block.
-        stakes = []
-        for stake in self.stakes:
-            stakes.append(stake.toTuple())
         trans = []
         for tran in self.transactions:
             trans.append(tran.toTuple())
@@ -59,7 +53,6 @@ class Block:
             "previousHash": self.previousHash,
             "hash":         self.hash,
             "creator":      self.creator,
-            "stakes":       stakes,
             "transactions": trans,
         }
 
@@ -70,13 +63,6 @@ class Block:
         self.previousHash  = data["previousHash"]
         self.hash          = data["hash"]
         self.creator       = data["creator"]
-
-        self.stakes = []
-        for subdata in data["stakes"]:
-            s = stake.Stake()
-            s.fromTuple(subdata)
-            self.stakes.append(s)
-
         self.transactions  = []
         for subdata in data["transactions"]:
             t = transaction.Transaction()
@@ -84,27 +70,15 @@ class Block:
             self.transactions.append(t)
 
     def calculateHash(self):
-        # Calculates the hash for this whole block, excluding the hash value and stakes.
+        # Calculates the hash for this whole block, excluding the hash value.
         data = self.toTuple()
         del data["hash"]
-        del data["stakes"] # Stakes are added after the block is built so exclude them.
         return misc.hashData(data)
 
     def updateBalance(self, runningBalances: {str: float}):
         # Updates the given running Balances
         for tran in self.transactions:
             tran.updateBalance(runningBalances)
-        self.__updateWithValidatorPayout(runningBalances)
-
-    def __updateWithValidatorPayout(self, runningBalances: {str: float}):
-        # Determines the mining award for validators using stakes and transaction fees
-        transactionFee = len(self.transactions) * transaction.transactionFee
-        totalStake = 0.0
-        for stake in self.stakes:
-            totalStake += stake.amount
-        for stake in self.stakes:
-            amount = stake.amount * transactionFee / totalStake
-            runningBalances[stake.validator] = runningBalances.get(stake.validator, 0.0) + amount
 
     def isValid(self, runningBalances: {str: float}, verbose: bool = False) -> bool:
         # Determines if this block is valid.
@@ -122,14 +96,6 @@ class Block:
             if not self.transactions[i].isValid(runningBalances, verbose):
                 if verbose:
                     print("Block %d has transaction %d which is not valid" % (self.blockNum, i))
-                return False
-
-        # Validate stakes after transactions so we know if accounts have enough to back stakes
-        for i in range(len(self.stakes)):
-            stake = self.stakes[i]
-            if not stake.isValid(self.hash, runningBalances, verbose):
-                if verbose:
-                    print("Block %d has stake %d which is not valid" % (self.blockNum, i))
                 return False
 
         self.__updateWithValidatorPayout(runningBalances)

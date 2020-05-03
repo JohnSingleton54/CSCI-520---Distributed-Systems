@@ -199,8 +199,8 @@ class Blockchain:
                 print("Candidate block was invalid")
             return ignoreBlock
 
-        # Check if the candidate already exists, is an too old, or if the creator already added one
-        # (keep newest but drops stake on oldest). Remove any old candidates by block number.
+        # Check if the candidate already exists, is an too old, or if the creator
+        # already added one. Remove any old candidates by block number.
         for i in reversed(range(len(self.candidates))):
             other = self.candidates[i]
             if (other.hash == block.hash) or (other.blockNum > block.blockNum):
