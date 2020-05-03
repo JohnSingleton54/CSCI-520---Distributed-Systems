@@ -8,6 +8,12 @@
 import misc
 
 
+# Amount of additional money take from the "fromAccount"
+# beyond the amount to cover the transaction cost.
+# This cost is divided among the validators.
+transactionFee = 1.0
+
+
 class Transaction:
     # A description of the transfer of some amount from one address to another.
 
@@ -68,7 +74,7 @@ class Transaction:
         
     def updateBalance(self, runningBalances: {str: float}):
         # Update the balances with this given transaction
-        runningBalances[self.fromAccount] = runningBalances.get(self.fromAccount, 0.0) - self.amount
+        runningBalances[self.fromAccount] = runningBalances.get(self.fromAccount, 0.0) - (self.amount + transactionFee)
         runningBalances[self.toAccount]   = runningBalances.get(self.toAccount,   0.0) + self.amount
 
     def isValid(self, runningBalances: {str: float}, verbose: bool = False) -> bool:
@@ -88,9 +94,9 @@ class Transaction:
                 print("Must have a to account")
             return False
 
-        if runningBalances.get(self.fromAccount, 0.0) < self.amount:
+        if runningBalances.get(self.fromAccount, 0.0) < self.amount + transactionFee:
             if verbose:
-                print("Insufficient funds: %s has less than %d" % (self.fromAccount, self.amount))
+                print("Insufficient funds: %s has less than %d" % (self.fromAccount, self.amount + transactionFee))
             return False
         
         self.updateBalance(runningBalances)

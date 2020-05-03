@@ -128,9 +128,18 @@ class Blockchain:
         # This will return True if removed, False if already doesn't exist.
         return misc.removeFromSorted(self.pending, tran)
 
+    def __initialBalances(self) -> {str: float}:
+        # This is the amount of money each person starts with
+        return {
+            "bob": 100.0,
+            "ted": 100.0,
+            "sal": 100.0,
+            "kim": 100.0,
+        }
+
     def getAllBalances(self) -> {str: float}:
         # Gets a dictionary of account to balance.
-        runningBalances = {}
+        runningBalances = self.__initialBalances()
         for b in self.chain:
             b.updateBalance(runningBalances)
         return runningBalances
@@ -141,7 +150,7 @@ class Blockchain:
 
     def isChainValid(self, chain: [block.Block], blockNumOffset, prevHash, verbose: bool = False) -> bool:
         # Indicates if this given chain is valid.
-        runningBalances = {}
+        runningBalances = self.__initialBalances()
         for i in range(len(chain)):
             b = chain[i]
 

@@ -91,9 +91,20 @@ class Block:
         return misc.hashData(data)
 
     def updateBalance(self, runningBalances: {str: float}):
-        # TODO: Determine the mining award for validators using stakes and transaction fees
+        # Updates the given running Balances
         for tran in self.transactions:
             tran.updateBalance(runningBalances)
+        self.__updateWithValidatorPayout(runningBalances)
+
+    def __updateWithValidatorPayout(self, runningBalances: {str: float}):
+        # Determines the mining award for validators using stakes and transaction fees
+        transactionFee = len(self.transactions) * transaction.transactionFee
+        totalStake = 0.0
+        for stake in self.stakes:
+            totalStake += stake.amount
+        for stake in self.stakes:
+            amount = stake.amount * transactionFee / totalStake
+            runningBalances[stake.validator] = runningBalances.get(stake.validator, 0.0) + amount
 
     def isValid(self, runningBalances: {str: float}, verbose: bool = False) -> bool:
         # Determines if this block is valid.
@@ -115,12 +126,11 @@ class Block:
 
         # Validate stakes after transactions so we know if accounts have enough to back stakes
         for i in range(len(self.stakes)):
-            if not self.stakes[i].isValid(self.hash, runningBalances, verbose):
+            stake = self.stakes[i]
+            if not stake.isValid(self.hash, runningBalances, verbose):
                 if verbose:
                     print("Block %d has stake %d which is not valid" % (self.blockNum, i))
                 return False
 
-        # TODO: Determine how much money the validators should receive.
-
+        self.__updateWithValidatorPayout(runningBalances)
         return True
-

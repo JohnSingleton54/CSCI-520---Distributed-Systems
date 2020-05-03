@@ -68,11 +68,6 @@ class MainLoop:
 
     def __getFileName(self):
         # Gets the name of the chain file for this node ID.
-        # JMS - Q: Why does the following print statement execute every few seconds?
-        # JMS - A: This method is called once by method __loadFromFile and then periodically by
-        # JMS -    method __saveToFile.
-        #str0 = 'chain%d.json' % myNodeId
-        #print("JMS0", str0)
         return 'chain%d.json' % myNodeId
 
     def __saveToFile(self):
@@ -140,13 +135,11 @@ class MainLoop:
             blocks.append(b)
         result = self.bc.setBlocks(blocks)
         if result == blockchain.blocksAdded:
-            # TODO: Stop voting and start count down to next block
             self.__saveToFile()
         # else needMoreBlockInfo or ignoreBlock which
         # probably means the data is invalid so do nothing
 
     def __onCandidateCreated(self, candidate):
-        print(">> ", candidate, "\n")
         self.sock.sendToAll(json.dumps({
             "Type":      "AddCandidate",
             "Candidate": candidate.toTuple()
@@ -156,7 +149,6 @@ class MainLoop:
         candidate = block.Block()
         candidate.fromTuple(data)
         result = self.bc.addCandidateBlock(candidate, True)
-        print("<< ", candidate, " => ", result, "\n")
         if result == blockchain.needMoreBlockInfo:
             # The block we tried to add was for a possibly longer chain.
             self.__requestMoreInfo()

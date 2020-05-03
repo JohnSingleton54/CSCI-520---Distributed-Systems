@@ -12,7 +12,7 @@ import block
 import misc
 
 
-probabilityOfCreation = 0.5 # 50%
+probabilityOfCreation = 0.25 # 25%
 amountOfTimeBetweenBlocks = 5.0 #20.0 # seconds
 
 
