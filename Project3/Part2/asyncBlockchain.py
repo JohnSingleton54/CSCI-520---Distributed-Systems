@@ -12,7 +12,6 @@ import block
 import misc
 
 
-probabilityOfCreation     = 0.25 # 25%
 amountOfTimeBetweenBlocks = 5.0 #20.0 # seconds
 
 
@@ -20,8 +19,8 @@ class AsyncBlockchain:
     # This is a wrapper around a blockchain to provide thread safe access
     # to the chain and asynchronous validating.
 
-    def __init__(self, creator: str, onCandidateCreated):
-        self.bc = blockchain.Blockchain(creator, probabilityOfCreation)
+    def __init__(self, creator: str, validators: [str], onCandidateCreated):
+        self.bc = blockchain.Blockchain(creator, validators)
         self.lock = threading.Lock()
         self.onCandidateCreated = onCandidateCreated
         self.stopFlag = threading.Event()
@@ -80,16 +79,21 @@ class AsyncBlockchain:
         with self.lock:
             return self.bc.isValid(verbose)
 
-    def addCandidateBlock(self, block: block.Block, verbose: bool = False) -> str:
-        # Adds a candidate block to the be signed.
+    def validateCandidateBlock(self, block: block.Block, verbose: bool = False) -> str:
+        # Determine if the new is at or past the end of the chain. If not, ignore it.
         with self.lock:
-            return self.bc.addCandidateBlock(block, verbose)
+            return self.bc.validateCandidateBlock(block, verbose)
 
     def setBlocks(self, blocks: [block.Block], verbose: bool = False) -> str:
         # Adds and replaces blocks in the chain with the given blocks.
         # The blocks are only replaced if valid otherwise no change and false is returned.
         with self.lock:
             return self.bc.setBlocks(blocks, verbose)
+
+    def whoShouldCreateBlock(self, prevHash) -> str:
+        # Gets the name of the validator who should create the new block.
+        with self.lock:
+            return self.bc.whoShouldCreateBlock(prevHash)
 
     def startCreation(self) -> bool:
         # Start an asynchronous mining thread.

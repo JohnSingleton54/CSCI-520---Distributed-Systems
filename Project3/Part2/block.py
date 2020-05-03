@@ -132,7 +132,7 @@ class Block:
         for signer in self.signatures:
             runningBalances[signer] = runningBalances.get(signer, 0.0) + payoutAmount
 
-    def isValid(self, runningBalances: {str: float}, verbose: bool = False) -> bool:
+    def isValid(self, runningBalances: {str: float}, validators: [str], verbose: bool = False) -> bool:
         # Determines if this block is valid.
         if self.calculateHash() != self.hash:
             if verbose:
@@ -153,6 +153,10 @@ class Block:
             if signer == self.creator:
                 if verbose:
                     print("Block %d may not have the creator %s as the signer at %d" % (self.blockNum, signer, i))
+                return False
+            if not signer in validators:
+                if verbose:
+                    print("Block %d has a signer %s at %d who is not a validator" % (self.blockNum, signer, i))
                 return False
 
         for i in range(len(self.transactions)):

@@ -15,17 +15,18 @@ needMoreBlockInfo = "needMoreBlockInfo"
 blocksAdded       = "blocksAdded"
 validCandidate    = "validCandidate"
 
+
+probability    = 0.25  # 25%
 initialBalance = 100.0 # The amount to initialize all the validators with
 
 
 class Blockchain:
     # The blockchain and current configurations.
 
-    def __init__(self, creator: str, validators: [str], probability: float):
+    def __init__(self, creator: str, validators: [str]):
         # Creates a new block chain.
         self.creator     = creator
         self.validators  = validators
-        self.probability = probability
         self.chain       = []
         self.pending     = [] # pending transactions
 
@@ -88,7 +89,7 @@ class Blockchain:
             hashes.append(b.hash)
         return hashes
 
-    def getHashDiffIndex(self, otherHashes: []) -> int:
+    def __getHashDiffIndex(self, otherHashes: []) -> int:
         # Gets the index at which the hashes differ with the
         # assumption that other hashes is a smaller chain.
         length = len(otherHashes)
@@ -103,7 +104,7 @@ class Blockchain:
     def getDifferenceTuple(self, otherHashes: []) -> []:
         # Returns the tuples of the blocks for the differences between the chains.
         # Will return empty if the other hash is less than or equal to this chain.
-        index = self.getHashDiffIndex(otherHashes)
+        index = self.__getHashDiffIndex(otherHashes)
         diff = []
         if index >= 0:
             for b in self.chain[index:]:
@@ -123,12 +124,12 @@ class Blockchain:
         # This will return True if added, False if already exists.
         return misc.insertSort(self.pending, tran)
 
-    def removeTransaction(self, tran: transaction.Transaction) -> bool:
+    def __removeTransaction(self, tran: transaction.Transaction) -> bool:
         # Removes a transition from the pending transactions.
         # This will return True if removed, False if already doesn't exist.
         return misc.removeFromSorted(self.pending, tran)
 
-    def initialBalances(self) -> {str: float}:
+    def __initialBalances(self) -> {str: float}:
         # This is the amount of money each person starts with
         runningBalances = {}
         for validator in self.validators:
@@ -137,18 +138,18 @@ class Blockchain:
 
     def getAllBalances(self) -> {str: float}:
         # Gets a dictionary of account to balance.
-        runningBalances = self.initialBalances()
+        runningBalances = self.__initialBalances()
         for b in self.chain:
             b.updateBalance(runningBalances)
         return runningBalances
 
     def isValid(self, verbose: bool = False) -> bool:
         # Indicates if this blockchain is valid.
-        return self.isChainValid(self.chain, 0, block.initialHash, verbose)
+        return self.__isChainValid(self.chain, 0, block.initialHash, verbose)
 
-    def isChainValid(self, chain: [block.Block], blockNumOffset, prevHash, verbose: bool = False) -> bool:
+    def __isChainValid(self, chain: [block.Block], blockNumOffset, prevHash, verbose: bool = False) -> bool:
         # Indicates if this given chain is valid.
-        runningBalances = self.initialBalances()
+        runningBalances = self.__initialBalances()
         for i in range(len(chain)):
             b = chain[i]
 
@@ -165,7 +166,7 @@ class Blockchain:
                         i, b.creator, permittedCreator))
                 return False
 
-            if not b.isValid(runningBalances, verbose):
+            if not b.isValid(runningBalances, self.validators, verbose):
                 if verbose:
                     print("Block %d is not valid" % (i))
                 return False
@@ -179,7 +180,7 @@ class Blockchain:
         return True
 
     def validateCandidateBlock(self, block: block.Block, verbose: bool = False) -> str:
-         # Determine if the new is at or past the end of the chain. If not, ignore it.
+        # Determine if the new is at or past the end of the chain. If not, ignore it.
         index = block.blockNum
         if index < len(self.chain):
             if verbose:
@@ -194,7 +195,7 @@ class Blockchain:
             return needMoreBlockInfo
 
         # Validate the new candidate block
-        if not self.isChainValid([block], index, self.lastHash(), verbose):
+        if not self.__isChainValid([block], index, self.lastHash(), verbose):
             if verbose:
                 print("Candidate block was invalid")
             return ignoreBlock
@@ -225,7 +226,7 @@ class Blockchain:
             return needMoreBlockInfo
 
         # Validate the knew blocks
-        if not self.isChainValid(blocks, index, self.lastHash(), verbose):
+        if not self.__isChainValid(blocks, index, self.lastHash(), verbose):
             if verbose:
                 print("Request more information because constructed chain was invalid")
             return needMoreBlockInfo
@@ -241,7 +242,7 @@ class Blockchain:
                 self.addTransaction(t)
         for b in blocks:
             for t in b.transactions:
-                self.removeTransaction(t)
+                self.__removeTransaction(t)
         self.chain = newChain
         if verbose:
             print("Blocks were added")
@@ -259,7 +260,7 @@ class Blockchain:
                 "previousHash": prevHash,
                 "validator":    validator,
             })
-            if misc.coinToss(hashVal, self.probability):
+            if misc.coinToss(hashVal, probability):
                 if (not wonToss) or (hashVal < minHash):
                     creator = validator
                     minHash = hashVal

@@ -50,7 +50,7 @@ class MainLoop:
     def __init__(self):
         self.sock = sockets.SocketManager(myNodeId, self.__onConnected, self.__onMessage, self.__onClosed)
         self.sock.startFullyConnected(socketURLs, useServerHost)
-        self.bc = asyncBlockchain.AsyncBlockchain(validatorAccount, self.__onCandidateCreated)
+        self.bc = asyncBlockchain.AsyncBlockchain(validatorAccount, validators, self.__onCandidateCreated)
         self.__loadFromFile()
         self.bc.startCreation()
 
