@@ -118,8 +118,11 @@ class AsyncBlockchain:
             if not self.bc.addSignature(sign, candidateHash):
                 return
             block = self.bc.candidate
-            self.bc.setBlocks([block], True)
+            result = self.bc.setBlocks([block], True)
             self.bc.candidate = None
+            if result != blockchain.blocksAdded:
+                return
+            #print("Addec Block: %s" % (str(block)))
             self.__bumpIntervalTimer()
         self.onBlockAdded(block)
 
@@ -144,18 +147,29 @@ class AsyncBlockchain:
                 self.__createBlock()
 
     def __checkPreviousBlockWasAdded(self):
-        # TODO: Implement checking the last time block and then making an invalid block.
-
-        # Also clear out any stale candidate
+        # Checking the last time block and make a "skip" block if needed.
         with self.lock:
             self.bc.candidate = None
+            skip = self.bc.shouldCreateSkipBlock(timeBetweenCreations)
+            if not skip:
+                return
+            #print("Created Skip: %s" % (str(skip)))
+            result = self.bc.setBlocks([skip], False)
+            if result != blockchain.blocksAdded:
+                return
+            self.__bumpIntervalTimer()
+        self.onBlockAdded(skip)
 
     def __createBlock(self):
         # Checks if this needs to create a new candidate block and creates one.
         with self.lock:
+            self.bc.candidate = None
             if not self.bc.shouldCreateNextBlock():
                 return
             candidate = self.bc.createNextBlock()
+            if not candidate:
+                return
+            #print("Created Candidate: %s" % (str(candidate)))
             self.bc.candidate = candidate
             self.startOfInterval = candidate.timestamp
         self.onCandidateCreated(candidate)

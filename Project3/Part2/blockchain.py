@@ -160,12 +160,13 @@ class Blockchain:
                 return False
 
             # Check if the creator was allowed to create the block.
-            permittedCreator = self.whoShouldCreateBlock(prevHash)
-            if b.creator != permittedCreator:
-                if verbose:
-                    print("Block %d is not allowed to created by %s, the premitted creator was %s" % (
-                        i, b.creator, permittedCreator))
-                return False
+            if b.creator != block.skipCreator:
+                permittedCreator = self.whoShouldCreateBlock(prevHash)
+                if b.creator != permittedCreator:
+                    if verbose:
+                        print("Block %d is not allowed to created by %s, the premitted creator was %s" % (
+                            i, b.creator, permittedCreator))
+                    return False
 
             if not b.isValid(runningBalances, self.validators, verbose):
                 if verbose:
@@ -262,7 +263,7 @@ class Blockchain:
                 self.__removeTransaction(t)
         self.chain = newChain
         if verbose:
-            print("Blocks6 were added")
+            print("Blocks were added")
         return blocksAdded
 
     def shouldCreateNextBlock(self) -> bool:
@@ -305,3 +306,18 @@ class Blockchain:
                 trans.append(tran)
         blockNum = len(self.chain)
         return block.Block(blockNum, self.lastHash(), self.creator, trans)
+
+    def shouldCreateSkipBlock(self, timeBetweenCreations) -> block.Block:
+        # Constructs a new skip block for when someone fails to create a block.
+        lastBlock = self.lastBlock()
+        lastTime = lastBlock.timestamp if lastBlock else 0.0
+
+        now = misc.newTime()
+        timeout = lastTime + timeBetweenCreations * 1.5
+        if now <= timeout:
+            return None
+
+        skip = block.Block(len(self.chain), self.lastHash(), block.skipCreator)
+        skip.timestamp = lastTime + timeBetweenCreations
+        skip.hash = skip.calculateHash()
+        return skip

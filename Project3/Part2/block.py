@@ -12,6 +12,7 @@ import misc
 
 
 initialHash = "0"*64
+skipCreator = "skipped"
 
 
 class Block:
@@ -130,7 +131,8 @@ class Block:
         # stake, and with signers getting an equal payout, the payout is higher for
         # with less. However, since is isn't directly proportional to the stake it
         # helps with the rich-get-richer problem.
-        runningBalances[self.creator] = runningBalances.get(self.creator, 0.0) + payoutAmount
+        if self.creator != skipCreator:
+            runningBalances[self.creator] = runningBalances.get(self.creator, 0.0) + payoutAmount
         for signer in self.signatures:
             runningBalances[signer] = runningBalances.get(signer, 0.0) + payoutAmount
 
