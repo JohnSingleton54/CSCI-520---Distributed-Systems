@@ -118,7 +118,7 @@ class AsyncBlockchain:
             if not self.bc.addSignature(sign, candidateHash):
                 return
             block = self.bc.candidate
-            result = self.bc.setBlocks([block], True)
+            result = self.bc.setBlocks([block])
             self.bc.candidate = None
             if result != blockchain.blocksAdded:
                 return
@@ -154,7 +154,7 @@ class AsyncBlockchain:
             if not skip:
                 return
             #print("Created Skip: %s" % (str(skip)))
-            result = self.bc.setBlocks([skip], False)
+            result = self.bc.setBlocks([skip])
             if result != blockchain.blocksAdded:
                 return
             self.__bumpIntervalTimer()

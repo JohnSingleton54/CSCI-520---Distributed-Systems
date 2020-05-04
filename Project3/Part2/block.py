@@ -5,8 +5,6 @@
 # Project 3 (Blockchain Programming Project)
 # due May 7, 2020 by 11:59 PM
 
-import math
-
 import transaction
 import misc
 
@@ -100,7 +98,7 @@ class Block:
         # summing up the amounts in all the transactions.
         total = 0.0
         for balance in runningBalances.values():
-            total = math.abs(balance)
+            total = abs(balance)
 
         # Half the total transaction but not the total fees.
         # Half, since the total has both sender and receiver.
