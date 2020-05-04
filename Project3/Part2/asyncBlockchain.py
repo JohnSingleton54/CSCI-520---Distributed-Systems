@@ -12,7 +12,7 @@ import block
 import misc
 
 
-timeBetweenCreations = 5.0  # seconds
+timeBetweenCreations = 20.0  # seconds
 timeBetweenTicks = 0.5 # seconds
 
 
