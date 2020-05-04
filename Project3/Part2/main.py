@@ -175,23 +175,30 @@ class MainLoop:
         try:
             data = json.loads(message)
         except Exception as e:
+            print("Message: %s" % (str(message)))
             print("Error receiving message:", e)
             return
-        dataType = data["Type"]
-        if dataType == "AddTransaction":
-            self.__onRemoteAddTransaction(data["Transaction"])
-        elif dataType == "Candidate":
-            self.__onCandidate(data["Candidate"], nodeId)
-        elif dataType == "AddSignature":
-            self.__onAddSignature(data["Validator"], data["CandidateHash"])
-        elif dataType == "AddBlock":
-            self.__onRemoteAddBlock(data["Block"])
-        elif dataType == "NeedMoreInfo":
-            self.__onRemoteNeedMoreInfo(data["Hashes"], nodeId)
-        elif dataType == "ReplyWithInfo":
-            self.__onRemoteReplayWithInfo(data["Diff"])
-        else:
-            print("Unknown message from %d:" % (nodeId), message)
+        
+        try:
+            dataType = data["Type"]
+            if dataType == "AddTransaction":
+                self.__onRemoteAddTransaction(data["Transaction"])
+            elif dataType == "Candidate":
+                self.__onCandidate(data["Candidate"], nodeId)
+            elif dataType == "AddSignature":
+                self.__onAddSignature(data["Validator"], data["CandidateHash"])
+            elif dataType == "AddBlock":
+                self.__onRemoteAddBlock(data["Block"])
+            elif dataType == "NeedMoreInfo":
+                self.__onRemoteNeedMoreInfo(data["Hashes"], nodeId)
+            elif dataType == "ReplyWithInfo":
+                self.__onRemoteReplayWithInfo(data["Diff"])
+            else:
+                print("Unknown message from %d:" % (nodeId), message)
+        except Exception as e:
+            print("Message: %s" % (str(message)))
+            print("Error processing message:", e)
+            return
 
     def __makeTransaction(self):
         try:

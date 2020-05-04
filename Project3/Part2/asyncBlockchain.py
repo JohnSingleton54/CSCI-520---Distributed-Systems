@@ -105,9 +105,11 @@ class AsyncBlockchain:
 
     def __bumpIntervalTimer(self):
         # Must be called from in a lock. Resets the start of the interval.
-        lastTime = self.bc.lastBlock().timestamp
-        if lastTime > self.startOfInterval:
-            self.startOfInterval = lastTime
+        lastBlock = self.bc.lastBlock()
+        if lastBlock:
+            lastTime = lastBlock.timestamp
+            if lastTime > self.startOfInterval:
+                self.startOfInterval = lastTime
     
     def addSignature(self, sign: str, candidateHash):
         # Adds a signature to the candidate and checks if the block can be added.
