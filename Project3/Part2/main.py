@@ -48,7 +48,8 @@ print("My validator account is %s" % (validatorAccount))
 
 class MainLoop:
     def __init__(self):
-        self.sock = sockets.SocketManager(myNodeId, self.__onConnected, self.__onMessage, self.__onClosed)
+        self.sock = sockets.SocketManager(myNodeId,
+            self.__onConnected, self.__onMessage, self.__onClosed)
         self.sock.startFullyConnected(socketURLs, useServerHost)
         self.bc = asyncBlockchain.AsyncBlockchain(validatorAccount, validators,
             self.__onCandidateCreated, self.__onBlockAdded)
@@ -228,6 +229,9 @@ class MainLoop:
         for account in balances:
             print("  %s = %f" % (account, balances[account]))
 
+    def __showNextCreator(self):
+        print("Next Creator: ", self.bc.whoShouldCreateBlock())
+
     def run(self):
         while True:
             print("What would you like to do?")
@@ -236,7 +240,8 @@ class MainLoop:
             print("  3. Show Full Chain")
             print("  4. Show Last Block")
             print("  5. Show Balances")
-            print("  6. Exit")
+            print("  6. Next Creator")
+            print("  7. Exit")
 
             try:
                 choice = int(input("Enter your choice: "))
@@ -255,6 +260,8 @@ class MainLoop:
             elif choice == 5:
                 self.__showBalances()
             elif choice == 6:
+                self.__showNextCreator()
+            elif choice == 7:
                 break
             else:
                 print('Invalid choice "%s". Try again.' % (choice))

@@ -107,9 +107,11 @@ class Block:
         return (total - fees) * 0.5 + fees
 
     def calculateHash(self):
-        # Calculates the hash for this whole block, excluding the hash value.
+        # Calculates the hash for this whole block, excluding the hash value and signatures.
+        # The signatures are excluded since they are added after creation.
         data = self.toTuple()
         del data["hash"]
+        del data["signatures"]
         return misc.hashData(data)
 
     def updateBalance(self, runningBalances: {str: float}):

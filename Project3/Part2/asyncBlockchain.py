@@ -12,7 +12,7 @@ import block
 import misc
 
 
-timeBetweenCreations = 20.0  # seconds
+timeBetweenCreations = 5.0  # seconds
 timeBetweenTicks = 0.5 # seconds
 
 
@@ -98,9 +98,10 @@ class AsyncBlockchain:
                 self.bc.candidate = None
             return result
 
-    def whoShouldCreateBlock(self, prevHash) -> str:
+    def whoShouldCreateBlock(self) -> str:
         # Gets the name of the validator who should create the new block.
         with self.lock:
+            prevHash = self.bc.lastHash()
             return self.bc.whoShouldCreateBlock(prevHash)
 
     def __bumpIntervalTimer(self):

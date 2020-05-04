@@ -262,7 +262,7 @@ class Blockchain:
                 self.__removeTransaction(t)
         self.chain = newChain
         if verbose:
-            print("Blocks were added")
+            print("Blocks6 were added")
         return blocksAdded
 
     def shouldCreateNextBlock(self) -> bool:
@@ -282,11 +282,11 @@ class Blockchain:
                 "validator":    validator,
             })
             if misc.coinToss(hashVal, probability):
-                if (not wonToss) or (hashVal < minHash):
+                if (not wonToss) or (not minHash) or (hashVal < minHash):
                     creator = validator
                     minHash = hashVal
                     wonToss = True
-            elif (not wonToss) and (hashVal < minHash):
+            elif (not wonToss) and ((not minHash) or (hashVal < minHash)):
                 creator = validator
                 minHash = hashVal
         return creator

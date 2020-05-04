@@ -422,7 +422,7 @@ class SocketManager:
     # A tool for setting up and maintaining several connections
     # for processes identified with an integer, the node Id.
 
-    def __init__(self, nodeId: int, onConnected, onMessage, onClosed):
+    def __init__(self, nodeId: int, onConnected, onMessage, onClosed, verbose: bool = False):
         # Creates a new socket manager for the process with the given `nodeId`.
         # The given callback methods maybe set to `None` to not have it callback.
         # The `onConnected` and `onClosed` is called when a connection has been made,
@@ -436,6 +436,7 @@ class SocketManager:
         self.__onMessage = onMessage
         self.__onClosed = onClosed
         self.__inSocketHost = None
+        self.__verbose = verbose
 
     def startFullyConnected(self, socketURLs: [str], useHost: bool = True):
         # Starts a fully connected group of nodes. The given `socketURLs` contains
@@ -482,6 +483,8 @@ class SocketManager:
         # Handles a socket receiving zero or more message.
         if self.__onMessage:
             for message in messages:
+                if self.__verbose:
+                    print("Received(%d): %s" % (nodeId, message))
                 self.__onMessage(nodeId, message)
 
     def __onInnerClosed(self, nodeId: int):
@@ -492,6 +495,8 @@ class SocketManager:
     def sendToAll(self, message: str) -> bool:
         # Sends a message to all sockets which have been connected.
         # Returns true if one or more messages were sent, false if no message was sent out.
+        if self.__verbose:
+            print("sendToAll: %s" % (message))
         anySent = False
         if self.__inSocketHost.sendToAll(message):
             anySent = True
@@ -503,6 +508,8 @@ class SocketManager:
     def sendTo(self, nodeId: int, message: str) -> bool:
         # Sends a message to the process with the given node Id.
         # Returns true if the message was sent and false if that node Id is not connected.
+        if self.__verbose:
+            print("sendTo(%d): %s" % (nodeId, message))
         if nodeId == self.__nodeId:
             return False
         elif nodeId < self.__nodeId:
