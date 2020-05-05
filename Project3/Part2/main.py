@@ -5,7 +5,8 @@
 # Project 3 (Blockchain Programming Project)
 # due May 7, 2020 by 11:59 PM
 
-# JMS - 'python3 main.py 0'
+# JMS - 'python3 main.py 0' ...on my laptop
+# JMS - In Sublime Text, to comment out (or uncomment) a block of Python code I can press 'Ctrl+/'.
 
 # References:
 # 1. https://blog.goodaudience.com/how-a-miner-adds-transactions-to-the-blockchain-in-seven-steps-856053271476
@@ -13,6 +14,8 @@
 import threading
 import sys
 import json
+
+import random
 
 import sockets
 import asyncBlockchain
@@ -215,7 +218,7 @@ class MainLoop:
         except Exception as e:
             print("Invalid transaction: %s" % (e))
 
-    # NOTE: Python does NOT support method overloading.
+    # RECALL: Python does NOT support method overloading.
     def __makeTxn(self, fromAcct, toAcct, amt):
         try:
             fromAccount = fromAcct
@@ -233,55 +236,66 @@ class MainLoop:
             print("Invalid transaction: %s" % (e))
 
     def __insertTenTxns(self):
-        fromAcct = "bob"
-        toAcct = "ted"
-        amt = 5.0
-        self.__makeTxn(fromAcct, toAcct, amt)
+        for i in range(10):
+            l = validators.copy()
+            fromAndTo = random.sample(l, 2)
+            fromAcct = fromAndTo[0]
+            #print("fromAcct: ", fromAcct)
+            toAcct = fromAndTo[1]
+            #print("toAcct: ", toAcct)
+            amt = round(random.uniform(0.01, 1.01), 9)
+            #print(amt)
+            self.__makeTxn(fromAcct, toAcct, amt)
 
-        fromAcct = "bob"
-        toAcct = "sal"
-        amt = 5.0
-        self.__makeTxn(fromAcct, toAcct, amt)
+        # fromAcct = "bob"
+        # toAcct = "ted"
+        # amt = 5.0
+        # self.__makeTxn(fromAcct, toAcct, amt)
+
+        # fromAcct = "bob"
+        # toAcct = "sal"
+        # amt = 5.0
+        # self.__makeTxn(fromAcct, toAcct, amt)
         
-        fromAcct = "bob"
-        toAcct = "kim"
-        amt = 5.0
-        self.__makeTxn(fromAcct, toAcct, amt)
+        # fromAcct = "bob"
+        # toAcct = "kim"
+        # amt = 5.0
+        # self.__makeTxn(fromAcct, toAcct, amt)
         
-        fromAcct = "kim"
-        toAcct = "ted"
-        amt = 25.0
-        self.__makeTxn(fromAcct, toAcct, amt)
+        # fromAcct = "kim"
+        # toAcct = "ted"
+        # amt = 25.0
+        # self.__makeTxn(fromAcct, toAcct, amt)
         
-        fromAcct = "sal"
-        toAcct = "ted" # sal, kim
-        amt = 25.0
-        self.__makeTxn(fromAcct, toAcct, amt)
+        # fromAcct = "sal"
+        # toAcct = "ted"
+        # amt = 25.0
+        # self.__makeTxn(fromAcct, toAcct, amt)
         
-        fromAcct = "bob"
-        toAcct = "ted" # sal, kim
-        amt = 25.0
-        self.__makeTxn(fromAcct, toAcct, amt)
+        # fromAcct = "bob"
+        # toAcct = "ted"
+        # amt = 25.0
+        # self.__makeTxn(fromAcct, toAcct, amt)
         
-        fromAcct = "ted"
-        toAcct = "bob" # sal, kim
-        amt = 10.0
-        self.__makeTxn(fromAcct, toAcct, amt)
+        # fromAcct = "ted"
+        # toAcct = "bob"
+        # amt = 10.0
+        # self.__makeTxn(fromAcct, toAcct, amt)
         
-        fromAcct = "ted"
-        toAcct = "bob" # sal, kim
-        amt = 20.0
-        self.__makeTxn(fromAcct, toAcct, amt)
+        # fromAcct = "ted"
+        # toAcct = "bob"
+        # amt = 20.0
+        # self.__makeTxn(fromAcct, toAcct, amt)
         
-        fromAcct = "ted"
-        toAcct = "bob" # sal, kim
-        amt = 30.0
-        self.__makeTxn(fromAcct, toAcct, amt)
+        # fromAcct = "ted"
+        # toAcct = "bob"
+        # amt = 30.0
+        # self.__makeTxn(fromAcct, toAcct, amt)
         
-        fromAcct = "ted"
-        toAcct = "bob" # sal, kim
-        amt = 40.0
-        self.__makeTxn(fromAcct, toAcct, amt)
+        # fromAcct = "ted"
+        # toAcct = "bob"
+        # amt = 40.0
+        # self.__makeTxn(fromAcct, toAcct, amt)
 
     def __showFullChain(self):
         print(self.bc)
