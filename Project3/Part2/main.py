@@ -215,6 +215,31 @@ class MainLoop:
         except Exception as e:
             print("Invalid transaction: %s" % (e))
 
+    # NOTE: Python does NOT support method overloading.
+    def __makeTxn(self, fromAcct, toAcct, amt):
+        try:
+            fromAccount = fromAcct
+            toAccount = toAcct
+            amount = amt
+            trans = self.bc.newTransaction(fromAccount, toAccount, amount)
+            if trans:
+                self.sock.sendToAll(json.dumps({
+                    "Type":        "AddTransaction",
+                    "Transaction": trans.toTuple()
+                }))
+            else:
+                print("Invalid transaction")
+        except Exception as e:
+            print("Invalid transaction: %s" % (e))
+
+    def __insertTenTxns(self):
+        fromAcct = "bob"
+        toAcct = "ted" # sal, kim
+        amt = 5.0
+        self.__makeTxn(fromAcct, toAcct, amt)
+
+
+
     def __showFullChain(self):
         print(self.bc)
 
@@ -241,7 +266,6 @@ class MainLoop:
             print("  6. Show Balances")
             print("  7. Next Creator")
             print("  8. Exit")
-            print("  9. Make Txns")
 
             try:
                 choice = int(input("Enter your choice: "))
@@ -254,8 +278,7 @@ class MainLoop:
             elif choice == 2:
                 self.__makeTransaction()
             elif choice == 3:
-                pass
-                # self.__insertTenTxns()
+                self.__insertTenTxns()
             elif choice == 4:
                 self.__showFullChain()
             elif choice == 5:
