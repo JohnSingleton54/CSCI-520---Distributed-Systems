@@ -235,12 +235,13 @@ class MainLoop:
             print("What would you like to do?")
             print("  1. Info")
             print("  2. Make Transaction")
-            print("  3. Show Full Chain")
-            print("  4. Show Last Block")
-            print("  5. Show Balances")
-            print("  6. Next Creator")
-            print("  7. Exit")
-            print("  8. Make Txns")
+            print("  3. Insert Ten Transactions")
+            print("  4. Show Full Chain")
+            print("  5. Show Last Block")
+            print("  6. Show Balances")
+            print("  7. Next Creator")
+            print("  8. Exit")
+            print("  9. Make Txns")
 
             try:
                 choice = int(input("Enter your choice: "))
@@ -248,19 +249,22 @@ class MainLoop:
                 print("Invalid choice. Try again.")
                 continue
 
-            if choice == 1:
+            if choice   == 1:
                 self.__printInfo()
             elif choice == 2:
                 self.__makeTransaction()
             elif choice == 3:
-                self.__showFullChain()
+                pass
+                # self.__insertTenTxns()
             elif choice == 4:
-                self.__showLastBlock()
+                self.__showFullChain()
             elif choice == 5:
-                self.__showBalances()
+                self.__showLastBlock()
             elif choice == 6:
-                self.__showNextCreator()
+                self.__showBalances()
             elif choice == 7:
+                self.__showNextCreator()
+            elif choice == 8:
                 break
             else:
                 print('Invalid choice "%s". Try again.' % (choice))
