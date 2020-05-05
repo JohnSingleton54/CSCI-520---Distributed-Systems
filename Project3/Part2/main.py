@@ -240,6 +240,7 @@ class MainLoop:
             print("  5. Show Balances")
             print("  6. Next Creator")
             print("  7. Exit")
+            print("  8. Make Txns")
 
             try:
                 choice = int(input("Enter your choice: "))
