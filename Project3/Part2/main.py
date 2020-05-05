@@ -234,11 +234,54 @@ class MainLoop:
 
     def __insertTenTxns(self):
         fromAcct = "bob"
-        toAcct = "ted" # sal, kim
+        toAcct = "ted"
         amt = 5.0
         self.__makeTxn(fromAcct, toAcct, amt)
 
-
+        fromAcct = "bob"
+        toAcct = "sal"
+        amt = 5.0
+        self.__makeTxn(fromAcct, toAcct, amt)
+        
+        fromAcct = "bob"
+        toAcct = "kim"
+        amt = 5.0
+        self.__makeTxn(fromAcct, toAcct, amt)
+        
+        fromAcct = "kim"
+        toAcct = "ted"
+        amt = 25.0
+        self.__makeTxn(fromAcct, toAcct, amt)
+        
+        fromAcct = "sal"
+        toAcct = "ted" # sal, kim
+        amt = 25.0
+        self.__makeTxn(fromAcct, toAcct, amt)
+        
+        fromAcct = "bob"
+        toAcct = "ted" # sal, kim
+        amt = 25.0
+        self.__makeTxn(fromAcct, toAcct, amt)
+        
+        fromAcct = "ted"
+        toAcct = "bob" # sal, kim
+        amt = 10.0
+        self.__makeTxn(fromAcct, toAcct, amt)
+        
+        fromAcct = "ted"
+        toAcct = "bob" # sal, kim
+        amt = 20.0
+        self.__makeTxn(fromAcct, toAcct, amt)
+        
+        fromAcct = "ted"
+        toAcct = "bob" # sal, kim
+        amt = 30.0
+        self.__makeTxn(fromAcct, toAcct, amt)
+        
+        fromAcct = "ted"
+        toAcct = "bob" # sal, kim
+        amt = 40.0
+        self.__makeTxn(fromAcct, toAcct, amt)
 
     def __showFullChain(self):
         print(self.bc)
