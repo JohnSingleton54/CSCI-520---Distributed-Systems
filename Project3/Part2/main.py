@@ -156,6 +156,7 @@ class MainLoop:
             # The block we tried to add was for a possibly longer chain.
             self.__requestMoreInfo()
         elif result == blockchain.validCandidate:
+            print("%s signed the block from %s" % (validatorAccount, candidate.creator))
             self.sock.sendTo(nodeId, json.dumps({
                 "Type":         "AddSignature",
                 "Validator":     validatorAccount,
@@ -207,23 +208,13 @@ class MainLoop:
             fromAccount = str(input("From: "))
             toAccount = str(input("To: "))
             amount = float(input("Amount: "))
-            trans = self.bc.newTransaction(fromAccount, toAccount, amount)
-            if trans:
-                self.sock.sendToAll(json.dumps({
-                    "Type":        "AddTransaction",
-                    "Transaction": trans.toTuple()
-                }))
-            else:
-                print("Invalid transaction")
+            self.__makeTxn(fromAccount, toAccount, amount)
         except Exception as e:
             print("Invalid transaction: %s" % (e))
 
     # RECALL: Python does NOT support method overloading.
-    def __makeTxn(self, fromAcct, toAcct, amt):
+    def __makeTxn(self, fromAccount, toAccount, amount):
         try:
-            fromAccount = fromAcct
-            toAccount = toAcct
-            amount = amt
             trans = self.bc.newTransaction(fromAccount, toAccount, amount)
             if trans:
                 self.sock.sendToAll(json.dumps({
@@ -246,56 +237,6 @@ class MainLoop:
             amt = round(random.uniform(0.01, 1.01), 9)
             #print(amt)
             self.__makeTxn(fromAcct, toAcct, amt)
-
-        # fromAcct = "bob"
-        # toAcct = "ted"
-        # amt = 5.0
-        # self.__makeTxn(fromAcct, toAcct, amt)
-
-        # fromAcct = "bob"
-        # toAcct = "sal"
-        # amt = 5.0
-        # self.__makeTxn(fromAcct, toAcct, amt)
-        
-        # fromAcct = "bob"
-        # toAcct = "kim"
-        # amt = 5.0
-        # self.__makeTxn(fromAcct, toAcct, amt)
-        
-        # fromAcct = "kim"
-        # toAcct = "ted"
-        # amt = 25.0
-        # self.__makeTxn(fromAcct, toAcct, amt)
-        
-        # fromAcct = "sal"
-        # toAcct = "ted"
-        # amt = 25.0
-        # self.__makeTxn(fromAcct, toAcct, amt)
-        
-        # fromAcct = "bob"
-        # toAcct = "ted"
-        # amt = 25.0
-        # self.__makeTxn(fromAcct, toAcct, amt)
-        
-        # fromAcct = "ted"
-        # toAcct = "bob"
-        # amt = 10.0
-        # self.__makeTxn(fromAcct, toAcct, amt)
-        
-        # fromAcct = "ted"
-        # toAcct = "bob"
-        # amt = 20.0
-        # self.__makeTxn(fromAcct, toAcct, amt)
-        
-        # fromAcct = "ted"
-        # toAcct = "bob"
-        # amt = 30.0
-        # self.__makeTxn(fromAcct, toAcct, amt)
-        
-        # fromAcct = "ted"
-        # toAcct = "bob"
-        # amt = 40.0
-        # self.__makeTxn(fromAcct, toAcct, amt)
 
     def __showFullChain(self):
         print(self.bc)

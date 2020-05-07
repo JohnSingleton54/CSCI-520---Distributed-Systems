@@ -122,7 +122,7 @@ class AsyncBlockchain:
             self.bc.candidate = None
             if result != blockchain.blocksAdded:
                 return
-            #print("Addec Block: %s" % (str(block)))
+            #print("Added Block: %s" % (str(block)))
             self.__bumpIntervalTimer()
         self.onBlockAdded(block)
 
@@ -169,7 +169,8 @@ class AsyncBlockchain:
             candidate = self.bc.createNextBlock()
             if not candidate:
                 return
-            #print("Created Candidate: %s" % (str(candidate)))
+            print("%s created the candidate" % (self.bc.creator))
+            #print("Created the candidate: %s" % (str(candidate)))
             self.bc.candidate = candidate
             self.startOfInterval = candidate.timestamp
         self.onCandidateCreated(candidate)

@@ -115,5 +115,6 @@ class AsyncBlockchain:
                 with self.lock:
                     added = self.bc.mineBlock(b)
                 if added:
+                    print("%s mined a block" % (self.minerAccount))
                     self.needToRestart = True
                     self.onBlockedMined(b)
