@@ -242,8 +242,8 @@ class Blockchain:
             for t in b.transactions:
                 self.removeTransaction(t)
         self.chain = newChain
-        if verbose:
-            print("Blocks were added")
+        # if verbose:
+        #     print("Blocks were added")
         return blocksAdded
 
     def buildNextBlock(self, minerAccount: str) -> block.Block:

@@ -522,6 +522,6 @@ class SocketManager:
     def close(self):
         # Closes and cleanup all the sockets being used by this manager.
         if self.__inSocketHost:
-            self.__inSocketHost.c()
+            self.__inSocketHost.close()
         for sock in self.__outSockets.values():
             sock.close()
