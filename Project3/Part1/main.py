@@ -21,12 +21,12 @@ import block
 import transaction
 
 
-useServerHost = True
+useServerHost = False
 socketURLs = [
-    "localhost:8080",
-    "localhost:8081",
-    "localhost:8082",
-    "localhost:8083",
+    "35.155.81.205:8080",
+    "54.244.147.5:8080",
+    "52.24.179.93:8080",
+    "54.212.10.209:8080",
 ]
 miners = [
     "bob",
@@ -141,7 +141,7 @@ class MainLoop:
     def __onRemoteAddBlock(self, data: {}):
         b = block.Block()
         b.fromTuple(data)
-        result = self.bc.setBlocks([b])
+        result = self.bc.setBlocks([b], True)
         if result == blockchain.blocksAdded:
             # A block was added so stop mining the
             # current block and start the next one.
@@ -166,7 +166,7 @@ class MainLoop:
             b = block.Block()
             b.fromTuple(data)
             blocks.append(b)
-        result = self.bc.setBlocks(blocks)
+        result = self.bc.setBlocks(blocks, True)
         if result == blockchain.blocksAdded:
             # The missing block(s) were added so stop mining the
             # current block and start the next one.

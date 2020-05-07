@@ -24,12 +24,12 @@ import block
 import transaction
 
 
-useServerHost = True
+useServerHost = False
 socketURLs = [
-    "localhost:8080",
-    "localhost:8081",
-    "localhost:8082",
-    "localhost:8083",
+    "35.155.81.205:8080",
+    "54.244.147.5:8080",
+    "52.24.179.93:8080",
+    "54.212.10.209:8080",
 ]
 validators = [
     "bob",

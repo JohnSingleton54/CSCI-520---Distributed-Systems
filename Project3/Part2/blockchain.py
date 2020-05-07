@@ -170,12 +170,13 @@ class Blockchain:
 
             if not b.isValid(runningBalances, self.validators, verbose):
                 if verbose:
-                    print("Block %d is not valid" % (i))
+                    print("Block %d is not valid" % (i + blockNumOffset))
                 return False
 
             if b.previousHash != prevHash:
                 if verbose:
-                    print("Block %d has the wrong previous hash" % (i))
+                    print("Block %d has the wrong previous hash" % (i + blockNumOffset))
+                    print("%s != %s" % (b.previousHash, prevHash))
                 return False
 
             prevHash = b.hash
