@@ -101,7 +101,6 @@ class AsyncBlockchain:
     def stopMining(self):
         # Stop and rejoin the mining thread.
         self.keepMining = False
-        self.thread.join()
 
     def __asyncMinePendingTransactions(self):
         # Constructs and mines a new block. If a block is mined and added

@@ -70,7 +70,7 @@ class Transaction:
         # Indicates if this transaction is valid.
         if self.amount <= 0:
             if verbose:
-                print("Amount was %d <= 0" % (self.amount))
+                print("Amount was %f <= 0" % (self.amount))
             return False
 
         if not self.fromAccount:
@@ -83,9 +83,10 @@ class Transaction:
                 print("Must have a to account")
             return False
 
-        if runningBalances.get(self.fromAccount, 0.0) < self.amount:
+        hasAmount = runningBalances.get(self.fromAccount, 0.0)
+        if hasAmount < self.amount:
             if verbose:
-                print("Insufficient funds: %s has less than %d" % (self.fromAccount, self.amount))
+                print("Insufficient funds: %s has %f which is less than %f" % (self.fromAccount, hasAmount, self.amount))
             return False
 
         runningBalances[self.fromAccount] = runningBalances.get(self.fromAccount, 0.0) - self.amount

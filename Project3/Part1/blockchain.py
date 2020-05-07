@@ -163,11 +163,10 @@ class Blockchain:
 
     def isValid(self, verbose: bool = False) -> bool:
         # Indicates if this blockchain is valid.
-        return self.isChainValid(self.chain, 0, block.initialHash, verbose)
+        return self.isChainValid(self.chain, {}, 0, block.initialHash, verbose)
 
-    def isChainValid(self, chain: [block.Block], blockNumOffset, prevHash, verbose: bool = False) -> bool:
+    def isChainValid(self, chain: [block.Block], runningBalances: {}, blockNumOffset: int, prevHash, verbose: bool = False) -> bool:
         # Indicates if this given chain is valid.
-        runningBalances = {}
         for i in range(len(chain)):
             b = chain[i]
 
@@ -216,8 +215,16 @@ class Blockchain:
                 print("Block %d is past the last known block %d, so request more information" % (index, len(self.chain)))
             return needMoreBlockInfo
 
+        # Get the balances running up to the block being validated,
+        runningBalances = {}
+        for b in self.chain[:index]:
+            runningBalances[b.minerAccount] = runningBalances.get(b.minerAccount, 0.0) + b.miningReward
+            for tran in b.transactions:
+                runningBalances[tran.fromAccount] = runningBalances.get(tran.fromAccount, 0.0) - tran.amount
+                runningBalances[tran.toAccount]   = runningBalances.get(tran.toAccount,   0.0) + tran.amount
+
         # Validate the knew blocks
-        if not self.isChainValid(blocks, index, self.lastHash(), verbose):
+        if not self.isChainValid(blocks, runningBalances, index, self.lastHash(), verbose):
             if verbose:
                 print("Request more information because constructed chain was invalid")
             return needMoreBlockInfo

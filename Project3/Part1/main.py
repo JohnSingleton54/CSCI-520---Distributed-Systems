@@ -258,9 +258,7 @@ class MainLoop:
 
         print("Closing...")
         self.sock.close()
-        #print("Here I am")
         self.bc.stopMining()
-        #print("On the road again")
 
 
 if __name__ == "__main__":
