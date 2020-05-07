@@ -59,7 +59,7 @@ print("My miner account is %s" % (minerAccount))
 #       then with a difficulty of 4 (1:32768) it will take on average 5.46 minutes
 #       (obviously we are faster than 10 ms per single nonce).
 #       The miningReward is arbitrary since that's just how much our own crypto currency grows.
-difficulty = 5
+difficulty = 6
 miningReward = 1.0
 
 #import hashlib
