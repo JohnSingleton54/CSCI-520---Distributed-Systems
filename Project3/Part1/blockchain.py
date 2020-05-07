@@ -101,6 +101,7 @@ class Blockchain:
         index = self.getHashDiffIndex(otherHashes)
         diff = []
         if index >= 0:
+            print("Found differences at %d for requested information" % (index))
             for b in self.chain[index:]:
                 diff.append(b.toTuple())
         return diff
@@ -212,7 +213,7 @@ class Blockchain:
 
         if index > len(self.chain):
             if verbose:
-                print("Block %d is past the last known block %d, so request more information" % (index, len(self.chain)))
+                print("Block %d is past the last known block %d, so request more information" % (index, len(self.chain)-1))
             return needMoreBlockInfo
 
         # Get the balances running up to the block being validated,
@@ -242,8 +243,8 @@ class Blockchain:
             for t in b.transactions:
                 self.removeTransaction(t)
         self.chain = newChain
-        # if verbose:
-        #     print("Blocks were added")
+        if verbose:
+            print("New blocks are valid, adding to chain")
         return blocksAdded
 
     def buildNextBlock(self, minerAccount: str) -> block.Block:

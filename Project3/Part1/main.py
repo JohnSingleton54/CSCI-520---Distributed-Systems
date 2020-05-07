@@ -155,6 +155,7 @@ class MainLoop:
     def __onRemoteNeedMoreInfo(self, hashes: [], nodeId: int):
         diff = self.bc.getDifferenceTuple(hashes)
         if diff:
+            print("Sending requested information to node %d" % (nodeId))
             self.sock.sendTo(nodeId, json.dumps({
                 "Type": "ReplyWithInfo",
                 "Diff": diff
